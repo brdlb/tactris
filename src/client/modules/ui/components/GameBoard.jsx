@@ -128,9 +128,26 @@ const GameBoard = () => {
             isDrawing.current = false;
         };
 
+        const handleGlobalTouchEnd = (e) => {
+            e.preventDefault();
+            if (isDrawing.current && drawMode.current === 1) {
+                if (selectedPixels.current.length >= 4) {
+                    // Send the figure to the server
+                    if (roomIdRef.current && !gameOver) {
+                        SocketManager.placeFigure(roomIdRef.current, selectedPixels.current);
+                    }
+                    selectedPixels.current = [];
+                }
+            }
+            isDrawing.current = false;
+        };
+
         window.addEventListener('mouseup', handleGlobalMouseUp);
+        window.addEventListener('touchend', handleGlobalTouchEnd);
+        
         return () => {
             window.removeEventListener('mouseup', handleGlobalMouseUp);
+            window.removeEventListener('touchend', handleGlobalTouchEnd);
         };
     }, [gameOver]);
 
@@ -261,6 +278,79 @@ const GameBoard = () => {
         }
     };
 
+    // Helper function to convert touch coordinates to grid coordinates
+    const getGridCoordinatesFromTouch = (touch, gameBoardElement) => {
+        const rect = gameBoardElement.getBoundingClientRect();
+        const cellWidth = rect.width / 10;
+        const cellHeight = rect.height / 10;
+        
+        const x = Math.floor((touch.clientX - rect.left) / cellWidth);
+        const y = Math.floor((touch.clientY - rect.top) / cellHeight);
+        
+        return { x: Math.max(0, Math.min(9, x)), y: Math.max(0, Math.min(9, y)) };
+    };
+
+    const handleTouchStart = (e) => {
+        e.preventDefault();
+        
+        if (!roomId || gameOver) return;
+        
+        isDrawing.current = true;
+        
+        // Get the game board element
+        const gameBoardElement = document.querySelector('.game-board');
+        
+        // Handle first touch
+        if (e.touches.length > 0 && gameBoardElement) {
+            const touch = e.touches[0];
+            const { x, y } = getGridCoordinatesFromTouch(touch, gameBoardElement);
+            
+            const currentCell = gridRef.current[y][x];
+            const targetStatus = currentCell ? 0 : 1;
+            drawMode.current = targetStatus;
+            
+            handleInteraction(x, y);
+        }
+    };
+
+    const handleTouchMove = (e) => {
+        e.preventDefault();
+        
+        if (!isDrawing.current || !roomId || gameOver) return;
+        
+        // Only handle the first touch
+        if (e.touches.length > 0) {
+            const touch = e.touches[0];
+            const gameBoardElement = document.querySelector('.game-board');
+            
+            if (gameBoardElement) {
+                const { x, y } = getGridCoordinatesFromTouch(touch, gameBoardElement);
+                
+                const currentCell = gridRef.current[y][x];
+                const currentStatus = currentCell ? 1 : 0;
+                
+                if (currentStatus !== drawMode.current) {
+                    handleInteraction(x, y);
+                }
+            }
+        }
+    };
+
+    const handleTouchEnd = (e) => {
+        e.preventDefault();
+        
+        if (isDrawing.current && drawMode.current === 1) {
+            if (selectedPixels.current.length >= 4) {
+                // Send the figure to the server
+                if (roomIdRef.current && !gameOver) {
+                    SocketManager.placeFigure(roomIdRef.current, selectedPixels.current);
+                }
+                selectedPixels.current = [];
+            }
+        }
+        isDrawing.current = false;
+    };
+
     // Render helper for figures
     const renderFigure = (type) => {
         const shape = FIGURES[type];
@@ -348,8 +438,12 @@ const GameBoard = () => {
                                 className="grid-cell"
                                 onMouseDown={(e) => handleMouseDown(x, y, e)}
                                 onMouseEnter={() => handleMouseEnter(x, y)}
+                                onTouchStart={(e) => handleTouchStart(e)}
+                                onTouchMove={(e) => handleTouchMove(e)}
+                                onTouchEnd={(e) => handleTouchEnd(e)}
                                 style={{
                                     backgroundColor: cell ? cell.color : 'white',
+                                    touchAction: 'none', // Prevent scrolling and zooming on touch
                                 }}
                             />
                         ))

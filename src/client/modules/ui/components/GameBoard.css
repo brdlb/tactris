@@ -40,6 +40,37 @@
     height: 8vmin;
     cursor: pointer;
     transition: background-color 0.2s;
+    touch-action: none; /* Prevent scrolling and zooming on touch */
+    -webkit-touch-callout: none; /* Disable callout, copy/paste on iOS */
+    -webkit-user-select: none; /* Disable text selection on iOS */
+    -khtml-user-select: none; /* Disable text selection on Safari */
+    -moz-user-select: none; /* Disable text selection on Firefox */
+    -ms-user-select: none; /* Disable text selection on Internet Explorer */
+    user-select: none; /* Disable text selection on modern browsers */
+}
+
+/* Mobile-specific improvements */
+@media (hover: none) and (pointer: coarse) {
+    .grid-cell {
+        /* Larger touch targets on mobile */
+        min-width: 32px;
+        min-height: 32px;
+    }
+    
+    .game-board {
+        /* Ensure grid is properly sized for touch */
+        touch-action: none;
+    }
+}
+
+/* High-DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .grid-cell {
+        /* Prevent blurriness on high-DPI displays */
+        transform: translateZ(0);
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+    }
 }
 
 /* Landscape: Width > Height */
