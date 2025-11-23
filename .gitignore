@@ -12,3 +12,5 @@ yarn-error.log*
 .DS_Store
 .vscode/
 .idea/
+tactris.service
+nginx.conf
