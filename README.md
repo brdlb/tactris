@@ -1,196 +1,196 @@
-# Tactris - Многопользовательская Игра
+# Tactris - Multiplayer Game
 
 ![Tactris Logo](https://img.shields.io/badge/Tactris-v1.0.0-blue.svg)
 
-Tactris — это инновационная многопользовательская онлайн-игра, основанная на классическом Tetris, но с уникальной механикой рисования фигур. Вместо управления падающими блоками, игроки рисуют тетромино мышью прямо на игровом поле.
+Tactris is an innovative multiplayer online game based on classic Tetris, but with a unique figure drawing mechanic. Instead of controlling falling blocks, players draw tetrominoes with their mouse directly on the game grid.
 
-## 🎮 Особенности Игры
+## 🎮 Game Features
 
-### Уникальная Механика
-- **Рисование фигур**: Игроки мышью рисуют классические тетромино (I, O, T, S, Z, J, L) на сетке 10×10
-- **Валидация в реальном времени**: Система проверяет соответствие нарисованных фигур доступным тетромино
-- **Ориентация фигур**: Поддерживаются все 4 поворота каждой фигуры
+### Unique Mechanics
+- **Figure Drawing**: Players use the mouse to draw classic tetrominoes (I, O, T, S, Z, J, L) on a 10×10 grid
+- **Real-time Validation**: System checks if drawn figures match available tetrominoes
+- **Figure Orientation**: All 4 rotations of each figure are supported
 
-### Многопользовательский Режим
-- **Создание комнат**: Игроки могут создавать приватные игровые комнаты
-- **Присоединение к играм**: Возможность присоединиться к существующим комнатам
-- **Реальное время**: Все действия синхронизируются между игроками через WebSocket
+### Multiplayer Mode
+- **Room Creation**: Players can create private game rooms
+- **Join Games**: Ability to join existing rooms
+- **Real-time**: All actions are synchronized between players via WebSocket
 
-### Игровая Логика
-- **Система очков**: 4 очка за размещение фигуры + бонусы за очистку линий
-- **Очистка лирий**: Полные строки и столбцы очищаются с бонусными очками
-- **Множественные бонусы**: Дополнительные очки за одновременную очистку нескольких линий
-- **Окончание игры**: Игра заканчивается, когда никто не может разместить свои фигуры
+### Game Logic
+- **Scoring System**: 4 points for placing a figure + bonuses for clearing lines
+- **Line Clearing**: Full rows and columns are cleared with bonus points
+- **Multiple Bonuses**: Additional points for simultaneous line clearing
+- **Game Over**: Game ends when no one can place their figures
 
-## 🚀 Технологии
+## 🚀 Technologies
 
 ### Frontend
-- **React 18** - современный JavaScript фреймворк для пользовательского интерфейса
-- **Vite** - быстрый инструмент сборки для современных веб-проектов
-- **Socket.io Client** - двунаправленная связь в реальном времени
-- **CSS Grid** - современная система компоновки для игрового поля
+- **React 18** - modern JavaScript framework for user interface
+- **Vite** - fast build tool for modern web projects
+- **Socket.io Client** - bidirectional real-time communication
+- **CSS Grid** - modern layout system for game board
 
 ### Backend
-- **Node.js** - серверная JavaScript среда выполнения
-- **Express.js** - веб-фреймворк для Node.js
-- **Socket.io** - библиотека для двунаправленной связи в реальном времени
-- **Встроенная игровая логика** - полная обработка правил игры на сервере
+- **Node.js** - server-side JavaScript runtime
+- **Express.js** - web framework for Node.js
+- **Socket.io** - library for bidirectional real-time communication
+- **Built-in Game Logic** - complete rule processing on server
 
-## 📦 Установка и Запуск
+## 📦 Installation and Running
 
-### Предварительные Требования
-- Node.js версии 16 или выше
-- npm или yarn
+### Prerequisites
+- Node.js version 16 or higher
+- npm or yarn
 
-### Установка
+### Installation
 ```bash
-# Клонирование репозитория
+# Clone repository
 git clone <repository-url>
 cd tactris
 
-# Установка зависимостей
+# Install dependencies
 npm install
 ```
 
-### Запуск в Режиме Разработки
+### Running in Development Mode
 ```bash
-# Запуск сервера (в одном терминале)
+# Start server (in one terminal)
 npm start
 
-# Запуск клиента (в другом терминале)
+# Start client (in another terminal)
 npm run dev
 ```
 
-Сервер запустится на порту 3000, клиент — на порту 5173.
+Server will start on port 3000, client - on port 5173.
 
-### Сборка для Производства
+### Production Build
 ```bash
-# Сборка клиента
+# Build client
 npm run build
 
-# Запуск сервера в продакшн режиме
+# Start server in production mode
 NODE_ENV=production npm start
 ```
 
-## 🎯 Правила Игры
+## 🎯 Game Rules
 
-### Основные Правила
-1. **Игровое поле**: Сетка 10×10 клеток
-2. **Фигуры**: Каждый игрок получает случайные тетромино из набора {I, O, T, S, Z, J, L}
-3. **Рисование**: Игроки рисуют фигуры мышью, нажимая и перетаскивая по клеткам
-4. **Валидация**: Нарисованная фигура должна точно соответствовать одному из доступных тетромино
-5. **Размещение**: После отпускания мыши фигура затвердевает и становится неподвижной
+### Basic Rules
+1. **Game Board**: 10×10 cell grid
+2. **Figures**: Each player receives random tetrominoes from the set {I, O, T, S, Z, J, L}
+3. **Drawing**: Players draw figures with mouse by clicking and dragging across cells
+4. **Validation**: Drawn figure must exactly match one of the available tetrominoes
+5. **Placement**: After releasing mouse, figure solidifies and becomes fixed
 
-### Система Очков
-- **Размещение фигуры**: +4 очка
-- **Очистка строки**: +10 очков
-- **Очистка столбца**: +10 очков
-- **Множественная очистка**: Дополнительно +10 очков за каждую дополнительную линию
+### Scoring System
+- **Place Figure**: +4 points
+- **Clear Row**: +10 points
+- **Clear Column**: +10 points
+- **Multiple Clearing**: Additional +10 points for each additional line
 
-### Окончание Игры
-Игра завершается, когда ни один игрок не может разместить свои доступные фигуры на поле. Побеждает игрок с наибольшим количеством очков.
+### Game End
+Game ends when no player can place their available figures on the field. Player with the highest score wins.
 
-## 🏗️ Архитектура Проекта
+## 🏗️ Project Architecture
 
-### Структура Файлов
+### File Structure
 ```
 tactris/
 ├── src/
-│   ├── server.js              # Сервер приложения
+│   ├── server.js              # Server application
 │   ├── models/
-│   │   └── Game.js            # Игровая логика и модель игры
+│   │   └── Game.js            # Game logic and model
 │   └── client/
-│       ├── index.html         # HTML точка входа
-│       ├── main.jsx           # React точка входа
+│       ├── index.html         # HTML entry point
+│       ├── main.jsx           # React entry point
 │       ├── modules/
 │       │   ├── ui/
 │       │   │   └── components/
-│       │   │       ├── GameBoard.jsx  # Основной компонент игры
-│       │   │       └── GameBoard.css  # Стили игрового поля
+│       │   │       ├── GameBoard.jsx  # Main game component
+│       │   │       └── GameBoard.css  # Game board styles
 │       │   └── network/
-│       │       └── SocketManager.js   # Управление WebSocket соединениями
-├── package.json               # Зависимости и скрипты
-├── vite.config.js            # Конфигурация Vite
-└── README.md                 # Этот файл
+│       │       └── SocketManager.js   # WebSocket connection management
+├── package.json               # Dependencies and scripts
+├── vite.config.js            # Vite configuration
+└── README.md                 # This file
 ```
 
-### Игровая Логика
-- **Класс Game**: Управляет состоянием игры, игроками, сеткой и правилами
-- **Валидация фигур**: Проверка соответствия нарисованных пикселей тетромино
-- **Управление состоянием**: Синхронизация между клиентами через сервер
-- **Обнаружение коллизий**: Проверка границ и пересечений с существующими блоками
+### Game Logic
+- **Game Class**: Manages game state, players, grid, and rules
+- **Figure Validation**: Checks if drawn pixels match tetrominoes
+- **State Management**: Synchronization between clients through server
+- **Collision Detection**: Boundary checks and intersection with existing blocks
 
-## 🎨 Интерфейс Пользователя
+## 🎨 User Interface
 
-### Адаптивный Дизайн
-- **Альбомная ориентация**: Панель фигур расположена слева от игрового поля
-- **Портретная ориентация**: Панель фигур расположена сверху игрового поля
-- **Полноэкранный режим**: Игра занимает весь экран для оптимального игрового опыта
+### Responsive Design
+- **Landscape Orientation**: Figure panel positioned to the left of game board
+- **Portrait Orientation**: Figure panel positioned above game board
+- **Fullscreen Mode**: Game occupies entire screen for optimal gaming experience
 
-### Управление
-- **Создание комнаты**: Кнопка "Create Room" для создания новой игры
-- **Присоединение к игре**: Список доступных комнат с возможностью присоединения
-- **Рисование**: Левой кнопкой мыши для размещения пикселей, удержание для непрерывного рисования
-- **Удаление**: Правой кнопкой мыши или рисование поверх существующих пикселей
+### Controls
+- **Create Room**: "Create Room" button for creating new game
+- **Join Game**: List of available rooms with join option
+- **Drawing**: Left mouse button for placing pixels, hold for continuous drawing
+- **Removal**: Right mouse button or drawing over existing pixels
 
-## 🔧 API Сервера
+## 🔧 Server API
 
-### WebSocket События
+### WebSocket Events
 
-#### Входящие События
-- `create_room` - Создать новую игровую комнату
-- `join_room` - Присоединиться к существующей комнате
-- `get_rooms` - Получить список всех доступных комнат
-- `place_pixel` - Разместить/удалить временный пиксель
-- `place_figure` - Разместить финальную фигуру
+#### Incoming Events
+- `create_room` - Create new game room
+- `join_room` - Join existing room
+- `get_rooms` - Get list of all available rooms
+- `place_pixel` - Place/remove temporary pixel
+- `place_figure` - Place final figure
 
-#### Исходящие События
-- `room_created` - Подтверждение создания комнаты
-- `room_joined` - Подтверждение присоединения к комнате
-- `game_update` - Обновление состояния игры
-- `game_over` - Уведомление об окончании игры
-- `rooms_list` - Список доступных комнат
-- `error` - Сообщения об ошибках
+#### Outgoing Events
+- `room_created` - Room creation confirmation
+- `room_joined` - Room join confirmation
+- `game_update` - Game state update
+- `game_over` - Game end notification
+- `rooms_list` - List of available rooms
+- `error` - Error messages
 
-## 🎮 Игровой Процесс
+## 🎮 Gameplay
 
-1. **Вход в игру**: Игрок загружает страницу и видит список доступных комнат
-2. **Создание/присоединение**: Игрок создает новую комнату или присоединяется к существующей
-3. **Получение фигур**: Игрок получает 2 случайные фигуры для игры
-4. **Рисование**: Игрок рисует одну из доступных фигур на игровом поле
-5. **Размещение**: После завершения рисования фигура автоматически размещается
-6. **Очистка линий**: Завершенные строки и столбцы очищаются с получением очков
-7. **Продолжение**: Игрок получает новые фигуры и продолжает игру
-8. **Окончание**: Игра завершается, когда никто не может разместить фигуры
+1. **Enter Game**: Player loads page and sees list of available rooms
+2. **Create/Join**: Player creates new room or joins existing one
+3. **Receive Figures**: Player receives 2 random figures for play
+4. **Drawing**: Player draws one of available figures on game board
+5. **Placement**: After completing drawing, figure automatically places
+6. **Line Clearing**: Completed rows and columns clear with points gained
+7. **Continuation**: Player receives new figures and continues game
+8. **Game End**: Game ends when no one can place figures
 
-## 🚀 Развитие Проекта
+## 🚀 Project Development
 
-### Возможные Улучшения
-- **Аутентификация пользователей**: Система регистрации и авторизации
-- **Рейтинговая система**: Таблица лидеров и статистика игроков
-- **Турнирный режим**: Ограниченное время и специальные правила
-- **Настройки игры**: Изменяемый размер поля, специальные фигуры
-- **Мобильная версия**: Адаптация для сенсорных устройств
-- **Звуковые эффекты**: Музыкальное сопровождение и звуковые эффекты
-- **Анимации**: Плавные переходы и визуальные эффекты
+### Possible Improvements
+- **User Authentication**: Registration and authorization system
+- **Rating System**: Leaderboard and player statistics
+- **Tournament Mode**: Time limits and special rules
+- **Game Settings**: Customizable board size, special figures
+- **Mobile Version**: Touch device adaptation
+- **Sound Effects**: Music and sound effects
+- **Animations**: Smooth transitions and visual effects
 
-## 📄 Лицензия
+## 📄 License
 
-Этот проект распространяется под открытой лицензией. См. файл LICENSE для получения дополнительной информации.
+This project is distributed under an open license. See LICENSE file for more information.
 
-## 👥 Вклад в Проект
+## 👥 Contributing
 
-Мы приветствуем вклад в развитие проекта! Пожалуйста, следуйте стандартному процессу:
-1. Создайте форк репозитория
-2. Создайте ветку для новой функции (`git checkout -b feature/AmazingFeature`)
-3. Зафиксируйте изменения (`git commit -m 'Add some AmazingFeature'`)
-4. Запушьте в ветку (`git push origin feature/AmazingFeature`)
-5. Откройте Pull Request
+We welcome contributions to the project! Please follow the standard process:
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-## 📞 Поддержка
+## 📞 Support
 
-Если у вас есть вопросы или предложения, пожалуйста, создайте Issue в репозитории или свяжитесь с командой разработки.
+If you have questions or suggestions, please create an Issue in the repository or contact the development team.
 
 ---
 
-**Приятной игры в Tactris! 🎮**
+**Enjoy playing Tactris! 🎮**
