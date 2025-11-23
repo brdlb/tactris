@@ -1,0 +1,106 @@
+.game-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    width: 100vw;
+    font-family: Arial, sans-serif;
+    background-color: #f0f0f0; /* Moved from inline body style if needed, or keep it there */
+}
+
+.game-title {
+    margin-bottom: 20px;
+}
+
+.game-content {
+    display: flex;
+    position: relative;
+}
+
+.figures-panel {
+    background: white;
+    padding: 10px;
+    border: 1px solid #ccc;
+    /* Ensure it doesn't shrink */
+    flex-shrink: 0;
+}
+
+.game-board {
+    display: grid;
+    grid-template-columns: repeat(10, 8vmin);
+    gap: 1px;
+    background-color: #ccc;
+    padding: 1px;
+    border: 1px solid #999;
+}
+
+.grid-cell {
+    width: 8vmin;
+    height: 8vmin;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+/* Landscape: Width > Height */
+@media (orientation: landscape) {
+    .game-content {
+        flex-direction: row;
+        align-items: flex-start;
+    }
+    .figures-panel {
+        margin-right: 20px;
+    }
+}
+
+/* Portrait: Height > Width */
+@media (orientation: portrait) {
+    .game-content {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .figures-panel {
+        margin-bottom: 20px;
+    }
+}
+
+/* Game Over Overlay */
+.game-over-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 20px;
+    border-radius: 10px;
+    z-index: 1000;
+}
+
+.room-controls {
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.create-room-btn {
+    padding: 10px 20px;
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+
+.rooms-list {
+    margin-top: 20px;
+}
+
+.rooms-list ul {
+    list-style: none;
+    padding: 0;
+}
+
+.rooms-list li {
+    margin: 5px 0;
+}
+
+.join-btn {
+    margin-left: 10px;
+}
