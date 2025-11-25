@@ -7,7 +7,16 @@ class SocketManager {
 
     connect() {
         if (!this.socket) {
-            this.socket = io('http://localhost:3000'); // Hardcoded for now
+            // Determine the server URL based on environment
+            const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+            const host = window.location.hostname;
+            const serverUrl = `${protocol}//${host}`;
+            
+            this.socket = io(serverUrl, {
+                transports: ['websocket', 'polling'],
+                timeout: 20000,
+                forceNew: true
+            });
         }
         return this.socket;
     }

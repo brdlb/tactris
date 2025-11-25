@@ -8,13 +8,17 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: process.env.NODE_ENV === 'production' 
+      ? ["https://tactris.brdlb.com", "http://tactris.brdlb.com"] 
+      : "*",
     methods: ["GET", "POST"]
   }
 });
 
+// Trust proxy when running behind nginx
+app.set('trust proxy', 1);
+
 // Serve static files from the client build directory (for production)
-// In development, Vite handles this.
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../dist')));
 }
