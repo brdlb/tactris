@@ -346,6 +346,201 @@
     border-radius: 50%;
     display: flex;
     align-items: center;
+    text-align: center;
+}
+
+.create-room-btn {
+    padding: 10px 20px;
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+
+.rooms-list {
+    margin-top: 20px;
+}
+
+.rooms-list ul {
+    list-style: none;
+    padding: 0;
+}
+
+.rooms-list li {
+    margin: 5px 0;
+}
+
+.join-btn {
+    margin-left: 10px;
+}
+
+/* Settings button */
+.settings-btn {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.settings-btn:hover {
+    transform: rotate(90deg) scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.settings-btn svg {
+    transition: transform 0.3s ease;
+}
+
+/* Modal overlay */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--overlay-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* Modal content */
+.modal-content {
+    background: var(--modal-bg);
+    border-radius: 12px;
+    padding: 0;
+    min-width: 320px;
+    max-width: 90%;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(50px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Modal header */
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: var(--text-primary);
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.close-btn:hover {
+    background: var(--border-color);
+    color: var(--text-primary);
+}
+
+/* Modal body */
+.modal-body {
+    padding: 20px;
+}
+
+/* Setting item */
+.setting-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    font-size: 1.1rem;
+}
+
+/* Theme switch */
+.theme-switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 32px;
+    cursor: pointer;
+}
+
+.theme-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #4CAF50;
+    transition: 0.4s;
+    border-radius: 32px;
+    display: flex;
+    align-items: center;
+    padding: 0 4px;
+}
+
+.theme-switch input:checked+.slider {
+    background-color: #2196F3;
+}
+
+.slider-icon {
+    position: absolute;
+    height: 24px;
+    width: 24px;
+    background-color: white;
+    transition: 0.4s;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
     justify-content: center;
     font-size: 14px;
     left: 4px;
@@ -353,4 +548,20 @@
 
 .theme-switch input:checked+.slider .slider-icon {
     transform: translateX(28px);
+}
+
+/* Mobile layout: Full width/height of the smaller dimension */
+@media (max-width: 768px),
+(max-height: 600px) {
+    .game-board {
+        width: 100vmin;
+        height: 100vmin;
+        grid-template-columns: repeat(10, 1fr);
+        box-sizing: border-box;
+    }
+
+    .grid-cell {
+        width: auto;
+        height: auto;
+    }
 }
