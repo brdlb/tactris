@@ -1,3 +1,14 @@
+/* Base styles for HTML and body */
+html, body {
+    touch-action: manipulation;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+}
+
 .game-container {
     display: flex;
     flex-direction: column;
@@ -24,6 +35,30 @@
     border: 1px solid #ccc;
     /* Ensure it doesn't shrink */
     flex-shrink: 0;
+}
+
+.score-board {
+    background: white;
+    padding: 10px;
+    border: 1px solid #ccc;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.score-display {
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+.score-value {
+    color: #007bff;
+}
+
+.game-sidebar {
+    display: flex;
+    flex-direction: column;
+    margin-right: 20px;
+    min-width: 150px;
 }
 
 .game-board {
@@ -55,11 +90,57 @@
         /* Larger touch targets on mobile */
         min-width: 32px;
         min-height: 32px;
+        /* Ensure cells are square and responsive */
+        width: 100%;
+        height: 100%;
     }
     
     .game-board {
         /* Ensure grid is properly sized for touch */
         touch-action: none;
+        /* Full width on mobile devices */
+        width: 100vw;
+        max-width: 100vw;
+        margin-left: calc(-50vw + 50%);
+        /* Use screen width for grid cells */
+        grid-template-columns: repeat(10, 1fr);
+        /* Remove fixed padding that might cause overflow */
+        padding: 0;
+        border: none;
+        background-color: #ccc;
+        gap: 1px;
+    }
+    
+    /* Hide figures panel on mobile to give more space to game board */
+    .game-content {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+    
+    .game-sidebar {
+        margin-right: 0 !important;
+        margin-bottom: 10px !important;
+        margin-top: 10px !important;
+        width: 100%;
+        order: -1; /* Move sidebar above the game board */
+        flex-direction: row !important;
+        justify-content: space-between;
+    }
+    
+    .score-board {
+        margin-bottom: 0 !important;
+        margin-right: 10px !important;
+        flex: 1;
+    }
+    
+    /* Remove title spacing on mobile */
+    .game-container {
+        padding: 5px;
+    }
+    
+    .game-title {
+        margin-bottom: 10px;
+        font-size: 1.5rem;
     }
 }
 
@@ -88,10 +169,28 @@
 @media (orientation: portrait) {
     .game-content {
         flex-direction: column;
-        align-items: flex-start;
+        align-items: stretch;
+        width: 100%;
     }
     .figures-panel {
         margin-bottom: 20px;
+        margin-top: 10px;
+    }
+}
+
+/* Portrait mobile optimization */
+@media (orientation: portrait) and (max-width: 768px) {
+    .game-board {
+        width: 98vw !important;
+        max-width: 98vw !important;
+        margin: 0 auto;
+        grid-template-columns: repeat(10, 1fr);
+    }
+    
+    .grid-cell {
+        aspect-ratio: 1 / 1;
+        width: 100%;
+        height: 100%;
     }
 }
 
@@ -106,6 +205,20 @@
     padding: 20px;
     border-radius: 10px;
     z-index: 1000;
+    text-align: center;
+}
+
+.restart-btn {
+    margin-top: 15px;
+    padding: 12px 24px;
+    font-size: 1rem;
+    cursor: pointer;
+    min-height: 44px; /* iOS minimum touch target */
+    border: none;
+    border-radius: 6px;
+    background-color: #28a745;
+    color: white;
+    touch-action: manipulation;
 }
 
 .room-controls {
@@ -114,9 +227,16 @@
 }
 
 .create-room-btn {
-    padding: 10px 20px;
+    padding: 15px 30px;
     font-size: 1.2rem;
     cursor: pointer;
+    min-height: 44px; /* iOS minimum touch target */
+    min-width: 120px;
+    border: none;
+    border-radius: 8px;
+    background-color: #007bff;
+    color: white;
+    touch-action: manipulation;
 }
 
 .rooms-list {
@@ -129,9 +249,84 @@
 }
 
 .rooms-list li {
-    margin: 5px 0;
+    margin: 10px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .join-btn {
     margin-left: 10px;
+    padding: 12px 20px;
+    font-size: 1rem;
+    cursor: pointer;
+    min-height: 44px; /* iOS minimum touch target */
+    min-width: 80px;
+    border: none;
+    border-radius: 6px;
+    background-color: #28a745;
+    color: white;
+    touch-action: manipulation;
+}
+
+/* Mobile-specific button improvements */
+@media (hover: none) and (pointer: coarse) {
+    .create-room-btn {
+        padding: 18px 35px;
+        font-size: 1.3rem;
+        min-height: 48px;
+    }
+    
+    .join-btn {
+        padding: 15px 25px;
+        font-size: 1.1rem;
+        min-height: 48px;
+    }
+    
+    .rooms-list li {
+        margin: 15px 0;
+    }
+    
+    /* Additional improvements for touch devices */
+    .game-over-overlay {
+        width: 90vw;
+        max-width: 300px;
+        font-size: 0.9rem;
+    }
+    
+    /* Prevent zoom on input focus */
+    input, select, textarea {
+        font-size: 16px;
+    }
+    
+    /* Ensure full height usage */
+    .game-container {
+        min-height: 100vh;
+        height: 100vh;
+        height: 100dvh; /* Dynamic viewport height for mobile browsers */
+    }
+}
+
+/* Additional mobile optimizations for very small screens */
+@media (max-width: 480px) {
+    .game-title {
+        font-size: 1.2rem;
+        margin-bottom: 8px;
+    }
+    
+    .game-container {
+        padding: 3px;
+    }
+    
+    .figures-panel {
+        padding: 8px;
+        margin-bottom: 8px;
+    }
+    
+    .create-room-btn {
+        padding: 15px 25px;
+        font-size: 1.1rem;
+        width: 90%;
+        max-width: 200px;
+    }
 }
