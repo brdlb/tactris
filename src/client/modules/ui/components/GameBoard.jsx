@@ -22,10 +22,18 @@ const GameBoard = () => {
     const [score, setScore] = useState(0);
 
     const [gameOver, setGameOver] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
+    const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
 
     const selectedPixels = useRef([]); // Queue of {x, y} to track order
     const isDrawing = useRef(false);
     const drawMode = useRef(1); // 1 for placing, 0 for removing
+
+    // Apply theme to document
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+    }, [theme]);
 
     useEffect(() => {
         // Reset body styles for full screen layout
@@ -144,7 +152,7 @@ const GameBoard = () => {
 
         window.addEventListener('mouseup', handleGlobalMouseUp);
         window.addEventListener('touchend', handleGlobalTouchEnd);
-        
+
         return () => {
             window.removeEventListener('mouseup', handleGlobalMouseUp);
             window.removeEventListener('touchend', handleGlobalTouchEnd);
@@ -157,6 +165,14 @@ const GameBoard = () => {
 
     const handleJoinRoom = (id) => {
         SocketManager.joinRoom(id);
+    };
+
+    const toggleSettings = () => {
+        setShowSettings(!showSettings);
+    };
+
+    const toggleTheme = () => {
+        setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
     };
 
     // Helper to check if pixels match any of the allowed figures (subset check)
@@ -283,52 +299,52 @@ const GameBoard = () => {
         const rect = gameBoardElement.getBoundingClientRect();
         const cellWidth = rect.width / 10;
         const cellHeight = rect.height / 10;
-        
+
         const x = Math.floor((touch.clientX - rect.left) / cellWidth);
         const y = Math.floor((touch.clientY - rect.top) / cellHeight);
-        
+
         return { x: Math.max(0, Math.min(9, x)), y: Math.max(0, Math.min(9, y)) };
     };
 
     const handleTouchStart = (e) => {
         e.preventDefault();
-        
+
         if (!roomId || gameOver) return;
-        
+
         isDrawing.current = true;
-        
+
         // Get the game board element
         const gameBoardElement = document.querySelector('.game-board');
-        
+
         // Handle first touch
         if (e.touches.length > 0 && gameBoardElement) {
             const touch = e.touches[0];
             const { x, y } = getGridCoordinatesFromTouch(touch, gameBoardElement);
-            
+
             const currentCell = gridRef.current[y][x];
             const targetStatus = currentCell ? 0 : 1;
             drawMode.current = targetStatus;
-            
+
             handleInteraction(x, y);
         }
     };
 
     const handleTouchMove = (e) => {
         e.preventDefault();
-        
+
         if (!isDrawing.current || !roomId || gameOver) return;
-        
+
         // Only handle the first touch
         if (e.touches.length > 0) {
             const touch = e.touches[0];
             const gameBoardElement = document.querySelector('.game-board');
-            
+
             if (gameBoardElement) {
                 const { x, y } = getGridCoordinatesFromTouch(touch, gameBoardElement);
-                
+
                 const currentCell = gridRef.current[y][x];
                 const currentStatus = currentCell ? 1 : 0;
-                
+
                 if (currentStatus !== drawMode.current) {
                     handleInteraction(x, y);
                 }
@@ -338,7 +354,7 @@ const GameBoard = () => {
 
     const handleTouchEnd = (e) => {
         e.preventDefault();
-        
+
         if (isDrawing.current && drawMode.current === 1) {
             if (selectedPixels.current.length >= 4) {
                 // Send the figure to the server
@@ -374,6 +390,43 @@ const GameBoard = () => {
 
     return (
         <div className="game-container">
+            {/* Settings button */}
+            <button className="settings-btn" onClick={toggleSettings} aria-label="Settings">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M12 1v6m0 6v6m8.66-15.66l-4.24 4.24m-4.24 4.24l-4.24 4.24M23 12h-6m-6 0H1m20.66 8.66l-4.24-4.24m-4.24-4.24l-4.24-4.24"></path>
+                </svg>
+            </button>
+
+            {/* Settings Modal */}
+            {showSettings && (
+                <div className="modal-overlay" onClick={toggleSettings}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2>Настройки</h2>
+                            <button className="close-btn" onClick={toggleSettings} aria-label="Close">
+                                ×
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="setting-item">
+                                <span>Тема</span>
+                                <label className="theme-switch">
+                                    <input
+                                        type="checkbox"
+                                        checked={theme === 'dark'}
+                                        onChange={toggleTheme}
+                                    />
+                                    <span className="slider">
+                                        <span className="slider-icon">{theme === 'dark' ? '🌙' : '☀️'}</span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <h1 className="game-title">Tactris</h1>
 
             {gameOver && (
@@ -442,7 +495,7 @@ const GameBoard = () => {
                                 onTouchMove={(e) => handleTouchMove(e)}
                                 onTouchEnd={(e) => handleTouchEnd(e)}
                                 style={{
-                                    backgroundColor: cell ? cell.color : 'white',
+                                    backgroundColor: cell ? cell.color : 'var(--cell-bg)',
                                     touchAction: 'none', // Prevent scrolling and zooming on touch
                                 }}
                             />
