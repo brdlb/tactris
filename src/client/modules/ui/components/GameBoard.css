@@ -1,5 +1,22 @@
-/* Base styles for HTML and body */
-html, body {
+/* ============================================
+   CSS Variables for responsive sizing
+   ============================================ */
+:root {
+    /* Desktop cell size: 8vmin but max 60px */
+    --cell-size-desktop: min(8vmin, 60px);
+    /* Mobile cell size: relative to available space */
+    --cell-size-mobile: min(9vw, 50px);
+    /* Maximum board size */
+    --board-max-size: 600px;
+    /* Grid gap */
+    --grid-gap: 1px;
+}
+
+/* ============================================
+   Base styles
+   ============================================ */
+html,
+body {
     touch-action: manipulation;
     -webkit-touch-callout: none;
     -webkit-user-select: none;
@@ -7,42 +24,63 @@ html, body {
     margin: 0;
     padding: 0;
     height: 100%;
+    width: 100%;
+    overflow-x: hidden;
 }
 
+/* ============================================
+   Game Container
+   ============================================ */
 .game-container {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    height: 100vh;
+    justify-content: flex-start;
+    min-height: 100vh;
+    min-height: 100dvh;
+    /* Dynamic viewport height for mobile browsers */
     width: 100vw;
+    padding: 20px 10px;
+    box-sizing: border-box;
     font-family: Arial, sans-serif;
-    background-color: #f0f0f0; /* Moved from inline body style if needed, or keep it there */
+    background-color: #f0f0f0;
 }
 
 .game-title {
     margin-bottom: 20px;
+    font-size: 2rem;
 }
 
+/* ============================================
+   Game Content Layout
+   ============================================ */
 .game-content {
     display: flex;
-    position: relative;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 20px;
+    width: 100%;
+    max-width: 1200px;
 }
 
-.figures-panel {
-    background: white;
-    padding: 10px;
-    border: 1px solid #ccc;
-    /* Ensure it doesn't shrink */
-    flex-shrink: 0;
+/* ============================================
+   Sidebar (Score + Figures)
+   ============================================ */
+.game-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 150px;
 }
 
 .score-board {
     background: white;
-    padding: 10px;
+    padding: 15px;
     border: 1px solid #ccc;
-    margin-bottom: 10px;
+    border-radius: 8px;
     text-align: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .score-display {
@@ -54,173 +92,207 @@ html, body {
     color: #007bff;
 }
 
-.game-sidebar {
-    display: flex;
-    flex-direction: column;
-    margin-right: 20px;
-    min-width: 150px;
+.figures-panel {
+    background: white;
+    padding: 15px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    flex-shrink: 0;
 }
 
+/* ============================================
+   Game Board - Desktop (centered with max size)
+   ============================================ */
 .game-board {
     display: grid;
-    grid-template-columns: repeat(10, 8vmin);
-    gap: 1px;
+    grid-template-columns: repeat(10, var(--cell-size-desktop));
+    grid-template-rows: repeat(10, var(--cell-size-desktop));
+    gap: var(--grid-gap);
     background-color: #ccc;
-    padding: 1px;
-    border: 1px solid #999;
+    padding: var(--grid-gap);
+    border: 2px solid #999;
+    border-radius: 4px;
+
+    /* Center the board and limit maximum size */
+    margin: 0 auto;
+    max-width: var(--board-max-size);
+    max-height: var(--board-max-size);
+
+    /* Maintain square aspect ratio */
+    aspect-ratio: 1 / 1;
+
+    /* Shadow for depth */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
+/* ============================================
+   Grid Cell
+   ============================================ */
 .grid-cell {
-    width: 8vmin;
-    height: 8vmin;
+    width: 100%;
+    height: 100%;
     cursor: pointer;
-    transition: background-color 0.2s;
-    touch-action: none; /* Prevent scrolling and zooming on touch */
-    -webkit-touch-callout: none; /* Disable callout, copy/paste on iOS */
-    -webkit-user-select: none; /* Disable text selection on iOS */
-    -khtml-user-select: none; /* Disable text selection on Safari */
-    -moz-user-select: none; /* Disable text selection on Firefox */
-    -ms-user-select: none; /* Disable text selection on Internet Explorer */
-    user-select: none; /* Disable text selection on modern browsers */
+    transition: background-color 0.2s ease;
+    border-radius: 2px;
+
+    /* Prevent text selection and touch issues */
+    touch-action: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 
-/* Mobile-specific improvements */
-@media (hover: none) and (pointer: coarse) {
+/* High-DPI displays optimization */
+@media (-webkit-min-device-pixel-ratio: 2),
+(min-resolution: 192dpi) {
     .grid-cell {
-        /* Larger touch targets on mobile */
-        min-width: 32px;
-        min-height: 32px;
-        /* Ensure cells are square and responsive */
-        width: 100%;
-        height: 100%;
-    }
-    
-    .game-board {
-        /* Ensure grid is properly sized for touch */
-        touch-action: none;
-        /* Full width on mobile devices */
-        width: 100vw;
-        max-width: 100vw;
-        margin-left: calc(-50vw + 50%);
-        /* Use screen width for grid cells */
-        grid-template-columns: repeat(10, 1fr);
-        /* Remove fixed padding that might cause overflow */
-        padding: 0;
-        border: none;
-        background-color: #ccc;
-        gap: 1px;
-    }
-    
-    /* Hide figures panel on mobile to give more space to game board */
-    .game-content {
-        flex-direction: column !important;
-        align-items: stretch !important;
-    }
-    
-    .game-sidebar {
-        margin-right: 0 !important;
-        margin-bottom: 10px !important;
-        margin-top: 10px !important;
-        width: 100%;
-        order: -1; /* Move sidebar above the game board */
-        flex-direction: row !important;
-        justify-content: space-between;
-    }
-    
-    .score-board {
-        margin-bottom: 0 !important;
-        margin-right: 10px !important;
-        flex: 1;
-    }
-    
-    /* Remove title spacing on mobile */
-    .game-container {
-        padding: 5px;
-    }
-    
-    .game-title {
-        margin-bottom: 10px;
-        font-size: 1.5rem;
-    }
-}
-
-/* High-DPI displays */
-@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
-    .grid-cell {
-        /* Prevent blurriness on high-DPI displays */
         transform: translateZ(0);
         -webkit-backface-visibility: hidden;
         backface-visibility: hidden;
     }
 }
 
-/* Landscape: Width > Height */
-@media (orientation: landscape) {
+/* ============================================
+   Touch Devices - Mobile & Tablet
+   ============================================ */
+@media (hover: none) and (pointer: coarse) {
+
+    /* Center game vertically on touch devices */
+    .game-container {
+        justify-content: center;
+        padding: 10px;
+    }
+
+    .game-title {
+        margin-bottom: 10px;
+        font-size: 1.5rem;
+    }
+
+    /* Stack content vertically on mobile */
+    .game-content {
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+    }
+
+    /* Sidebar horizontal layout on mobile */
+    .game-sidebar {
+        width: 100%;
+        max-width: min(500px, 95vw);
+        flex-direction: row;
+        justify-content: space-between;
+        order: -1;
+        /* Move above game board */
+    }
+
+    .score-board {
+        flex: 1;
+        margin-right: 10px;
+        padding: 10px;
+    }
+
+    .figures-panel {
+        flex: 1;
+        padding: 10px;
+    }
+
+    /* Game board - full width on mobile */
+    .game-board {
+        width: min(95vw, var(--board-max-size));
+        max-width: 95vw;
+        height: auto;
+        grid-template-columns: repeat(10, 1fr);
+        grid-template-rows: repeat(10, 1fr);
+        padding: 0;
+        border: 1px solid #999;
+    }
+
+    .grid-cell {
+        /* Ensure minimum touch target size */
+        min-width: 32px;
+        min-height: 32px;
+    }
+
+    /* Prevent zoom on input focus */
+    input,
+    select,
+    textarea {
+        font-size: 16px;
+    }
+}
+
+/* ============================================
+   Landscape Orientation (Desktop & Tablet)
+   ============================================ */
+@media (orientation: landscape) and (hover: hover) {
     .game-content {
         flex-direction: row;
         align-items: flex-start;
     }
-    .figures-panel {
-        margin-right: 20px;
-    }
-}
 
-/* Portrait: Height > Width */
-@media (orientation: portrait) {
-    .game-content {
+    .game-sidebar {
         flex-direction: column;
-        align-items: stretch;
-        width: 100%;
-    }
-    .figures-panel {
-        margin-bottom: 20px;
-        margin-top: 10px;
     }
 }
 
-/* Portrait mobile optimization */
+/* ============================================
+   Portrait Orientation (Mobile)
+   ============================================ */
 @media (orientation: portrait) and (max-width: 768px) {
     .game-board {
-        width: 98vw !important;
-        max-width: 98vw !important;
-        margin: 0 auto;
-        grid-template-columns: repeat(10, 1fr);
+        width: min(98vw, var(--board-max-size));
+        max-width: 98vw;
     }
-    
+
     .grid-cell {
         aspect-ratio: 1 / 1;
-        width: 100%;
-        height: 100%;
     }
 }
 
-/* Game Over Overlay */
-.game-over-overlay {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background-color: rgba(0, 0, 0, 0.8);
-    color: white;
-    padding: 20px;
-    border-radius: 10px;
-    z-index: 1000;
-    text-align: center;
+/* ============================================
+   Small Screens Optimization
+   ============================================ */
+@media (max-width: 480px) {
+    .game-title {
+        font-size: 1.2rem;
+        margin-bottom: 8px;
+    }
+
+    .game-container {
+        padding: 5px;
+    }
+
+    .game-sidebar {
+        flex-direction: column;
+        max-width: 95vw;
+    }
+
+    .score-board,
+    .figures-panel {
+        margin-right: 0;
+        margin-bottom: 8px;
+        padding: 8px;
+    }
 }
 
-.restart-btn {
-    margin-top: 15px;
-    padding: 12px 24px;
-    font-size: 1rem;
-    cursor: pointer;
-    min-height: 44px; /* iOS minimum touch target */
-    border: none;
-    border-radius: 6px;
-    background-color: #28a745;
-    color: white;
-    touch-action: manipulation;
+/* ============================================
+   Large Screens - Extra centering
+   ============================================ */
+@media (min-width: 1400px) {
+    .game-board {
+        /* Ensure board stays centered on very large screens */
+        max-width: 650px;
+        max-height: 650px;
+    }
 }
 
+/* ============================================
+   Room Controls
+   ============================================ */
 .room-controls {
     margin-bottom: 20px;
     text-align: center;
@@ -230,15 +302,28 @@ html, body {
     padding: 15px 30px;
     font-size: 1.2rem;
     cursor: pointer;
-    min-height: 44px; /* iOS minimum touch target */
+    min-height: 44px;
     min-width: 120px;
     border: none;
     border-radius: 8px;
     background-color: #007bff;
     color: white;
     touch-action: manipulation;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: background-color 0.2s ease;
 }
 
+.create-room-btn:hover {
+    background-color: #0056b3;
+}
+
+.create-room-btn:active {
+    background-color: #004494;
+}
+
+/* ============================================
+   Rooms List
+   ============================================ */
 .rooms-list {
     margin-top: 20px;
 }
@@ -260,73 +345,89 @@ html, body {
     padding: 12px 20px;
     font-size: 1rem;
     cursor: pointer;
-    min-height: 44px; /* iOS minimum touch target */
+    min-height: 44px;
     min-width: 80px;
     border: none;
     border-radius: 6px;
     background-color: #28a745;
     color: white;
     touch-action: manipulation;
+    transition: background-color 0.2s ease;
 }
 
-/* Mobile-specific button improvements */
+.join-btn:hover {
+    background-color: #218838;
+}
+
+.join-btn:active {
+    background-color: #1e7e34;
+}
+
+/* ============================================
+   Game Over Overlay
+   ============================================ */
+.game-over-overlay {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 30px;
+    border-radius: 12px;
+    z-index: 1000;
+    text-align: center;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+    min-width: 250px;
+}
+
+.restart-btn {
+    margin-top: 15px;
+    padding: 12px 24px;
+    font-size: 1rem;
+    cursor: pointer;
+    min-height: 44px;
+    border: none;
+    border-radius: 6px;
+    background-color: #28a745;
+    color: white;
+    touch-action: manipulation;
+    transition: background-color 0.2s ease;
+}
+
+.restart-btn:hover {
+    background-color: #218838;
+}
+
+.restart-btn:active {
+    background-color: #1e7e34;
+}
+
+/* ============================================
+   Mobile-specific button improvements
+   ============================================ */
 @media (hover: none) and (pointer: coarse) {
     .create-room-btn {
         padding: 18px 35px;
         font-size: 1.3rem;
         min-height: 48px;
+        max-width: 90vw;
     }
-    
+
     .join-btn {
         padding: 15px 25px;
         font-size: 1.1rem;
         min-height: 48px;
     }
-    
+
     .rooms-list li {
         margin: 15px 0;
+        flex-wrap: wrap;
     }
-    
-    /* Additional improvements for touch devices */
+
     .game-over-overlay {
         width: 90vw;
-        max-width: 300px;
-        font-size: 0.9rem;
-    }
-    
-    /* Prevent zoom on input focus */
-    input, select, textarea {
-        font-size: 16px;
-    }
-    
-    /* Ensure full height usage */
-    .game-container {
-        min-height: 100vh;
-        height: 100vh;
-        height: 100dvh; /* Dynamic viewport height for mobile browsers */
-    }
-}
-
-/* Additional mobile optimizations for very small screens */
-@media (max-width: 480px) {
-    .game-title {
-        font-size: 1.2rem;
-        margin-bottom: 8px;
-    }
-    
-    .game-container {
-        padding: 3px;
-    }
-    
-    .figures-panel {
-        padding: 8px;
-        margin-bottom: 8px;
-    }
-    
-    .create-room-btn {
-        padding: 15px 25px;
-        font-size: 1.1rem;
-        width: 90%;
-        max-width: 200px;
+        max-width: 350px;
+        padding: 20px;
     }
 }
