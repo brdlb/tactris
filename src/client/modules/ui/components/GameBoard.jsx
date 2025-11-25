@@ -382,7 +382,7 @@ const GameBoard = () => {
         return (
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${w}, 10px)`, gap: '1px', margin: '5px' }}>
                 {grid.map((row, y) => row.map((filled, x) => (
-                    <div key={`${x}-${y}`} style={{ width: '10px', height: '10px', backgroundColor: filled ? 'black' : '#eee' }} />
+                    <div key={`${x}-${y}`} style={{ width: '10px', height: '10px', backgroundColor: filled ? 'var(--text-primary)' : 'transparent' }} />
                 )))}
             </div>
         );
@@ -392,9 +392,10 @@ const GameBoard = () => {
         <div className="game-container">
             {/* Settings button */}
             <button className="settings-btn" onClick={toggleSettings} aria-label="Settings">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="3"></circle>
-                    <path d="M12 1v6m0 6v6m8.66-15.66l-4.24 4.24m-4.24 4.24l-4.24 4.24M23 12h-6m-6 0H1m20.66 8.66l-4.24-4.24m-4.24-4.24l-4.24-4.24"></path>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
                 </svg>
             </button>
 

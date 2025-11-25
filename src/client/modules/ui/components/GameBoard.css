@@ -184,7 +184,7 @@
     right: 20px;
     width: 48px;
     height: 48px;
-    border-radius: 50%;
+    border-radius: 8px;
     background: var(--bg-secondary);
     border: 2px solid var(--border-color);
     color: var(--text-primary);
@@ -198,7 +198,7 @@
 }
 
 .settings-btn:hover {
-    transform: rotate(90deg) scale(1.1);
+    transform: scale(1.1);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
@@ -343,7 +343,7 @@
     width: 24px;
     background-color: white;
     transition: 0.4s;
-    border-radius: 50%;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     text-align: center;
@@ -379,7 +379,7 @@
     right: 20px;
     width: 48px;
     height: 48px;
-    border-radius: 50%;
+    border-radius: 8px;
     background: var(--bg-secondary);
     border: 2px solid var(--border-color);
     color: var(--text-primary);
@@ -393,7 +393,7 @@
 }
 
 .settings-btn:hover {
-    transform: rotate(90deg) scale(1.1);
+    transform: scale(1.1);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
@@ -538,7 +538,7 @@
     width: 24px;
     background-color: white;
     transition: 0.4s;
-    border-radius: 50%;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
