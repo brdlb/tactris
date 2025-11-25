@@ -2,6 +2,7 @@ import React from 'react';
 
 const GameBoard = ({ 
   grid, 
+  roomId,
   onMouseDown, 
   onMouseEnter, 
   onTouchStart, 
@@ -69,6 +70,11 @@ const GameBoard = ({
                       }}
                   />
               ))
+          )}
+          {roomId && (
+              <div className="room-id-display">
+                  {roomId}
+              </div>
           )}
       </div>
   );
