@@ -66,6 +66,7 @@
     padding: 1px;
     border: 1px solid var(--border-dark);
     transition: background-color 0.3s ease, border-color 0.3s ease;
+    touch-action: none;
 }
 
 .grid-cell {
