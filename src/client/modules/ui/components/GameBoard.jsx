@@ -466,10 +466,10 @@ const GameBoard = () => {
                     </div>
                 </div>
             )}
-            {roomId && <p style={{ marginBottom: '10px' }}>Room ID: {roomId}</p>}
 
-            <div className="game-content">
-                {roomId && (
+
+            {roomId && (
+                <div className="game-content">
                     <div className="figures-panel">
                         <div style={{ marginBottom: '10px', fontSize: '1.2em', fontWeight: 'bold' }}>
                             {score}
@@ -484,29 +484,40 @@ const GameBoard = () => {
                             </div>
                         )}
                     </div>
-                )}
 
-                <div className="game-board">
-                    {grid.map((row, y) =>
-                        row.map((cell, x) => (
-                            <div
-                                key={`${x}-${y}`}
-                                className="grid-cell"
-                                onMouseDown={(e) => handleMouseDown(x, y, e)}
-                                onMouseEnter={() => handleMouseEnter(x, y)}
-                                onTouchStart={(e) => handleTouchStart(e)}
-                                onTouchMove={(e) => handleTouchMove(e)}
-                                onTouchEnd={(e) => handleTouchEnd(e)}
-                                style={{
-                                    backgroundColor: cell ? (cell.state === 'drawing' ? cell.color : 'var(--occupied-pixel-color)') : 'var(--cell-bg)',
-                                    touchAction: 'none', // Prevent scrolling and zooming on touch
-                                }}
-                            />
-                        ))
-                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <div className="game-board">
+                            {grid.map((row, y) =>
+                                row.map((cell, x) => (
+                                    <div
+                                        key={`${x}-${y}`}
+                                        className="grid-cell"
+                                        onMouseDown={(e) => handleMouseDown(x, y, e)}
+                                        onMouseEnter={() => handleMouseEnter(x, y)}
+                                        onTouchStart={(e) => handleTouchStart(e)}
+                                        onTouchMove={(e) => handleTouchMove(e)}
+                                        onTouchEnd={(e) => handleTouchEnd(e)}
+                                        style={{
+                                            backgroundColor: cell ? (cell.state === 'drawing' ? cell.color : 'var(--occupied-pixel-color)') : 'var(--cell-bg)',
+                                            touchAction: 'none', // Prevent scrolling and zooming on touch
+                                        }}
+                                    />
+                                ))
+                            )}
+                        </div>
+                        <div style={{
+                            fontSize: '0.75rem',
+                            marginTop: '4px',
+                            color: 'var(--text-secondary)',
+                            alignSelf: 'flex-end'
+                        }}>
+                            #{roomId}
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
+            )
+            }
+        </div >
     );
 };
 
