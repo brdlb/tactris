@@ -3,6 +3,7 @@ import { io } from 'socket.io-client';
 class SocketManager {
     constructor() {
         this.socket = null;
+        this.eventListeners = new Map();
     }
 
     connect() {
@@ -17,12 +18,63 @@ class SocketManager {
                 timeout: 20000,
                 forceNew: true
             });
+            
+            // Set up room event listeners
+            this.setupRoomEventListeners();
         }
         return this.socket;
     }
 
     getSocket() {
         return this.socket;
+    }
+
+    setupRoomEventListeners() {
+        // Handle room creation/joining with players list
+        this.socket.on('room_created', (data) => {
+            this.emit('roomCreated', data);
+        });
+
+        this.socket.on('room_joined', (data) => {
+            this.emit('roomJoined', data);
+        });
+
+        // Handle player events
+        this.socket.on('player_joined', (data) => {
+            this.emit('playerJoined', data);
+        });
+
+        this.socket.on('player_left', (data) => {
+            this.emit('playerLeft', data);
+        });
+
+        this.socket.on('players_list_updated', (data) => {
+            this.emit('playersListUpdated', data);
+        });
+    }
+
+    // Event listener management
+    on(event, callback) {
+        if (!this.eventListeners.has(event)) {
+            this.eventListeners.set(event, []);
+        }
+        this.eventListeners.get(event).push(callback);
+    }
+
+    emit(event, data) {
+        if (this.eventListeners.has(event)) {
+            this.eventListeners.get(event).forEach(callback => callback(data));
+        }
+    }
+
+    off(event, callback) {
+        if (this.eventListeners.has(event)) {
+            const listeners = this.eventListeners.get(event);
+            const index = listeners.indexOf(callback);
+            if (index > -1) {
+                listeners.splice(index, 1);
+            }
+        }
     }
 
     createRoom(color) {

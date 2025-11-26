@@ -11,6 +11,7 @@ const useGameLogic = (boardRefOverride = null) => {
     const [rooms, setRooms] = useState([]);
     const [myFigures, setMyFigures] = useState([]);
     const [score, setScore] = useState(0);
+    const [playersList, setPlayersList] = useState([]); // List of players in current room
 
     const [gameOver, setGameOver] = useState(false);
     const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
@@ -164,32 +165,35 @@ const useGameLogic = (boardRefOverride = null) => {
             pendingUpdatesSet.clear();
         };
 
-        socket.on('room_created', ({ roomId, state }) => {
+        socket.on('room_created', ({ roomId, state, playersList }) => {
             console.log(`[CLIENT] Создана новая комната:`, {
                 roomId,
                 gridSize: state.grid ? `${state.grid.length}x${state.grid[0]?.length || 0}` : 'неизвестно',
+                playersCount: playersList ? playersList.length : 0,
                 timestamp: new Date().toISOString()
             });
             setRoomId(roomId);
             roomIdRef.current = roomId;
             pendingUpdates.current.clear(); // Clear pending updates for new room
             updateGameState(state);
+            if (playersList) setPlayersList(playersList);
             selectedPixels.current = []; // Reset selection on new game
             setGameOver(false);
             window.history.pushState({}, '', `?room=${roomId}`);
         });
 
-        socket.on('room_joined', ({ roomId, state }) => {
+        socket.on('room_joined', ({ roomId, state, playersList }) => {
             console.log(`[CLIENT] Присоединение к комнате:`, {
                 roomId,
                 gridSize: state.grid ? `${state.grid.length}x${state.grid[0]?.length || 0}` : 'неизвестно',
-                playersCount: state.players ? Object.keys(state.players).length : 0,
+                playersCount: playersList ? playersList.length : 0,
                 timestamp: new Date().toISOString()
             });
             setRoomId(roomId);
             roomIdRef.current = roomId;
             pendingUpdates.current.clear(); // Clear pending updates for new room
             updateGameState(state);
+            if (playersList) setPlayersList(playersList);
             selectedPixels.current = [];
             setGameOver(false);
             window.history.pushState({}, '', `?room=${roomId}`);
@@ -214,6 +218,33 @@ const useGameLogic = (boardRefOverride = null) => {
 
         socket.on('rooms_list', (roomList) => {
             setRooms(roomList);
+        });
+
+        // Handle player events
+        socket.on('player_joined', ({ player }) => {
+            console.log(`[CLIENT] Игрок присоединился:`, {
+                playerId: player.id,
+                color: player.color,
+                timestamp: new Date().toISOString()
+            });
+            setPlayersList(prev => [...prev, player]);
+        });
+
+        socket.on('player_left', ({ playerId }) => {
+            console.log(`[CLIENT] Игрок отключился:`, {
+                playerId,
+                timestamp: new Date().toISOString()
+            });
+            setPlayersList(prev => prev.filter(p => p.id !== playerId));
+        });
+
+        socket.on('players_list_updated', ({ playersList }) => {
+            console.log(`[CLIENT] Список игроков обновлен:`, {
+                playersCount: playersList.length,
+                players: playersList.map(p => ({ id: p.id, color: p.color })),
+                timestamp: new Date().toISOString()
+            });
+            setPlayersList(playersList);
         });
 
         socket.on('error', (message) => {
@@ -487,6 +518,7 @@ const useGameLogic = (boardRefOverride = null) => {
         grid,
         roomId,
         rooms,
+        playersList,
         myFigures,
         score,
         gameOver,

@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import useGameLogic from '../hooks/useGameLogic';
+import SocketManager from '../../network/SocketManager';
 import SettingsModal from './SettingsModal';
 import RoomControls from './RoomControls';
 import FiguresPanel from './FiguresPanel';
@@ -15,6 +16,7 @@ const GameBoard = () => {
         grid,
         roomId,
         rooms,
+        playersList,
         myFigures,
         score,
         gameOver,
@@ -72,17 +74,25 @@ const GameBoard = () => {
                     <FiguresPanel score={score} figures={myFigures} />
 
                     <div className="game-board-wrapper">
-                        <Panel position="top-right">
-                            <div className="panel-content">Player2</div>
-                        </Panel>
-                        
-                        <Panel position="bottom-right">
-                            <div className="panel-content">Player3</div>
-                        </Panel>
-                        
-                        <Panel position="bottom-left">
-                            <div className="panel-content">Player4</div>
-                        </Panel>
+                        {/* Display players in panels - excluding current user from panels since they see their own info in FiguresPanel */}
+                        {playersList.filter(player => player.id !== SocketManager.getSocket()?.id).slice(0, 3).map((player, index) => {
+                            const positions = ['top-right', 'bottom-right', 'bottom-left'];
+                            const position = positions[index] || 'top-right';
+                            return (
+                                <Panel key={player.id} position={position}>
+                                    <div className="panel-content">
+                                        <div className="player-info">
+                                            <div 
+                                                className="player-color" 
+                                                style={{ backgroundColor: player.color }}
+                                            ></div>
+                                            <span>Игрок {index + 2}</span>
+                                            <div className="player-score">{player.score || 0}</div>
+                                        </div>
+                                    </div>
+                                </Panel>
+                            );
+                        })}
 
                         <GameGrid
                             grid={grid}

@@ -89,6 +89,24 @@ class Game {
         };
     }
 
+    removePlayer(playerId) {
+        if (this.players.has(playerId)) {
+            this.players.delete(playerId);
+            // Clear any temporary pixels placed by this player
+            this.clearTemporary(playerId);
+            return true;
+        }
+        return false;
+    }
+
+    getPlayersList() {
+        return Array.from(this.players.values()).map(player => ({
+            id: player.id,
+            color: player.color,
+            score: player.score
+        }));
+    }
+
     placePixel(playerId, status, position) {
         if (this.gameOver) return false;
         const { x, y } = position;

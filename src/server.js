@@ -34,7 +34,15 @@ io.on('connection', (socket) => {
     game.addPlayer(socket.id, color); // Add creator as player with their color
     games.set(roomId, game);
     socket.join(roomId);
-    socket.emit('room_created', { roomId, state: game.getState() });
+    
+    // Send players list to the room creator
+    const playersList = game.getPlayersList();
+    socket.emit('room_created', { 
+      roomId, 
+      state: game.getState(),
+      playersList 
+    });
+    
     console.log(`Room created: ${roomId}`);
 
     // Broadcast updated room list to all clients
@@ -47,7 +55,21 @@ io.on('connection', (socket) => {
       socket.join(roomId);
       const game = games.get(roomId);
       game.addPlayer(socket.id, color); // Add joiner as player with their color
-      socket.emit('room_joined', { roomId, state: game.getState() });
+      
+      // Send current players list to the joining user
+      const playersList = game.getPlayersList();
+      socket.emit('room_joined', { 
+        roomId, 
+        state: game.getState(),
+        playersList 
+      });
+      
+      // Notify other players in the room about new player
+      socket.to(roomId).emit('player_joined', {
+        playerId: socket.id,
+        player: { id: socket.id, color, score: 0 }
+      });
+      
       console.log(`User ${socket.id} joined room ${roomId}`);
     } else {
       socket.emit('error', 'Room not found');
@@ -91,6 +113,34 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
+    
+    // Find all rooms the disconnected user was part of
+    const roomsToNotify = [];
+    
+    for (const [roomId, game] of games.entries()) {
+      if (game.removePlayer(socket.id)) {
+        roomsToNotify.push(roomId);
+        
+        // Notify other players in the room about player leaving
+        socket.to(roomId).emit('player_left', {
+          playerId: socket.id
+        });
+        
+        // If room is empty, remove it
+        if (game.players.size === 0) {
+          games.delete(roomId);
+          console.log(`Room ${roomId} deleted - no players left`);
+        } else {
+          // Send updated players list to remaining players
+          const playersList = game.getPlayersList();
+          io.to(roomId).emit('players_list_updated', { playersList });
+        }
+      }
+    }
+    
+    // Update room list for all clients
+    const roomList = Array.from(games.values()).map(g => ({ id: g.id }));
+    io.emit('rooms_list', roomList);
   });
 });
 
