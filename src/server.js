@@ -37,6 +37,18 @@ io.on('connection', (socket) => {
     
     // Send players list to the room creator
     const playersList = game.getPlayersList();
+    console.log(`[SERVER] room_created:`, {
+      roomId,
+      playersCount: playersList.length,
+      playersData: playersList.map(p => ({
+        id: p.id.substring(0, 8),
+        color: p.color,
+        score: p.score,
+        figuresCount: p.figures?.length || 0,
+        figuresTypes: p.figures?.map(f => f.type) || []
+      })),
+      timestamp: new Date().toISOString()
+    });
     socket.emit('room_created', { 
       roomId, 
       state: game.getState(),
@@ -58,6 +70,18 @@ io.on('connection', (socket) => {
       
       // Send current players list to the joining user
       const playersList = game.getPlayersList();
+      console.log(`[SERVER] room_joined:`, {
+        roomId,
+        playersCount: playersList.length,
+        playersData: playersList.map(p => ({
+          id: p.id.substring(0, 8),
+          color: p.color,
+          score: p.score,
+          figuresCount: p.figures?.length || 0,
+          figuresTypes: p.figures?.map(f => f.type) || []
+        })),
+        timestamp: new Date().toISOString()
+      });
       socket.emit('room_joined', { 
         roomId, 
         state: game.getState(),
@@ -65,9 +89,19 @@ io.on('connection', (socket) => {
       });
       
       // Notify other players in the room about new player
+      const newPlayerData = { id: socket.id, color, score: 0 };
+      console.log(`[SERVER] player_joined notification:`, {
+        roomId,
+        newPlayer: {
+          id: socket.id.substring(0, 8),
+          color,
+          score: 0
+        },
+        timestamp: new Date().toISOString()
+      });
       socket.to(roomId).emit('player_joined', {
         playerId: socket.id,
-        player: { id: socket.id, color, score: 0 }
+        player: newPlayerData
       });
       
       console.log(`User ${socket.id} joined room ${roomId}`);
@@ -86,7 +120,19 @@ io.on('connection', (socket) => {
     if (game) {
       const success = game.placePixel(socket.id, status, position);
       if (success) {
-        io.to(roomId).emit('game_update', game.getState());
+        const gameState = game.getState();
+        console.log(`[SERVER] game_update after place_pixel:`, {
+          roomId,
+          playerCount: Object.keys(gameState.players).length,
+          playerData: Object.entries(gameState.players).map(([id, player]) => ({
+            id: id.substring(0, 8),
+            score: player.score,
+            figuresCount: player.figures?.length || 0,
+            figuresTypes: player.figures?.map(f => f.type) || []
+          })),
+          timestamp: new Date().toISOString()
+        });
+        io.to(roomId).emit('game_update', gameState);
       } else {
         socket.emit('error', 'Invalid move');
       }
@@ -99,7 +145,19 @@ io.on('connection', (socket) => {
     if (game) {
       const success = game.placeFigure(socket.id, pixels);
       if (success) {
-        io.to(roomId).emit('game_update', game.getState());
+        const gameState = game.getState();
+        console.log(`[SERVER] game_update after place_figure:`, {
+          roomId,
+          playerCount: Object.keys(gameState.players).length,
+          playerData: Object.entries(gameState.players).map(([id, player]) => ({
+            id: id.substring(0, 8),
+            score: player.score,
+            figuresCount: player.figures?.length || 0,
+            figuresTypes: player.figures?.map(f => f.type) || []
+          })),
+          timestamp: new Date().toISOString()
+        });
+        io.to(roomId).emit('game_update', gameState);
         if (game.checkGameOver()) {
           io.to(roomId).emit('game_over');
         }
@@ -133,6 +191,18 @@ io.on('connection', (socket) => {
         } else {
           // Send updated players list to remaining players
           const playersList = game.getPlayersList();
+          console.log(`[SERVER] players_list_updated:`, {
+            roomId,
+            playersCount: playersList.length,
+            playersData: playersList.map(p => ({
+              id: p.id.substring(0, 8),
+              color: p.color,
+              score: p.score,
+              figuresCount: p.figures?.length || 0,
+              figuresTypes: p.figures?.map(f => f.type) || []
+            })),
+            timestamp: new Date().toISOString()
+          });
           io.to(roomId).emit('players_list_updated', { playersList });
         }
       }

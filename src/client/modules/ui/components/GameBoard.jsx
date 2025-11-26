@@ -78,6 +78,41 @@ const GameBoard = () => {
                         {playersList.filter(player => player.id !== SocketManager.getSocket()?.id).slice(0, 3).map((player, index) => {
                             const positions = ['top-right', 'bottom-right', 'bottom-left'];
                             const position = positions[index] || 'top-right';
+                            
+                            // Helper to render figures for other players (similar to FiguresPanel but simplified)
+                            const renderPlayerFigures = (figures) => {
+                                if (!figures || figures.length === 0) return null;
+                                
+                                const renderFigure = (figure) => {
+                                    if (!figure || !figure.cells) return null;
+                                    
+                                    const shape = figure.cells;
+                                    const w = 4, h = 4;
+                                    const grid = Array(h).fill(null).map(() => Array(w).fill(false));
+                                    shape.forEach(([x, y]) => {
+                                        if (grid[y] && grid[y][x] !== undefined) grid[y][x] = true;
+                                    });
+                                    
+                                    return (
+                                        <div key={Math.random()} style={{ display: 'grid', gridTemplateColumns: `repeat(${w}, 8px)`, gap: '1px', margin: '2px' }}>
+                                            {grid.map((row, y) => row.map((filled, x) => (
+                                                <div key={`${x}-${y}`} style={{ width: '8px', height: '8px', backgroundColor: filled ? player.color : 'transparent' }} />
+                                            )))}
+                                        </div>
+                                    );
+                                };
+                                
+                                return (
+                                    <div style={{ display: 'flex', marginTop: '5px' }}>
+                                        {figures.map((figure, i) => (
+                                            <div key={i} style={{ marginRight: '5px' }}>
+                                                {renderFigure(figure)}
+                                            </div>
+                                        ))}
+                                    </div>
+                                );
+                            };
+                            
                             return (
                                 <Panel key={player.id} position={position}>
                                     <div className="panel-content">
@@ -89,6 +124,7 @@ const GameBoard = () => {
                                             <span>Игрок {index + 2}</span>
                                             <div className="player-score">{player.score || 0}</div>
                                         </div>
+                                        {renderPlayerFigures(player.figures)}
                                     </div>
                                 </Panel>
                             );

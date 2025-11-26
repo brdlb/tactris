@@ -103,7 +103,8 @@ class Game {
         return Array.from(this.players.values()).map(player => ({
             id: player.id,
             color: player.color,
-            score: player.score
+            score: player.score,
+            figures: player.figures
         }));
     }
 

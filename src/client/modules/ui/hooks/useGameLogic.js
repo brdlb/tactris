@@ -170,6 +170,13 @@ const useGameLogic = (boardRefOverride = null) => {
                 roomId,
                 gridSize: state.grid ? `${state.grid.length}x${state.grid[0]?.length || 0}` : 'неизвестно',
                 playersCount: playersList ? playersList.length : 0,
+                playersData: playersList ? playersList.map(p => ({
+                    id: p.id.substring(0, 8),
+                    color: p.color,
+                    score: p.score,
+                    figuresCount: p.figures?.length || 0,
+                    figuresTypes: p.figures?.map(f => f.type) || []
+                })) : [],
                 timestamp: new Date().toISOString()
             });
             setRoomId(roomId);
@@ -187,6 +194,13 @@ const useGameLogic = (boardRefOverride = null) => {
                 roomId,
                 gridSize: state.grid ? `${state.grid.length}x${state.grid[0]?.length || 0}` : 'неизвестно',
                 playersCount: playersList ? playersList.length : 0,
+                playersData: playersList ? playersList.map(p => ({
+                    id: p.id.substring(0, 8),
+                    color: p.color,
+                    score: p.score,
+                    figuresCount: p.figures?.length || 0,
+                    figuresTypes: p.figures?.map(f => f.type) || []
+                })) : [],
                 timestamp: new Date().toISOString()
             });
             setRoomId(roomId);
@@ -223,8 +237,11 @@ const useGameLogic = (boardRefOverride = null) => {
         // Handle player events
         socket.on('player_joined', ({ player }) => {
             console.log(`[CLIENT] Игрок присоединился:`, {
-                playerId: player.id,
+                playerId: player.id.substring(0, 8),
                 color: player.color,
+                score: player.score,
+                figuresCount: player.figures?.length || 0,
+                figuresTypes: player.figures?.map(f => f.type) || [],
                 timestamp: new Date().toISOString()
             });
             setPlayersList(prev => [...prev, player]);
@@ -241,7 +258,13 @@ const useGameLogic = (boardRefOverride = null) => {
         socket.on('players_list_updated', ({ playersList }) => {
             console.log(`[CLIENT] Список игроков обновлен:`, {
                 playersCount: playersList.length,
-                players: playersList.map(p => ({ id: p.id, color: p.color })),
+                players: playersList.map(p => ({
+                    id: p.id.substring(0, 8),
+                    color: p.color,
+                    score: p.score,
+                    figuresCount: p.figures?.length || 0,
+                    figuresTypes: p.figures?.map(f => f.type) || []
+                })),
                 timestamp: new Date().toISOString()
             });
             setPlayersList(playersList);
