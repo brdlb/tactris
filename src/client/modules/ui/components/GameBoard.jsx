@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import SocketManager from '../../network/SocketManager';
+import { getUserColor } from '../../../utils/colorUtils';
 import './GameBoard.css';
 
 const FIGURES = {
@@ -28,6 +29,7 @@ const GameBoard = () => {
     const selectedPixels = useRef([]); // Queue of {x, y} to track order
     const isDrawing = useRef(false);
     const drawMode = useRef(1); // 1 for placing, 0 for removing
+    const userColor = useRef(getUserColor()); // Personal color for this user
 
     // Apply theme to document
     useEffect(() => {
@@ -105,7 +107,7 @@ const GameBoard = () => {
         const urlParams = new URLSearchParams(window.location.search);
         const initialRoomId = urlParams.get('room');
         if (initialRoomId) {
-            SocketManager.joinRoom(initialRoomId);
+            SocketManager.joinRoom(initialRoomId, userColor.current);
         }
 
         return () => {
@@ -160,11 +162,11 @@ const GameBoard = () => {
     }, [gameOver]);
 
     const handleCreateRoom = () => {
-        SocketManager.createRoom();
+        SocketManager.createRoom(userColor.current);
     };
 
     const handleJoinRoom = (id) => {
-        SocketManager.joinRoom(id);
+        SocketManager.joinRoom(id, userColor.current);
     };
 
     const toggleSettings = () => {
@@ -243,7 +245,7 @@ const GameBoard = () => {
             selectedPixels.current.push(newPixel);
 
             ensureRow(y);
-            newGrid[y][x] = { playerId: socketId, color: 'red' };
+            newGrid[y][x] = { playerId: socketId, color: userColor.current };
             SocketManager.placePixel(roomId, 1, newPixel);
 
         } else {
@@ -496,7 +498,7 @@ const GameBoard = () => {
                                 onTouchMove={(e) => handleTouchMove(e)}
                                 onTouchEnd={(e) => handleTouchEnd(e)}
                                 style={{
-                                    backgroundColor: cell ? cell.color : 'var(--cell-bg)',
+                                    backgroundColor: cell ? (cell.playerId === SocketManager.getSocket().id ? cell.color : 'var(--occupied-pixel-color)') : 'var(--cell-bg)',
                                     touchAction: 'none', // Prevent scrolling and zooming on touch
                                 }}
                             />

@@ -16,7 +16,7 @@ class Game {
         this.gameOver = false;
     }
 
-    addPlayer(playerId) {
+    addPlayer(playerId, color = 'red') {
         if (!this.players.has(playerId)) {
             const figureKeys = Object.keys(FIGURES);
             const playerFigures = [
@@ -26,7 +26,8 @@ class Game {
             this.players.set(playerId, {
                 id: playerId,
                 figures: playerFigures,
-                score: 0
+                score: 0,
+                color: color
             });
         }
     }
@@ -48,14 +49,17 @@ class Game {
             return false; // Out of bounds
         }
 
+        const player = this.players.get(playerId);
+        const playerColor = player ? player.color : 'red';
+
         if (status === 1) {
             // Only allow placing if empty or if it's own temporary pixel
             const cell = this.grid[y][x];
             if (cell === null) {
-                this.grid[y][x] = { playerId, color: 'red', state: 'drawing' };
+                this.grid[y][x] = { playerId, color: playerColor, state: 'drawing' };
             } else if (cell.playerId === playerId && cell.state === 'drawing') {
                 // Already own drawing pixel, do nothing or update
-                this.grid[y][x] = { playerId, color: 'red', state: 'drawing' };
+                this.grid[y][x] = { playerId, color: playerColor, state: 'drawing' };
             } else {
                 return false; // Occupied by solid or other player
             }
@@ -110,7 +114,7 @@ class Game {
         this.clearTemporary(playerId);
 
         for (const p of pixels) {
-            this.grid[p.y][p.x] = { playerId, color: 'red' }; // No 'state' means solid
+            this.grid[p.y][p.x] = { playerId, color: player.color }; // No 'state' means solid
         }
 
         // 4. Remove figure from player
