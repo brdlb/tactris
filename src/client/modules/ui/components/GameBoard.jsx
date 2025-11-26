@@ -73,19 +73,21 @@ const GameBoard = () => {
 
                     <div className="game-board-wrapper">
                         <Panel position="top-right">
-                            <div className="panel-content">Панель 1</div>
+                            <div className="panel-content">Player2</div>
                         </Panel>
                         
                         <Panel position="bottom-right">
-                            <div className="panel-content">Панель 2</div>
+                            <div className="panel-content">Player3</div>
                         </Panel>
                         
                         <Panel position="bottom-left">
-                            <div className="panel-content">Панель 3</div>
+                            <div className="panel-content">Player4</div>
                         </Panel>
 
                         <GameGrid
                             grid={grid}
+                            roomId={roomId}
+                            boardRef={boardRef}
                             onPointerDown={handlePointerDown}
                             onPointerMove={handlePointerMove}
                             onPointerUp={handlePointerUp}
