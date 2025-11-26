@@ -498,7 +498,7 @@ const GameBoard = () => {
                                 onTouchMove={(e) => handleTouchMove(e)}
                                 onTouchEnd={(e) => handleTouchEnd(e)}
                                 style={{
-                                    backgroundColor: cell ? (cell.playerId === SocketManager.getSocket().id ? cell.color : 'var(--occupied-pixel-color)') : 'var(--cell-bg)',
+                                    backgroundColor: cell ? (cell.state === 'drawing' ? cell.color : 'var(--occupied-pixel-color)') : 'var(--cell-bg)',
                                     touchAction: 'none', // Prevent scrolling and zooming on touch
                                 }}
                             />
