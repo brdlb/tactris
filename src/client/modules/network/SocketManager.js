@@ -34,10 +34,22 @@ class SocketManager {
     }
 
     placePixel(roomId, status, position) {
+        console.log(`[CLIENT] Отправка события place_pixel:`, {
+            roomId,
+            status: status === 1 ? 'размещение' : 'удаление',
+            position,
+            timestamp: new Date().toISOString()
+        });
         this.socket.emit('place_pixel', { roomId, status, position });
     }
 
     placeFigure(roomId, pixels) {
+        console.log(`[CLIENT] Отправка события place_figure:`, {
+            roomId,
+            pixelsCount: pixels.length,
+            pixels,
+            timestamp: new Date().toISOString()
+        });
         this.socket.emit('place_figure', { roomId, pixels });
     }
 
