@@ -165,7 +165,7 @@ class Game {
             this.grid[p.y][p.x] = { playerId, color: player.color }; // No 'state' means solid
         }
 
-        // 4. Remove figure from player and generate new one
+        // 4. Replace figure at the same index (don't change order)
         const matchedFigure = player.figures[matchedFigureIndex];
         const placedType = matchedFigure.type;
         const remainingTypes = player.figures
@@ -174,9 +174,24 @@ class Game {
         const excludeTypes = [placedType, ...remainingTypes];
         
         if (matchedFigureIndex > -1) {
-            player.figures.splice(matchedFigureIndex, 1);
+            console.log(`[SERVER] Замена фигуры на индексе ${matchedFigureIndex}:`, {
+                playerId,
+                placedType,
+                remainingTypes,
+                excludeTypes,
+                beforeFigures: player.figures.map((f, i) => ({ index: i, type: f.type })),
+            });
+            
             // Generate new figure excluding placed type and remaining types
-            player.figures.push(generateNewFigure(excludeTypes));
+            const newFigure = generateNewFigure(excludeTypes);
+            player.figures[matchedFigureIndex] = newFigure;
+            
+            console.log(`[SERVER] После замены фигур:`, {
+                playerId,
+                matchedFigureIndex,
+                newFigure: { type: newFigure.type, cells: newFigure.cells },
+                afterFigures: player.figures.map((f, i) => ({ index: i, type: f.type })),
+            });
         }
 
         // 5. Check lines

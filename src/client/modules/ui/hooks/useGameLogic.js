@@ -130,7 +130,30 @@ const useGameLogic = (boardRefOverride = null) => {
             
             const myPlayer = state.players && state.players[socket.id];
             if (myPlayer) {
-                if (myPlayer.figures) setMyFigures(myPlayer.figures);
+                if (myPlayer.figures) {
+                    // Ensure we maintain stable references to avoid unnecessary re-renders
+                    // Only update if the figures array or its contents actually changed
+                    const currentFigures = myFigures;
+                    const newFigures = myPlayer.figures;
+                    
+                    // Debug logging for figures changes
+                    const figuresChanged = currentFigures.length !== newFigures.length || 
+                        currentFigures.some((fig, i) => {
+                            const newFig = newFigures[i];
+                            return !fig || !newFig || 
+                                   fig.type !== newFig.type || 
+                                   JSON.stringify(fig.cells) !== JSON.stringify(newFig.cells);
+                        });
+                    
+                    if (figuresChanged) {
+                        console.log(`[CLIENT] Фигуры изменились:`, {
+                            before: currentFigures.map((f, i) => ({ index: i, type: f?.type })),
+                            after: newFigures.map((f, i) => ({ index: i, type: f?.type })),
+                            timestamp: new Date().toISOString()
+                        });
+                        setMyFigures(newFigures);
+                    }
+                }
                 if (myPlayer.score !== undefined) setScore(myPlayer.score);
             }
             if (state.gameOver !== undefined) {
@@ -297,7 +320,8 @@ const useGameLogic = (boardRefOverride = null) => {
     }, [boardRef, updateBoardMetrics]);
 
     const finalizeDrawing = useCallback(() => {
-        if (isDrawing.current && selectedPixels.current.length >= 4 && roomIdRef.current && !gameOver) {
+        console.log(`[CLIENT] Finalizing drawing with ${selectedPixels.current.length} pixels`);
+        if (selectedPixels.current.length >= 4 && roomIdRef.current && !gameOver) {
             // Check if the selected pixels match any of the available figures
             const matchedFigureIndex = checkMatch(selectedPixels.current, myFigures);
             if (matchedFigureIndex !== -1) {
@@ -312,7 +336,6 @@ const useGameLogic = (boardRefOverride = null) => {
             }
         }
 
-        selectedPixels.current = [];
         isDrawing.current = false;
 
         if (pointerCaptureTarget.current && activePointerId.current !== null) {
@@ -336,9 +359,7 @@ const useGameLogic = (boardRefOverride = null) => {
 
     useEffect(() => {
         const handleWindowPointerEnd = (event) => {
-            if (activePointerId.current !== null && event.pointerId === activePointerId.current) {
-                finalizeDrawing();
-            }
+            finalizeDrawing();
         };
 
         window.addEventListener('pointerup', handleWindowPointerEnd);
@@ -451,6 +472,7 @@ const useGameLogic = (boardRefOverride = null) => {
     }, [gameOver, getGridCoordinatesFromPointer, handleInteraction]);
 
     const handlePointerUp = useCallback((event) => {
+        console.log('Pointer up event:', event);
         if (activePointerId.current !== event.pointerId) return;
         event.preventDefault();
         finalizeDrawing();
