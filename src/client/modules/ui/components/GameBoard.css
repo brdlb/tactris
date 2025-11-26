@@ -34,7 +34,7 @@
     justify-content: center;
     height: 100vh;
     width: 100vw;
-    font-family: Arial, sans-serif;
+    font-family: 'VirtualDJ', Arial, sans-serif;
     background-color: var(--bg-primary);
     color: var(--text-primary);
     transition: background-color 0.3s ease, color 0.3s ease;
@@ -42,6 +42,10 @@
 
 .game-title {
     margin-bottom: 20px;
+    font-family: 'VirtualDJ', Arial, sans-serif;
+    font-weight: bold;
+    font-size: 2.5rem;
+    text-align: center;
 }
 
 .game-content {
@@ -161,23 +165,14 @@
     padding: 10px 20px;
     font-size: 1.2rem;
     cursor: pointer;
-}
-
-.rooms-list {
-    margin-top: 20px;
-}
-
-.rooms-list ul {
-    list-style: none;
-    padding: 0;
-}
-
-.rooms-list li {
-    margin: 5px 0;
+    font-family: 'VirtualDJ', Arial, sans-serif;
+    font-weight: bold;
 }
 
 .join-btn {
     margin-left: 10px;
+    font-family: 'VirtualDJ', Arial, sans-serif;
+    font-weight: bold;
 }
 
 /* Settings button */
