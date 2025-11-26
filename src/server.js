@@ -8,8 +8,8 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: process.env.NODE_ENV === 'production' 
-      ? ["https://tactris.brdlb.com", "http://tactris.brdlb.com"] 
+    origin: process.env.NODE_ENV === 'production'
+      ? ["https://tactris.brdlb.com", "http://tactris.brdlb.com"]
       : "*",
     methods: ["GET", "POST"]
   }
@@ -28,10 +28,10 @@ const games = new Map();
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
-  socket.on('create_room', () => {
+  socket.on('create_room', ({ color }) => {
     const roomId = Math.random().toString(36).substring(7);
     const game = new Game(roomId);
-    game.addPlayer(socket.id); // Add creator as player
+    game.addPlayer(socket.id, color); // Add creator as player with their color
     games.set(roomId, game);
     socket.join(roomId);
     socket.emit('room_created', { roomId, state: game.getState() });
@@ -42,11 +42,11 @@ io.on('connection', (socket) => {
     io.emit('rooms_list', roomList);
   });
 
-  socket.on('join_room', (roomId) => {
+  socket.on('join_room', ({ roomId, color }) => {
     if (games.has(roomId)) {
       socket.join(roomId);
       const game = games.get(roomId);
-      game.addPlayer(socket.id); // Add joiner as player
+      game.addPlayer(socket.id, color); // Add joiner as player with their color
       socket.emit('room_joined', { roomId, state: game.getState() });
       console.log(`User ${socket.id} joined room ${roomId}`);
     } else {

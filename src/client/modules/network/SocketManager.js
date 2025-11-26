@@ -11,7 +11,7 @@ class SocketManager {
             const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
             const host = window.location.hostname;
             const serverUrl = `${protocol}//${host}`;
-            
+
             this.socket = io(serverUrl, {
                 transports: ['websocket', 'polling'],
                 timeout: 20000,
@@ -25,19 +25,31 @@ class SocketManager {
         return this.socket;
     }
 
-    createRoom() {
-        this.socket.emit('create_room');
+    createRoom(color) {
+        this.socket.emit('create_room', { color });
     }
 
-    joinRoom(roomId) {
-        this.socket.emit('join_room', roomId);
+    joinRoom(roomId, color) {
+        this.socket.emit('join_room', { roomId, color });
     }
 
     placePixel(roomId, status, position) {
+        console.log(`[CLIENT] Отправка события place_pixel:`, {
+            roomId,
+            status: status === 1 ? 'размещение' : 'удаление',
+            position,
+            timestamp: new Date().toISOString()
+        });
         this.socket.emit('place_pixel', { roomId, status, position });
     }
 
     placeFigure(roomId, pixels) {
+        console.log(`[CLIENT] Отправка события place_figure:`, {
+            roomId,
+            pixelsCount: pixels.length,
+            pixels,
+            timestamp: new Date().toISOString()
+        });
         this.socket.emit('place_figure', { roomId, pixels });
     }
 

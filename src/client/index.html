@@ -8,6 +8,20 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-touch-fullscreen" content="yes" />
   <meta name="format-detection" content="telephone=no" />
+  <title>Tactris</title>
+  <style>
+    /* Prevent zoom on double tap and improve touch response */
+    html,
+    body {
+      touch-action: manipulation;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      margin: 0;
+      padding: 0;
+      transition: background-color 0.3s ease;
+    }
+  </style>
   <title></title>
 </head>
 

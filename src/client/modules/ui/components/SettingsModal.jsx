@@ -1,4 +1,30 @@
 import React from 'react';
+import './GameBoard.css'; // Reusing existing styles for now
+
+const SettingsModal = ({ isOpen, onClose, theme, onToggleTheme }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h2>Settings</h2>
+                    <button className="close-btn" onClick={onClose} aria-label="Close">
+                        ×
+                    </button>
+                </div>
+                <div className="modal-body">
+                    <div className="setting-item">
+                        <span>Theme</span>
+                        <label className="theme-switch">
+                            <input
+                                type="checkbox"
+                                checked={theme === 'dark'}
+                                onChange={onToggleTheme}
+                            />
+                            <span className="slider">
+                                <span className="slider-icon">{theme === 'dark' ? '🌙' : '☀️'}</span>
+                            </span>
 
 const SettingsModal = ({ isOpen, onClose, theme, onThemeChange }) => {
     if (!isOpen) return null;
@@ -44,3 +70,4 @@ const SettingsModal = ({ isOpen, onClose, theme, onThemeChange }) => {
 };
 
 export default SettingsModal;
+

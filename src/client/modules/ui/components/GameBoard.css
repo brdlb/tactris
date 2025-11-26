@@ -1,3 +1,32 @@
+/* Theme variables */
+:root[data-theme="light"] {
+    --bg-primary: #f0f0f0;
+    --bg-secondary: white;
+    --text-primary: #333;
+    --text-secondary: #666;
+    --border-color: #ccc;
+    --border-dark: #999;
+    --cell-bg: white;
+    --grid-bg: #ccc;
+    --overlay-bg: rgba(0, 0, 0, 0.5);
+    --modal-bg: white;
+    --occupied-pixel-color: #000000;
+}
+
+:root[data-theme="dark"] {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2d2d2d;
+    --text-primary: #e0e0e0;
+    --text-secondary: #a0a0a0;
+    --border-color: #444;
+    --border-dark: #666;
+    --cell-bg: black;
+    --grid-bg: #555;
+    --overlay-bg: rgba(0, 0, 0, 0.7);
+    --modal-bg: #2d2d2d;
+    --occupied-pixel-color: #ffffff;
+}
+
 /* ============================================
    CSS Variables for responsive sizing and themes
    ============================================ */
@@ -66,6 +95,10 @@ body {
     min-height: 100dvh;
     /* Dynamic viewport height for mobile browsers */
     width: 100vw;
+    font-family: 'VirtualDJ', Arial, sans-serif;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, color 0.3s ease;
     padding: 20px 10px;
     box-sizing: border-box;
     font-family: Arial, sans-serif;
@@ -76,6 +109,9 @@ body {
 
 .game-title {
     margin-bottom: 20px;
+    font-family: 'VirtualDJ', Arial, sans-serif;
+    font-weight: bold;
+    text-align: center;
     font-size: 2rem;
 }
 
@@ -121,12 +157,12 @@ body {
 }
 
 .figures-panel {
-    background: white;
-    padding: 15px;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background: var(--bg-secondary);
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    /* Ensure it doesn't shrink */
     flex-shrink: 0;
+    transition: background 0.3s ease, border-color 0.3s ease;
 }
 
 /* ============================================
@@ -134,79 +170,51 @@ body {
    ============================================ */
 .game-board {
     display: grid;
-    grid-template-columns: repeat(10, var(--cell-size-desktop));
-    grid-template-rows: repeat(10, var(--cell-size-desktop));
-    gap: var(--grid-gap);
-    background-color: #ccc;
-    padding: var(--grid-gap);
-    border: 2px solid #999;
-    border-radius: 4px;
-
-    /* Center the board and limit maximum size */
-    margin: 0 auto;
-    max-width: var(--board-max-size);
-    max-height: var(--board-max-size);
-
-    /* Maintain square aspect ratio */
-    aspect-ratio: 1 / 1;
-
-    /* Shadow for depth */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-
-    /* Position relative for absolute positioned elements */
-    position: relative;
+    grid-template-columns: repeat(10, 8vmin);
+    gap: 1px;
+    background-color: var(--grid-bg);
+    padding: 1px;
+    border: 1px solid var(--border-dark);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+    touch-action: none;
 }
 
-/* ============================================
-   Room ID Display - Small in corner
-   ============================================ */
-.room-id-display {
-    position: absolute;
-    bottom: 4px;
-    right: 6px;
-    font-size: 0.65rem;
-    color: #666;
-    background-color: rgba(255, 255, 255, 0.8);
-    padding: 2px 4px;
-    border-radius: 3px;
-    pointer-events: none;
+.grid-cell {
+    width: 8vmin;
+    height: 8vmin;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    touch-action: none;
+    /* Prevent scrolling and zooming on touch */
+    -webkit-touch-callout: none;
+    /* Disable callout, copy/paste on iOS */
+    -webkit-user-select: none;
+    /* Disable text selection on iOS */
+    -khtml-user-select: none;
+    /* Disable text selection on Safari */
+    -moz-user-select: none;
+    /* Disable text selection on Firefox */
+    -ms-user-select: none;
+    /* Disable text selection on Internet Explorer */
     user-select: none;
-    font-family: Arial, sans-serif;
-    font-weight: normal;
-    z-index: 10;
+    /* Disable text selection on modern browsers */
 }
 
 /* Mobile optimization for room ID */
 @media (hover: none) and (pointer: coarse) {
-    .room-id-display {
-        font-size: 0.7rem;
-        bottom: 3px;
-        right: 4px;
-        padding: 1px 3px;
+    .grid-cell {
+        /* Larger touch targets on mobile */
+        min-width: 32px;
+        min-height: 32px;
+    }
+
+    .game-board {
+        /* Ensure grid is properly sized for touch */
+        touch-action: none;
     }
 }
 
-/* ============================================
-   Grid Cell
-   ============================================ */
-.grid-cell {
-    width: 100%;
-    height: 100%;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    border-radius: 2px;
-
-    /* Prevent text selection and touch issues */
-    touch-action: none;
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -khtml-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-}
-
-/* High-DPI displays optimization */
+/* High-DPI displays */
 @media (-webkit-min-device-pixel-ratio: 2),
 (min-resolution: 192dpi) {
     .grid-cell {
@@ -249,12 +257,6 @@ body {
         /* Move above game board */
     }
 
-    .score-board {
-        flex: 1;
-        margin-right: 10px;
-        padding: 10px;
-    }
-
     .figures-panel {
         flex: 1;
         padding: 10px;
@@ -294,44 +296,6 @@ body {
         align-items: flex-start;
     }
 
-    .game-sidebar {
-        flex-direction: column;
-    }
-}
-
-/* ============================================
-   Portrait Orientation (Mobile)
-   ============================================ */
-@media (orientation: portrait) and (max-width: 768px) {
-    .game-board {
-        width: min(98vw, var(--board-max-size));
-        max-width: 98vw;
-    }
-
-    .grid-cell {
-        aspect-ratio: 1 / 1;
-    }
-}
-
-/* ============================================
-   Small Screens Optimization
-   ============================================ */
-@media (max-width: 480px) {
-    .game-title {
-        font-size: 1.2rem;
-        margin-bottom: 8px;
-    }
-
-    .game-container {
-        padding: 5px;
-    }
-
-    .game-sidebar {
-        flex-direction: column;
-        max-width: 95vw;
-    }
-
-    .score-board,
     .figures-panel {
         margin-right: 0;
         margin-bottom: 8px;
@@ -362,179 +326,53 @@ body {
     padding: 15px 30px;
     font-size: 1.2rem;
     cursor: pointer;
-    min-height: 44px;
-    min-width: 120px;
-    border: none;
-    border-radius: 8px;
-    background-color: #007bff;
-    color: white;
-    touch-action: manipulation;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    transition: background-color 0.2s ease;
-}
-
-.create-room-btn:hover {
-    background-color: #0056b3;
-}
-
-.create-room-btn:active {
-    background-color: #004494;
-}
-
-/* ============================================
-   Rooms List
-   ============================================ */
-.rooms-list {
-    margin-top: 20px;
-}
-
-.rooms-list ul {
-    list-style: none;
-    padding: 0;
-}
-
-.rooms-list li {
-    margin: 10px 0;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    font-family: 'VirtualDJ', Arial, sans-serif;
+    font-weight: bold;
 }
 
 .join-btn {
     margin-left: 10px;
-    padding: 12px 20px;
-    font-size: 1rem;
-    cursor: pointer;
-    min-height: 44px;
-    min-width: 80px;
-    border: none;
-    border-radius: 6px;
-    background-color: #28a745;
-    color: white;
-    touch-action: manipulation;
-    transition: background-color 0.2s ease;
+    font-family: 'VirtualDJ', Arial, sans-serif;
+    font-weight: bold;
 }
 
-.join-btn:hover {
-    background-color: #218838;
-}
-
-.join-btn:active {
-    background-color: #1e7e34;
-}
-
-/* ============================================
-   Game Over Overlay
-   ============================================ */
-.game-over-overlay {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background-color: rgba(0, 0, 0, 0.9);
-    color: white;
-    padding: 30px;
-    border-radius: 12px;
-    z-index: 1000;
-    text-align: center;
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
-    min-width: 250px;
-}
-
-.restart-btn {
-    margin-top: 15px;
-    padding: 12px 24px;
-    font-size: 1rem;
-    cursor: pointer;
-    min-height: 44px;
-    border: none;
-    border-radius: 6px;
-    background-color: #28a745;
-    color: white;
-    touch-action: manipulation;
-    transition: background-color 0.2s ease;
-}
-
-.restart-btn:hover {
-    background-color: #218838;
-}
-
-.restart-btn:active {
-    background-color: #1e7e34;
-}
-
-/* ============================================
-   Mobile-specific button improvements
-   ============================================ */
-@media (hover: none) and (pointer: coarse) {
-    .create-room-btn {
-        padding: 18px 35px;
-        font-size: 1.3rem;
-        min-height: 48px;
-        max-width: 90vw;
-    }
-
-    .join-btn {
-        padding: 15px 25px;
-        font-size: 1.1rem;
-        min-height: 48px;
-    }
-
-    .rooms-list li {
-        margin: 15px 0;
-        flex-wrap: wrap;
-    }
-
-    .game-over-overlay {
-        width: 90vw;
-        max-width: 350px;
-        padding: 20px;
-    }
-}
-
-/* ============================================
-   Settings Button
-   ============================================ */
-.settings-button {
+/* Settings button */
+.settings-btn {
     position: fixed;
     top: 20px;
     right: 20px;
-    width: 50px;
-    height: 50px;
-    border: none;
-    border-radius: 50%;
-    background-color: var(--button-bg);
-    color: var(--button-text);
-    font-size: 20px;
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    color: var(--text-primary);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 100;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     transition: all 0.3s ease;
-    touch-action: manipulation;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.settings-button:hover {
-    background-color: var(--button-hover);
-    transform: scale(1.05);
+.settings-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
-.settings-button:active {
-    transform: scale(0.95);
+.settings-btn svg {
+    transition: transform 0.3s ease;
 }
 
-/* ============================================
-   Settings Modal
-   ============================================ */
-.settings-overlay {
+/* Modal overlay */
+.modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: var(--modal-overlay);
+    right: 0;
+    bottom: 0;
+    background: var(--overlay-bg);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -542,203 +380,152 @@ body {
     animation: fadeIn 0.3s ease;
 }
 
-.settings-modal {
-    background-color: var(--modal-bg);
-    color: var(--modal-text);
-    border-radius: 12px;
-    padding: 0;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    max-width: 400px;
-    width: 90vw;
-    max-height: 80vh;
-    overflow-y: auto;
-    animation: slideIn 0.3s ease;
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
-.settings-header {
+/* Modal content */
+.modal-content {
+    background: var(--modal-bg);
+    border-radius: 12px;
+    padding: 0;
+    min-width: 320px;
+    max-width: 90%;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(50px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Modal header */
+.modal-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 20px 24px;
+    justify-content: space-between;
+    padding: 20px;
     border-bottom: 1px solid var(--border-color);
 }
 
-.settings-header h2 {
+.modal-header h2 {
     margin: 0;
     font-size: 1.5rem;
-    font-weight: 600;
+    color: var(--text-primary);
 }
 
 .close-btn {
     background: none;
     border: none;
-    font-size: 24px;
-    color: var(--modal-text);
+    font-size: 2rem;
+    color: var(--text-secondary);
     cursor: pointer;
-    padding: 0;
-    width: 30px;
-    height: 30px;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
-    transition: background-color 0.2s ease;
+    border-radius: 6px;
+    transition: background 0.2s ease, color 0.2s ease;
 }
 
 .close-btn:hover {
-    background-color: rgba(0, 0, 0, 0.1);
-}
-
-[data-theme="dark"] .close-btn:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-}
-
-.settings-content {
-    padding: 24px;
-}
-
-.setting-item {
-    margin-bottom: 20px;
-}
-
-.setting-label {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 1rem;
-    font-weight: 500;
-}
-
-/* ============================================
-   Theme Toggle
-   ============================================ */
-.theme-toggle {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.theme-toggle span {
-    font-size: 1.2rem;
-    transition: opacity 0.3s ease;
-}
-
-.theme-toggle span:not(.active) {
-    opacity: 0.5;
-}
-
-.toggle-switch {
-    position: relative;
-    width: 60px;
-    height: 30px;
-    border: none;
-    border-radius: 15px;
-    background-color: var(--border-color);
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-    padding: 2px;
-}
-
-.toggle-switch.light {
-    background-color: #ffc107;
-}
-
-.toggle-switch.dark {
-    background-color: #6c757d;
-}
-
-.toggle-slider {
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    background-color: white;
-    transition: transform 0.3s ease;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.toggle-switch.dark .toggle-slider {
-    transform: translateX(30px);
-}
-
-/* ============================================
-   Animations
-   ============================================ */
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-@keyframes slideIn {
-    from { 
-        opacity: 0;
-        transform: translateY(-50px) scale(0.9);
-    }
-    to { 
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-}
-
-/* ============================================
-   Dark Theme Updates for Existing Components
-   ============================================ */
-[data-theme="dark"] .score-board,
-[data-theme="dark"] .figures-panel {
-    background-color: var(--card-bg);
-    border-color: var(--border-color);
+    background: var(--border-color);
     color: var(--text-primary);
 }
 
-[data-theme="dark"] .create-room-btn,
-[data-theme="dark"] .join-btn,
-[data-theme="dark"] .restart-btn {
-    background-color: var(--button-bg);
-    color: var(--button-text);
+/* Modal body */
+.modal-body {
+    padding: 20px;
 }
 
-[data-theme="dark"] .create-room-btn:hover,
-[data-theme="dark"] .join-btn:hover,
-[data-theme="dark"] .restart-btn:hover {
-    background-color: var(--button-hover);
+/* Setting item */
+.setting-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    font-size: 1.1rem;
 }
 
-[data-theme="dark"] .game-over-overlay {
-    background-color: rgba(0, 0, 0, 0.95);
-    color: white;
+/* Theme switch */
+.theme-switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 32px;
+    cursor: pointer;
 }
 
-[data-theme="dark"] .room-id-display {
-    color: #ccc;
-    background-color: rgba(0, 0, 0, 0.8);
+.theme-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
 }
 
-/* Mobile adjustments for settings button */
-@media (max-width: 768px) {
-    .settings-button {
-        top: 15px;
-        right: 15px;
-        width: 45px;
-        height: 45px;
-        font-size: 18px;
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #4CAF50;
+    transition: 0.4s;
+    border-radius: 32px;
+    display: flex;
+    align-items: center;
+    padding: 0 4px;
+}
+
+.theme-switch input:checked+.slider {
+    background-color: #2196F3;
+}
+
+.slider-icon {
+    position: absolute;
+    height: 24px;
+    width: 24px;
+    background-color: white;
+    transition: 0.4s;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    left: 4px;
+}
+
+.theme-switch input:checked+.slider .slider-icon {
+    transform: translateX(28px);
+}
+
+/* Mobile layout: Full width/height of the smaller dimension */
+@media (max-width: 768px),
+(max-height: 600px) {
+    .game-board {
+        width: 100vmin;
+        height: 100vmin;
+        grid-template-columns: repeat(10, 1fr);
+        box-sizing: border-box;
     }
-    
-    .settings-modal {
-        width: 95vw;
-        margin: 10px;
-    }
-    
-    .settings-header {
-        padding: 16px 20px;
-    }
-    
-    .settings-content {
-        padding: 20px;
-    }
-    
-    .settings-header h2 {
-        font-size: 1.3rem;
+
+    .grid-cell {
+        width: auto;
+        height: auto;
     }
 }
