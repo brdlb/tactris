@@ -3,9 +3,10 @@ import { FIGURES } from '../../../constants/figures';
 
 const FiguresPanel = ({ score, figures }) => {
     // Render helper for figures
-    const renderFigure = (type) => {
-        const shape = FIGURES[type];
-        if (!shape) return null;
+    const renderFigure = (figure) => {
+        if (!figure || !figure.cells) return null;
+
+        const shape = figure.cells;
 
         // Create a mini grid for the figure
         const w = 4, h = 4;
@@ -30,9 +31,9 @@ const FiguresPanel = ({ score, figures }) => {
             </div>
             {figures.length > 0 && (
                 <div style={{ display: 'flex' }}>
-                    {figures.map((type, i) => (
+                    {figures.map((figure, i) => (
                         <div key={i} style={{ marginRight: '10px' }}>
-                            {renderFigure(type)}
+                            {renderFigure(figure)}
                         </div>
                     ))}
                 </div>

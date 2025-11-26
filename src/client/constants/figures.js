@@ -7,3 +7,7 @@ export const FIGURES = {
     J: [[1, 0], [1, 1], [1, 2], [0, 2]],
     L: [[0, 0], [0, 1], [0, 2], [1, 2]]
 };
+
+export const FIGURE_ROTATIONS = {
+    I: 2, O: 1, T: 4, S: 2, Z: 2, J: 4, L: 4
+};

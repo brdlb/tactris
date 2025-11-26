@@ -237,7 +237,7 @@ const useGameLogic = (boardRefOverride = null) => {
     };
 
     // Helper to check if pixels match any of the allowed figures (subset check)
-    const checkMatch = (pixels, allowedTypes) => {
+    const checkMatch = (pixels, figures) => {
         if (pixels.length === 0) return true;
 
         // Normalize pixels to (0,0)
@@ -245,12 +245,11 @@ const useGameLogic = (boardRefOverride = null) => {
         const minY = Math.min(...pixels.map(p => p.y));
         const normalized = pixels.map(p => ({ x: p.x - minX, y: p.y - minY }));
 
-        for (const type of allowedTypes) {
-            const figure = FIGURES[type];
-            if (!figure) continue;
+        for (const figure of figures) {
+            if (!figure.cells) continue;
 
             // Check all 4 rotations
-            let currentShape = figure;
+            let currentShape = figure.cells;
             for (let r = 0; r < 4; r++) {
                 // Check if normalized pixels are a subset of currentShape
                 const isSubset = normalized.every(p =>

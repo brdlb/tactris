@@ -8,6 +8,55 @@ const FIGURES = {
     L: [[0, 0], [0, 1], [0, 2], [1, 2]]
 };
 
+const FIGURE_ROTATIONS = {
+    I: 2, O: 1, T: 4, S: 2, Z: 2, J: 4, L: 4
+};
+
+// Rotate figure 90 degrees clockwise once
+function rotateFigure(cells) {
+    // (x, y) → (y, -x) then normalize
+    const rotated = cells.map(([x, y]) => [y, -x]);
+    return normalizeFigure(rotated);
+}
+
+// Shift cells to upper-left corner (min x=0, min y=0)
+function normalizeFigure(cells) {
+    const minX = Math.min(...cells.map(c => c[0]));
+    const minY = Math.min(...cells.map(c => c[1]));
+    return cells.map(([x, y]) => [x - minX, y - minY]);
+}
+
+// Generate new figure excluding certain types
+function generateNewFigure(excludeTypes = []) {
+    // 1. Filter available types (not in excludeTypes)
+    const availableTypes = Object.keys(FIGURE_ROTATIONS).filter(type => !excludeTypes.includes(type));
+    if (availableTypes.length === 0) {
+        // If all types are excluded, fallback to any random type
+        availableTypes.push(...Object.keys(FIGURE_ROTATIONS));
+    }
+    
+    // 2. Pick random type
+    const randomType = availableTypes[Math.floor(Math.random() * availableTypes.length)];
+    
+    // 3. Get rotation count for that type
+    const rotationCount = FIGURE_ROTATIONS[randomType];
+    
+    // 4. Pick random rotation (0 to count-1)
+    const randomRotation = Math.floor(Math.random() * rotationCount);
+    
+    // 5. Apply rotations
+    let cells = FIGURES[randomType].map(cell => [...cell]);
+    for (let i = 0; i < randomRotation; i++) {
+        cells = rotateFigure(cells);
+    }
+    
+    // 6. Normalize to upper-left
+    cells = normalizeFigure(cells);
+    
+    // 7. Return {type, cells}
+    return { type: randomType, cells };
+}
+
 class Game {
     constructor(id) {
         this.id = id;
@@ -18,10 +67,9 @@ class Game {
 
     addPlayer(playerId, color = 'red') {
         if (!this.players.has(playerId)) {
-            const figureKeys = Object.keys(FIGURES);
             const playerFigures = [
-                figureKeys[Math.floor(Math.random() * figureKeys.length)],
-                figureKeys[Math.floor(Math.random() * figureKeys.length)]
+                generateNewFigure(),
+                generateNewFigure()
             ];
             this.players.set(playerId, {
                 id: playerId,
@@ -85,8 +133,8 @@ class Game {
         }
 
         // 1. Validate geometry
-        const matchedType = this.checkMatch(pixels, player.figures);
-        if (!matchedType) {
+        const matchedFigureIndex = this.checkMatch(pixels, player.figures);
+        if (matchedFigureIndex === -1) {
             this.clearTemporary(playerId);
             return false;
         }
@@ -117,13 +165,18 @@ class Game {
             this.grid[p.y][p.x] = { playerId, color: player.color }; // No 'state' means solid
         }
 
-        // 4. Remove figure from player
-        const figIndex = player.figures.indexOf(matchedType);
-        if (figIndex > -1) {
-            player.figures.splice(figIndex, 1);
-            // Refill figures to keep the game going
-            const figureKeys = Object.keys(FIGURES);
-            player.figures.push(figureKeys[Math.floor(Math.random() * figureKeys.length)]);
+        // 4. Remove figure from player and generate new one
+        const matchedFigure = player.figures[matchedFigureIndex];
+        const placedType = matchedFigure.type;
+        const remainingTypes = player.figures
+            .filter((_, index) => index !== matchedFigureIndex)
+            .map(fig => fig.type);
+        const excludeTypes = [placedType, ...remainingTypes];
+        
+        if (matchedFigureIndex > -1) {
+            player.figures.splice(matchedFigureIndex, 1);
+            // Generate new figure excluding placed type and remaining types
+            player.figures.push(generateNewFigure(excludeTypes));
         }
 
         // 5. Check lines
@@ -156,26 +209,26 @@ class Game {
         }
     }
 
-    checkMatch(pixels, allowedTypes) {
-        if (!pixels || pixels.length === 0) return null;
+    checkMatch(pixels, figures) {
+        if (!pixels || pixels.length === 0) return -1;
 
         // Normalize pixels
         const minX = Math.min(...pixels.map(p => p.x));
         const minY = Math.min(...pixels.map(p => p.y));
         const normalized = pixels.map(p => ({ x: p.x - minX, y: p.y - minY }));
 
-        for (const type of allowedTypes) {
-            const figure = FIGURES[type];
-            if (!figure) continue;
-            if (figure.length !== pixels.length) continue;
+        for (let i = 0; i < figures.length; i++) {
+            const figure = figures[i];
+            if (!figure.cells) continue;
+            if (figure.cells.length !== pixels.length) continue;
 
-            const match = figure.every(fp =>
+            const match = figure.cells.every(fp =>
                 normalized.some(p => p.x === fp[0] && p.y === fp[1])
             );
 
-            if (match) return type;
+            if (match) return i;
         }
-        return null;
+        return -1;
     }
 
     checkLines() {
@@ -249,8 +302,8 @@ class Game {
 
     checkGameOver() {
         for (const player of this.players.values()) {
-            for (const figureType of player.figures) {
-                if (this.canPlaceFigure(player.id, figureType)) {
+            for (const figure of player.figures) {
+                if (this.canPlaceFigure(player.id, figure)) {
                     return false;
                 }
             }
@@ -259,14 +312,13 @@ class Game {
         return true;
     }
 
-    canPlaceFigure(playerId, figureType) {
-        const figure = FIGURES[figureType];
-        if (!figure) return false;
+    canPlaceFigure(playerId, figure) {
+        if (!figure || !figure.cells) return false;
 
         for (let y = 0; y < 10; y++) {
             for (let x = 0; x < 10; x++) {
                 let fits = true;
-                for (const [dx, dy] of figure) {
+                for (const [dx, dy] of figure.cells) {
                     const targetX = x + dx;
                     const targetY = y + dy;
 
