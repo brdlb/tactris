@@ -4,6 +4,7 @@ import SettingsModal from './SettingsModal';
 import RoomControls from './RoomControls';
 import FiguresPanel from './FiguresPanel';
 import GameGrid from './GameGrid';
+import Panel from './Panel';
 import './GameBoard.css';
 
 const GameBoard = () => {
@@ -70,15 +71,27 @@ const GameBoard = () => {
                 <div className="game-content">
                     <FiguresPanel score={score} figures={myFigures} />
 
-                    <GameGrid
-                        grid={grid}
-                        roomId={roomId}
-                        boardRef={boardRef}
-                        onPointerDown={handlePointerDown}
-                        onPointerMove={handlePointerMove}
-                        onPointerUp={handlePointerUp}
-                        onPointerCancel={handlePointerCancel}
-                    />
+                    <div className="game-board-wrapper">
+                        <Panel position="top-right">
+                            <div className="panel-content">Панель 1</div>
+                        </Panel>
+                        
+                        <Panel position="bottom-right">
+                            <div className="panel-content">Панель 2</div>
+                        </Panel>
+                        
+                        <Panel position="bottom-left">
+                            <div className="panel-content">Панель 3</div>
+                        </Panel>
+
+                        <GameGrid
+                            grid={grid}
+                            onPointerDown={handlePointerDown}
+                            onPointerMove={handlePointerMove}
+                            onPointerUp={handlePointerUp}
+                            onPointerCancel={handlePointerCancel}
+                        />
+                    </div>
                 </div>
             )}
         </div>
