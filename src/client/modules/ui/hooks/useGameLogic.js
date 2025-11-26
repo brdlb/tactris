@@ -24,6 +24,7 @@ const useGameLogic = (boardRefOverride = null) => {
     const activePointerId = useRef(null);
     const lastPointerCell = useRef(null);
     const pointerCaptureTarget = useRef(null);
+    const pendingUpdates = useRef(new Set()); // Track recently updated pixels to avoid redundant server updates
 
     // Helper to check if pixels match any of the allowed figures (subset check)
     const checkMatch = (pixels, figures) => {
@@ -77,6 +78,9 @@ const useGameLogic = (boardRefOverride = null) => {
         ensureRow(removedPixel.y);
         newGrid[removedPixel.y][removedPixel.x] = null;
 
+        // Track this pixel as recently updated by current user (removal)
+        pendingUpdates.current.add(`${removedPixel.x}-${removedPixel.y}`);
+
         gridRef.current = newGrid;
         setGrid(newGrid);
 
@@ -100,8 +104,30 @@ const useGameLogic = (boardRefOverride = null) => {
         const socket = SocketManager.connect();
 
         const updateGameState = (state) => {
-            setGrid(state.grid);
-            gridRef.current = state.grid;
+            const currentGrid = gridRef.current;
+            const newGrid = state.grid;
+            const socketId = socket.id;
+            const pendingUpdatesSet = pendingUpdates.current;
+
+            // Create a new grid that preserves recent local changes
+            let processedGrid = newGrid.map((row, y) => 
+                row.map((cell, x) => {
+                    const pixelKey = `${x}-${y}`;
+                    const currentCell = currentGrid[y]?.[x];
+                    
+                    // Skip updating if this pixel was recently modified locally
+                    if (pendingUpdatesSet.has(pixelKey)) {
+                        return currentCell;
+                    }
+                    
+                    // Otherwise use the server state
+                    return cell;
+                })
+            );
+
+            setGrid(processedGrid);
+            gridRef.current = processedGrid;
+            
             const myPlayer = state.players && state.players[socket.id];
             if (myPlayer) {
                 if (myPlayer.figures) setMyFigures(myPlayer.figures);
@@ -110,6 +136,9 @@ const useGameLogic = (boardRefOverride = null) => {
             if (state.gameOver !== undefined) {
                 setGameOver(state.gameOver);
             }
+
+            // Clean up old pending updates (keep only recent ones)
+            pendingUpdatesSet.clear();
         };
 
         socket.on('room_created', ({ roomId, state }) => {
@@ -120,6 +149,7 @@ const useGameLogic = (boardRefOverride = null) => {
             });
             setRoomId(roomId);
             roomIdRef.current = roomId;
+            pendingUpdates.current.clear(); // Clear pending updates for new room
             updateGameState(state);
             selectedPixels.current = []; // Reset selection on new game
             setGameOver(false);
@@ -135,6 +165,7 @@ const useGameLogic = (boardRefOverride = null) => {
             });
             setRoomId(roomId);
             roomIdRef.current = roomId;
+            pendingUpdates.current.clear(); // Clear pending updates for new room
             updateGameState(state);
             selectedPixels.current = [];
             setGameOver(false);
@@ -298,6 +329,9 @@ const useGameLogic = (boardRefOverride = null) => {
         activePointerId.current = null;
         lastPointerCell.current = null;
         pointerCaptureTarget.current = null;
+
+        // Clear pending updates after drawing is finalized
+        pendingUpdates.current.clear();
     }, [gameOver, myFigures]);
 
     useEffect(() => {
@@ -351,6 +385,9 @@ const useGameLogic = (boardRefOverride = null) => {
         ensureRow(y);
         newGrid[y][x] = { playerId: socketId, color: userColor.current, state: 'drawing' };
         SocketManager.placePixel(activeRoomId, 1, newPixel);
+
+        // Track this pixel as recently updated by current user
+        pendingUpdates.current.add(`${x}-${y}`);
 
         // If we have 4 or more pixels, check if they match any figure
         if (selectedPixels.current.length >= 4) {
