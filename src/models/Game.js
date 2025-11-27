@@ -376,6 +376,23 @@ class Game {
         }
         return false;
     }
+
+    restart() {
+        // Clear the grid
+        this.grid = Array(10).fill(null).map(() => Array(10).fill(null));
+        
+        // Reset game over state
+        this.gameOver = false;
+        
+        // Reset all players' scores and figures
+        for (const player of this.players.values()) {
+            player.score = 0;
+            player.figures = [
+                generateNewFigure(),
+                generateNewFigure()
+            ];
+        }
+    }
 }
 
 module.exports = { Game, FIGURES };

@@ -100,6 +100,10 @@ class SocketManager {
     updatePlayerColor(roomId, newColor) {
         this.socket.emit('update_player_color', { roomId, color: newColor });
     }
+
+    restartGame(roomId) {
+        this.socket.emit('restart_game', { roomId });
+    }
 }
 
 export default new SocketManager();

@@ -29,7 +29,8 @@ const GameBoard = () => {
         handlePointerMove,
         handlePointerUp,
         handlePointerCancel,
-        handleHueChange
+        handleHueChange,
+        handleRestart
     } = useGameLogic(boardRef);
 
     const toggleSettings = () => {
@@ -61,6 +62,9 @@ const GameBoard = () => {
                 <div className="game-over-overlay">
                     <h2>Game Over!</h2>
                     <p>No more moves possible.</p>
+                    <button className="restart-btn" onClick={handleRestart}>
+                        Restart Game
+                    </button>
                 </div>
             )}
 

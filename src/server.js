@@ -126,6 +126,21 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('restart_game', ({ roomId }) => {
+    const game = games.get(roomId);
+    if (game) {
+      game.restart();
+      // Send updated game state to all players in the room
+      const gameState = game.getState();
+      const playersList = game.getPlayersList();
+      io.to(roomId).emit('game_update', gameState);
+      io.to(roomId).emit('players_list_updated', { playersList });
+      io.to(roomId).emit('game_restarted');
+    } else {
+      socket.emit('error', 'Room not found');
+    }
+  });
+
   socket.on('disconnect', () => {
     
     // Find all rooms the disconnected user was part of

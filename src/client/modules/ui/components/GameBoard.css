@@ -215,6 +215,30 @@
     padding: 20px;
     border-radius: 10px;
     z-index: 1000;
+    text-align: center;
+}
+
+.restart-btn {
+    margin-top: 15px;
+    padding: 10px 20px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    font-family: 'VirtualDJ', Arial, sans-serif;
+}
+
+.restart-btn:hover {
+    background-color: #45a049;
+    transform: scale(1.05);
+}
+
+.restart-btn:active {
+    transform: scale(0.95);
 }
 
 .room-controls {

@@ -201,6 +201,12 @@ const useGameLogic = (boardRefOverride = null) => {
             setGameOver(true);
         });
 
+        socket.on('game_restarted', () => {
+            setGameOver(false);
+            selectedPixels.current = []; // Clear selection queue
+            pendingUpdates.current.clear(); // Clear pending updates
+        });
+
         socket.on('rooms_list', (roomList) => {
             setRooms(roomList);
         });
@@ -380,6 +386,12 @@ const useGameLogic = (boardRefOverride = null) => {
         }
     };
 
+    const handleRestart = () => {
+        if (roomIdRef.current) {
+            SocketManager.restartGame(roomIdRef.current);
+        }
+    };
+
     const handleInteraction = (x, y) => {
         const activeRoomId = roomIdRef.current;
         if (!activeRoomId || gameOver) return;
@@ -495,7 +507,8 @@ const useGameLogic = (boardRefOverride = null) => {
         handlePointerMove,
         handlePointerUp,
         handlePointerCancel,
-        handleHueChange
+        handleHueChange,
+        handleRestart
     };
 };
 
