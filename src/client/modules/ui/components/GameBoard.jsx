@@ -78,21 +78,21 @@ const GameBoard = () => {
                         {playersList.filter(player => player.id !== SocketManager.getSocket()?.id).slice(0, 3).map((player, index) => {
                             const positions = ['top-right', 'bottom-right', 'bottom-left'];
                             const position = positions[index] || 'top-right';
-                            
+
                             // Helper to render figures for other players (similar to FiguresPanel but simplified)
                             const renderPlayerFigures = (figures) => {
                                 if (!figures || figures.length === 0) return null;
-                                
+
                                 const renderFigure = (figure) => {
                                     if (!figure || !figure.cells) return null;
-                                    
+
                                     const shape = figure.cells;
                                     const w = 4, h = 4;
                                     const grid = Array(h).fill(null).map(() => Array(w).fill(false));
                                     shape.forEach(([x, y]) => {
                                         if (grid[y] && grid[y][x] !== undefined) grid[y][x] = true;
                                     });
-                                    
+
                                     return (
                                         <div key={Math.random()} style={{ display: 'grid', gridTemplateColumns: `repeat(${w}, 8px)`, gap: '1px', margin: '2px' }}>
                                             {grid.map((row, y) => row.map((filled, x) => (
@@ -101,7 +101,7 @@ const GameBoard = () => {
                                         </div>
                                     );
                                 };
-                                
+
                                 return (
                                     <div style={{ display: 'flex', marginTop: '5px' }}>
                                         {figures.map((figure, i) => (
@@ -112,13 +112,13 @@ const GameBoard = () => {
                                     </div>
                                 );
                             };
-                            
+
                             return (
                                 <Panel key={player.id} position={position}>
                                     <div className="panel-content">
                                         <div className="player-info">
-                                            <div 
-                                                className="player-color" 
+                                            <div
+                                                className="player-color"
                                                 style={{ backgroundColor: player.color }}
                                             ></div>
                                             <span>Игрок {index + 2}</span>

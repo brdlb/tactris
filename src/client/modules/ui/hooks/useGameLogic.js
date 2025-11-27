@@ -65,7 +65,7 @@ const useGameLogic = (boardRefOverride = null) => {
     // Helper to remove first pixel from queue and clear it from grid
     const removeFirstPixelFromQueue = () => {
         if (selectedPixels.current.length === 0) return;
-        
+
         const removedPixel = selectedPixels.current.shift();
         const socketId = SocketManager.getSocket().id;
         let newGrid = [...gridRef.current];
@@ -111,16 +111,16 @@ const useGameLogic = (boardRefOverride = null) => {
             const pendingUpdatesSet = pendingUpdates.current;
 
             // Create a new grid that preserves recent local changes
-            let processedGrid = newGrid.map((row, y) => 
+            let processedGrid = newGrid.map((row, y) =>
                 row.map((cell, x) => {
                     const pixelKey = `${x}-${y}`;
                     const currentCell = currentGrid[y]?.[x];
-                    
+
                     // Skip updating if this pixel was recently modified locally
                     if (pendingUpdatesSet.has(pixelKey)) {
                         return currentCell;
                     }
-                    
+
                     // Otherwise use the server state
                     return cell;
                 })
@@ -128,7 +128,7 @@ const useGameLogic = (boardRefOverride = null) => {
 
             setGrid(processedGrid);
             gridRef.current = processedGrid;
-            
+
             const myPlayer = state.players && state.players[socket.id];
             if (myPlayer) {
                 if (myPlayer.figures) {
@@ -136,16 +136,16 @@ const useGameLogic = (boardRefOverride = null) => {
                     // Only update if the figures array or its contents actually changed
                     const currentFigures = myFigures;
                     const newFigures = myPlayer.figures;
-                    
+
                     // Debug logging for figures changes
-                    const figuresChanged = currentFigures.length !== newFigures.length || 
+                    const figuresChanged = currentFigures.length !== newFigures.length ||
                         currentFigures.some((fig, i) => {
                             const newFig = newFigures[i];
-                            return !fig || !newFig || 
-                                   fig.type !== newFig.type || 
-                                   JSON.stringify(fig.cells) !== JSON.stringify(newFig.cells);
+                            return !fig || !newFig ||
+                                fig.type !== newFig.type ||
+                                JSON.stringify(fig.cells) !== JSON.stringify(newFig.cells);
                         });
-                    
+
                     if (figuresChanged) {
                         console.log(`[CLIENT] Фигуры изменились:`, {
                             before: currentFigures.map((f, i) => ({ index: i, type: f?.type })),
@@ -156,6 +156,17 @@ const useGameLogic = (boardRefOverride = null) => {
                     }
                 }
                 if (myPlayer.score !== undefined) setScore(myPlayer.score);
+            }
+
+            // Update players list to sync opponents' data (scores, figures)
+            if (state.players) {
+                const updatedPlayersList = Object.values(state.players).map(player => ({
+                    id: player.id,
+                    color: player.color,
+                    score: player.score,
+                    figures: player.figures
+                }));
+                setPlayersList(updatedPlayersList);
             }
             if (state.gameOver !== undefined) {
                 setGameOver(state.gameOver);
@@ -467,7 +478,7 @@ const useGameLogic = (boardRefOverride = null) => {
         // If we have 4 or more pixels, check if they match any figure
         if (selectedPixels.current.length >= 4) {
             const matchedFigureIndex = checkMatch(selectedPixels.current, myFigures);
-            
+
             // If doesn't match any figure, remove the first pixel
             if (matchedFigureIndex === -1) {
                 removeFirstPixelFromQueue();
