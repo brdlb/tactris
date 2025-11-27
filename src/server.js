@@ -143,7 +143,7 @@ io.on('connection', (socket) => {
     console.log(`User ${socket.id} placed figure in room ${roomId} with ${pixels.length} pixels`);
     const game = games.get(roomId);
     if (game) {
-      const success = game.placeFigure(socket.id, pixels);
+      const success = game.placeFigure(socket.id, pixels, roomId, io);
       if (success) {
         const gameState = game.getState();
         console.log(`[SERVER] game_update after place_figure:`, {

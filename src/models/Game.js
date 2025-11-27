@@ -143,7 +143,7 @@ class Game {
         return true;
     }
 
-    placeFigure(playerId, pixels) {
+    placeFigure(playerId, pixels, roomId = null, io = null) {
         if (this.gameOver) return false;
         const player = this.players.get(playerId);
         if (!player) {
@@ -154,21 +154,21 @@ class Game {
         // 1. Validate geometry
         const matchedFigureIndex = this.checkMatch(pixels, player.figures);
         if (matchedFigureIndex === -1) {
-            this.clearTemporary(playerId);
+            this.clearTemporary(playerId, roomId, io);
             return false;
         }
 
         // 2. Validate placement (bounds and collision)
         for (const p of pixels) {
             if (p.x < 0 || p.x >= 10 || p.y < 0 || p.y >= 10) {
-                this.clearTemporary(playerId);
+                this.clearTemporary(playerId, roomId, io);
                 return false;
             }
             const cell = this.grid[p.y][p.x];
             // Collision if cell is not null AND (not owned by player OR not drawing state)
             if (cell !== null) {
                 if (cell.playerId !== playerId || cell.state !== 'drawing') {
-                    this.clearTemporary(playerId);
+                    this.clearTemporary(playerId, roomId, io);
                     return false;
                 }
             }
@@ -178,7 +178,7 @@ class Game {
         // First, clear any temporary pixels that might be leftover (though usually they are part of the figure)
         // Actually, we should just overwrite the pixels in the figure with solid ones.
         // But we should also clean up any "stray" drawing pixels if the user drew extra stuff.
-        this.clearTemporary(playerId);
+        this.clearTemporary(playerId, roomId, io);
 
         for (const p of pixels) {
             this.grid[p.y][p.x] = { playerId, color: player.color }; // No 'state' means solid
@@ -232,14 +232,21 @@ class Game {
         return true;
     }
 
-    clearTemporary(playerId) {
+    clearTemporary(playerId, roomId = null, io = null) {
         for (let y = 0; y < 10; y++) {
             for (let x = 0; x < 10; x++) {
                 const cell = this.grid[y][x];
                 if (cell && cell.playerId === playerId && cell.state === 'drawing') {
+                    console.log(`[SERVER] playerId: ${playerId}, cell:`, cell.playerId);
                     this.grid[y][x] = null;
                 }
             }
+        }
+        
+        // Send update to all players if roomId and io are provided
+        if (roomId && io) {
+            const gameState = this.getState();
+            io.to(roomId).emit('game_update', gameState);
         }
     }
 
