@@ -1,6 +1,8 @@
 /**
  * GameStatisticsRepository - Aggregates and updates user statistics
  */
+const TransactionManager = require('../utils/transactionManager');
+
 class GameStatisticsRepository {
   constructor(db) {
     this.db = db;
@@ -298,6 +300,82 @@ class GameStatisticsRepository {
     }
     
     return (stats.wins / stats.total_games) * 100;
+  }
+
+  /**
+   * Updates user statistics based on a completed game session using transactions
+   * @param {string} userId - User ID to update statistics for
+   * @param {Object} gameSession - Completed game session data
+   * @returns {Promise<Object>} The updated statistics
+   */
+  async updateFromGameSessionWithTransaction(userId, gameSession) {
+    return await TransactionManager.executeWithRetry(this.db, async (client) => {
+      // Get the current statistics for the user with row locking to prevent concurrent updates
+      const lockQuery = 'SELECT * FROM game_statistics WHERE user_id = $1 FOR UPDATE;';
+      const statsResult = await client.query(lockQuery, [userId]);
+      
+      let currentStats;
+      if (statsResult.rows.length === 0) {
+        // If no stats exist, create a new record
+        const createStatsQuery = `
+          INSERT INTO game_statistics (
+            user_id, total_games, wins, losses, draws, total_score,
+            total_lines_cleared, total_duration, best_score, best_lines_cleared,
+            average_score, average_lines_cleared, average_duration, games_played_today
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+          RETURNING *;
+        `;
+        
+        const initialStatsValues = [
+          userId, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        ];
+        
+        const createResult = await client.query(createStatsQuery, initialStatsValues);
+        currentStats = createResult.rows[0];
+      } else {
+        currentStats = statsResult.rows[0];
+      }
+
+      // Calculate new statistics based on the game session
+      const gameResult = gameSession.game_result;
+      const newTotalGames = currentStats.total_games + 1;
+      const newWins = gameResult === 'win' ? currentStats.wins + 1 : currentStats.wins;
+      const newLosses = gameResult === 'loss' ? currentStats.losses + 1 : currentStats.losses;
+      const newDraws = gameResult === 'draw' ? currentStats.draws + 1 : currentStats.draws;
+      const newTotalScore = currentStats.total_score + gameSession.score;
+      const newTotalLinesCleared = currentStats.total_lines_cleared + gameSession.lines_cleared;
+      const newTotalDuration = currentStats.total_duration + gameSession.duration_seconds;
+      
+      // Update best scores if needed
+      const newBestScore = Math.max(currentStats.best_score, gameSession.score);
+      const newBestLinesCleared = Math.max(currentStats.best_lines_cleared, gameSession.lines_cleared);
+      
+      // Calculate averages
+      const newAverageScore = newTotalScore / newTotalGames;
+      const newAverageLinesCleared = newTotalLinesCleared / newTotalGames;
+      const newAverageDuration = newTotalDuration / newTotalGames;
+
+      // Update the statistics record
+      const updateStatsQuery = `
+        UPDATE game_statistics
+        SET total_games = $2, wins = $3, losses = $4, draws = $5, total_score = $6,
+            total_lines_cleared = $7, total_duration = $8, best_score = $9, best_lines_cleared = $10,
+            average_score = $11, average_lines_cleared = $12, average_duration = $13, updated_at = NOW()
+        WHERE user_id = $1
+        RETURNING *;
+      `;
+      
+      const statsValues = [
+        userId, newTotalGames, newWins, newLosses, newDraws, newTotalScore,
+        newTotalLinesCleared, newTotalDuration, newBestScore, newBestLinesCleared,
+        newAverageScore, newAverageLinesCleared, newAverageDuration
+      ];
+      
+      const updateStatsResult = await client.query(updateStatsQuery, statsValues);
+      
+      return updateStatsResult.rows[0];
+    });
   }
 }
 

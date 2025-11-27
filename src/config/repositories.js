@@ -1,6 +1,7 @@
 /**
  * Repository Manager - Centralized access to all repositories
  */
+const TransactionManager = require('../utils/transactionManager');
 const UserRepository = require('../models/UserRepository');
 const GameSessionRepository = require('../models/GameSessionRepository');
 const GameStatisticsRepository = require('../models/GameStatisticsRepository');
@@ -44,11 +45,7 @@ class RepositoryManager {
    * @returns {Promise<any>} Result of the transaction function
    */
   async executeInTransaction(transactionFunction) {
-    const client = await this.db.connect();
-    
-    try {
-      await client.query('BEGIN');
-      
+    return await TransactionManager.executeInTransaction(this.db, async (client) => {
       // Create temporary repositories with the transaction client
       const txRepos = {
         users: new UserRepository(client),
@@ -58,17 +55,31 @@ class RepositoryManager {
         userSettings: new UserSettingsRepository(client)
       };
       
-      const result = await transactionFunction(txRepos);
+      return await transactionFunction(txRepos);
+    });
+  }
+
+  /**
+   * Execute a function with retry logic for handling concurrent access
+   * @param {Function} transactionFunction - Function to execute within the transaction
+   * @param {number} maxRetries - Maximum number of retry attempts (default: 3)
+   * @param {number} baseDelayMs - Base delay in milliseconds between retries (default: 100)
+   * @returns {Promise<any>} Result of the transaction function
+   */
+  async executeWithRetry(transactionFunction, maxRetries = 3, baseDelayMs = 100) {
+    return await TransactionManager.executeWithRetry(this.db, async (client) => {
+      // Create temporary repositories with the transaction client
+      const txRepos = {
+        users: new UserRepository(client),
+        gameSessions: new GameSessionRepository(client),
+        gameStatistics: new GameStatisticsRepository(client),
+        leaderboard: new LeaderboardRepository(client),
+        userSettings: new UserSettingsRepository(client)
+      };
       
-      await client.query('COMMIT');
-      return result;
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
-    }
- }
+      return await transactionFunction(txRepos);
+    }, maxRetries, baseDelayMs);
+  }
 }
 
 module.exports = RepositoryManager;

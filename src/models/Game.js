@@ -60,9 +60,16 @@ function generateNewFigure(excludeTypes = []) {
 class Game {
     constructor(id) {
         this.id = id;
-        this.grid = Array(10).fill(null).map(() => Array(10).fill(null)); // 10x10 grid
+        this.gridWidth = 10;
+        this.gridHeight = 10;
+        this.grid = Array(this.gridHeight).fill(null).map(() => Array(this.gridWidth).fill(null)); // 10x10 grid
+        this.initialGrid = Array(this.gridHeight).fill(null).map(() => Array(this.gridWidth).fill(null)); // Initial empty grid
         this.players = new Map();
         this.gameOver = false;
+        this.startTime = Date.now(); // Track game start time for duration
+        this.linesCleared = 0; // Track total lines cleared
+        this.figuresPlaced = 0; // Track total figures placed
+        this.moves = []; // Track game moves for session data
     }
 
     addPlayer(playerId, color = 'red') {
@@ -118,38 +125,44 @@ class Game {
     }
 
     placePixel(playerId, status, position) {
-        if (this.gameOver) return false;
-        const { x, y } = position;
+      if (this.gameOver) return false;
+      const { x, y } = position;
 
-        if (x < 0 || x >= 10 || y < 0 || y >= 10) {
-            return false; // Out of bounds
+      if (x < 0 || x >= 10 || y < 0 || y >= 10) {
+        return false; // Out of bounds
+      }
+
+      const player = this.players.get(playerId);
+      const playerColor = player ? player.color : 'red';
+
+      if (status === 1) {
+        // Only allow placing if empty or if it's own temporary pixel
+        const cell = this.grid[y][x];
+        if (cell === null) {
+          this.grid[y][x] = { playerId, color: playerColor, state: 'drawing' };
+        } else if (cell.playerId === playerId && cell.state === 'drawing') {
+          // Already own drawing pixel, do nothing or update
+          this.grid[y][x] = { playerId, color: playerColor, state: 'drawing' };
+        } else {
+          return false; // Occupied by solid or other player
         }
-
-        const player = this.players.get(playerId);
-        const playerColor = player ? player.color : 'red';
-
-        if (status === 1) {
-            // Only allow placing if empty or if it's own temporary pixel
-            const cell = this.grid[y][x];
-            if (cell === null) {
-                this.grid[y][x] = { playerId, color: playerColor, state: 'drawing' };
-            } else if (cell.playerId === playerId && cell.state === 'drawing') {
-                // Already own drawing pixel, do nothing or update
-                this.grid[y][x] = { playerId, color: playerColor, state: 'drawing' };
-            } else {
-                return false; // Occupied by solid or other player
-            }
-        } else if (status === 0) {
-            // Only allow removing own temporary pixels
-            const cell = this.grid[y][x];
-            if (cell && cell.playerId === playerId && cell.state === 'drawing') {
-                this.grid[y][x] = null;
-            } else {
-                return false;
-            }
+      } else if (status === 0) {
+        // Only allow removing own temporary pixels
+        const cell = this.grid[y][x];
+        if (cell && cell.playerId === playerId && cell.state === 'drawing') {
+          this.grid[y][x] = null;
+        } else {
+          return false;
         }
+      }
 
-        return true;
+      // Add move to game history
+      this.addMove(playerId, 'place_pixel', {
+        position: { x, y },
+        status
+      });
+
+      return true;
     }
 
     placeFigure(playerId, pixels, roomId = null, io = null) {
@@ -223,12 +236,25 @@ class Game {
             }
         }
 
+        // Increment counters for tracking game statistics
+        this.incrementFiguresPlaced();
+        if (linesCleared > 0) {
+            this.incrementLinesCleared(linesCleared);
+        }
+
+        // Add move to game history
+        this.addMove(playerId, 'place_figure', {
+            figure: matchedFigure.type,
+            linesCleared,
+            scoreIncrease: 4 + (linesCleared > 0 ? 10 * linesCleared + (linesCleared > 1 ? 10 * linesCleared : 0) : 0)
+        });
+
         return true;
     }
 
     clearTemporary(playerId, roomId = null, io = null) {
-        for (let y = 0; y < 10; y++) {
-            for (let x = 0; x < 10; x++) {
+        for (let y = 0; y < this.gridHeight; y++) {
+            for (let x = 0; x < this.gridWidth; x++) {
                 const cell = this.grid[y][x];
                 if (cell && cell.playerId === playerId && cell.state === 'drawing') {
                     this.grid[y][x] = null;
@@ -270,16 +296,16 @@ class Game {
         const fullColIndices = [];
 
         // 1. Identify full rows
-        for (let y = 0; y < 10; y++) {
+        for (let y = 0; y < this.gridHeight; y++) {
             if (this.grid[y].every(cell => cell !== null)) {
                 fullRowIndices.push(y);
             }
         }
 
         // 2. Identify full cols
-        for (let x = 0; x < 10; x++) {
+        for (let x = 0; x < this.gridWidth; x++) {
             let colFilled = true;
-            for (let y = 0; y < 10; y++) {
+            for (let y = 0; y < this.gridHeight; y++) {
                 if (this.grid[y][x] === null) {
                     colFilled = false;
                     break;
@@ -289,49 +315,55 @@ class Game {
         }
 
         if (fullRowIndices.length === 0 && fullColIndices.length === 0) {
-            return;
+            return 0; // Return 0 instead of undefined
         }
 
-        // 3. Process Rows (Shift to Center)
-        let topRows = this.grid.slice(0, 5);
-        let bottomRows = this.grid.slice(5, 10);
+        // 3. Process Rows (Shift to Center) - For a 10x10 grid, center is at row 5
+        const centerRow = Math.floor(this.gridHeight / 2);
+        let topRows = this.grid.slice(0, centerRow);
+        let bottomRows = this.grid.slice(centerRow, this.gridHeight);
 
         // Filter out full rows from top and unshift empty rows
         topRows = topRows.filter((_, index) => !fullRowIndices.includes(index));
-        while (topRows.length < 5) {
-            topRows.unshift(Array(10).fill(null));
+        while (topRows.length < centerRow) {
+            topRows.unshift(Array(this.gridWidth).fill(null));
         }
 
         // Filter out full rows from bottom and push empty rows
-        bottomRows = bottomRows.filter((_, index) => !fullRowIndices.includes(index + 5));
-        while (bottomRows.length < 5) {
-            bottomRows.push(Array(10).fill(null));
+        bottomRows = bottomRows.filter((_, index) => !fullRowIndices.includes(index + centerRow));
+        while (bottomRows.length < (this.gridHeight - centerRow)) {
+            bottomRows.push(Array(this.gridWidth).fill(null));
         }
 
         this.grid = [...topRows, ...bottomRows];
 
-        // 4. Process Columns (Shift to Center)
-        for (let y = 0; y < 10; y++) {
+        // 4. Process Columns (Shift to Center) - For a 10x10 grid, center is at column 5
+        const centerCol = Math.floor(this.gridWidth / 2);
+        for (let y = 0; y < this.gridHeight; y++) {
             let row = this.grid[y];
-            let leftHalf = row.slice(0, 5);
-            let rightHalf = row.slice(5, 10);
+            let leftHalf = row.slice(0, centerCol);
+            let rightHalf = row.slice(centerCol, this.gridWidth);
 
             // Filter out full cols from left and unshift nulls
             leftHalf = leftHalf.filter((_, index) => !fullColIndices.includes(index));
-            while (leftHalf.length < 5) {
+            while (leftHalf.length < centerCol) {
                 leftHalf.unshift(null);
             }
 
             // Filter out full cols from right and push nulls
-            rightHalf = rightHalf.filter((_, index) => !fullColIndices.includes(index + 5));
-            while (rightHalf.length < 5) {
+            rightHalf = rightHalf.filter((_, index) => !fullColIndices.includes(index + centerCol));
+            while (rightHalf.length < (this.gridWidth - centerCol)) {
                 rightHalf.push(null);
             }
 
             this.grid[y] = [...leftHalf, ...rightHalf];
         }
 
-        return fullRowIndices.length + fullColIndices.length;
+        const totalLinesCleared = fullRowIndices.length + fullColIndices.length;
+        if (totalLinesCleared > 0) {
+            this.incrementLinesCleared(totalLinesCleared);
+        }
+        return totalLinesCleared;
     }
 
     checkGameOver() {
@@ -349,14 +381,14 @@ class Game {
     canPlaceFigure(playerId, figure) {
         if (!figure || !figure.cells) return false;
 
-        for (let y = 0; y < 10; y++) {
-            for (let x = 0; x < 10; x++) {
+        for (let y = 0; y < this.gridHeight; y++) {
+            for (let x = 0; x < this.gridWidth; x++) {
                 let fits = true;
                 for (const [dx, dy] of figure.cells) {
                     const targetX = x + dx;
                     const targetY = y + dy;
 
-                    if (targetX < 0 || targetX >= 10 || targetY < 0 || targetY >= 10) {
+                    if (targetX < 0 || targetX >= this.gridWidth || targetY < 0 || targetY >= this.gridHeight) {
                         fits = false;
                         break;
                     }
@@ -392,6 +424,131 @@ class Game {
                 generateNewFigure()
             ];
         }
+        
+        // Reset game tracking properties
+        this.startTime = Date.now();
+        this.linesCleared = 0;
+        this.figuresPlaced = 0;
+        this.moves = [];
+    }
+
+    /**
+     * Get the duration of the game in seconds
+     * @returns {number} Duration in seconds
+     */
+    getDuration() {
+        return Math.floor((Date.now() - this.startTime) / 1000);
+    }
+
+    /**
+     * Get the total lines cleared in the game
+     * @returns {number} Total lines cleared
+     */
+    getLinesCleared() {
+        return this.linesCleared;
+    }
+
+    /**
+     * Get the total figures placed in the game
+     * @returns {number} Total figures placed
+     */
+    getFiguresPlaced() {
+        return this.figuresPlaced;
+    }
+
+    /**
+     * Get the score for a specific player
+     * @param {string} playerId - The player ID
+     * @returns {number} Player's score
+     */
+    getScore(playerId) {
+        const player = this.players.get(playerId);
+        return player ? player.score : 0;
+    }
+
+    /**
+     * Get the game result for a specific player
+     * @param {string} playerId - The player ID
+     * @returns {string} Game result ('win', 'loss', 'draw', or 'unknown')
+     */
+    getGameResult(playerId) {
+        if (!this.gameOver) {
+            return 'in_progress';
+        }
+
+        // Determine the result based on player scores
+        const player = this.players.get(playerId);
+        if (!player) {
+            return 'unknown';
+        }
+
+        // For multiplayer, determine win/loss/draw based on relative scores
+        if (this.players.size === 1) {
+            // Single player - always consider as win for now
+            return 'win';
+        }
+
+        // For multiplayer, find the highest score
+        let highestScore = -1;
+        let playersWithHighestScore = [];
+        
+        for (const [id, p] of this.players) {
+            if (p.score > highestScore) {
+                highestScore = p.score;
+                playersWithHighestScore = [id];
+            } else if (p.score === highestScore) {
+                playersWithHighestScore.push(id);
+            }
+        }
+
+        if (playersWithHighestScore.includes(playerId)) {
+            if (playersWithHighestScore.length === 1) {
+                return 'win';
+            } else {
+                // Multiple players with the same highest score - draw
+                return 'draw';
+            }
+        } else {
+            return 'loss';
+        }
+    }
+
+    /**
+     * Add a move to the game history
+     * @param {string} playerId - The player ID making the move
+     * @param {string} action - The action type (e.g., 'place_figure', 'place_pixel')
+     * @param {Object} details - Additional details about the move
+     */
+    addMove(playerId, action, details) {
+        this.moves.push({
+            playerId,
+            action,
+            details,
+            timestamp: Date.now()
+        });
+    }
+
+    /**
+     * Increment the figures placed counter
+     */
+    incrementFiguresPlaced() {
+        this.figuresPlaced++;
+    }
+
+    /**
+     * Increment the lines cleared counter
+     * @param {number} count - Number of lines cleared
+     */
+    incrementLinesCleared(count = 1) {
+        this.linesCleared += count;
+    }
+
+    /**
+     * Get initial grid state
+     * @returns {Array} Initial grid state
+     */
+    getInitialGrid() {
+        return this.initialGrid || Array(10).fill(null).map(() => Array(10).fill(null));
     }
 }
 
