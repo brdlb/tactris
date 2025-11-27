@@ -137,7 +137,7 @@ const useGameLogic = (boardRefOverride = null) => {
                     const currentFigures = myFigures;
                     const newFigures = myPlayer.figures;
 
-                    // Debug logging for figures changes
+                    // Check if figures changed
                     const figuresChanged = currentFigures.length !== newFigures.length ||
                         currentFigures.some((fig, i) => {
                             const newFig = newFigures[i];
@@ -147,11 +147,6 @@ const useGameLogic = (boardRefOverride = null) => {
                         });
 
                     if (figuresChanged) {
-                        console.log(`[CLIENT] Фигуры изменились:`, {
-                            before: currentFigures.map((f, i) => ({ index: i, type: f?.type })),
-                            after: newFigures.map((f, i) => ({ index: i, type: f?.type })),
-                            timestamp: new Date().toISOString()
-                        });
                         setMyFigures(newFigures);
                     }
                 }
@@ -177,19 +172,6 @@ const useGameLogic = (boardRefOverride = null) => {
         };
 
         socket.on('room_created', ({ roomId, state, playersList }) => {
-            console.log(`[CLIENT] Создана новая комната:`, {
-                roomId,
-                gridSize: state.grid ? `${state.grid.length}x${state.grid[0]?.length || 0}` : 'неизвестно',
-                playersCount: playersList ? playersList.length : 0,
-                playersData: playersList ? playersList.map(p => ({
-                    id: p.id.substring(0, 8),
-                    color: p.color,
-                    score: p.score,
-                    figuresCount: p.figures?.length || 0,
-                    figuresTypes: p.figures?.map(f => f.type) || []
-                })) : [],
-                timestamp: new Date().toISOString()
-            });
             setRoomId(roomId);
             roomIdRef.current = roomId;
             pendingUpdates.current.clear(); // Clear pending updates for new room
@@ -201,19 +183,6 @@ const useGameLogic = (boardRefOverride = null) => {
         });
 
         socket.on('room_joined', ({ roomId, state, playersList }) => {
-            console.log(`[CLIENT] Присоединение к комнате:`, {
-                roomId,
-                gridSize: state.grid ? `${state.grid.length}x${state.grid[0]?.length || 0}` : 'неизвестно',
-                playersCount: playersList ? playersList.length : 0,
-                playersData: playersList ? playersList.map(p => ({
-                    id: p.id.substring(0, 8),
-                    color: p.color,
-                    score: p.score,
-                    figuresCount: p.figures?.length || 0,
-                    figuresTypes: p.figures?.map(f => f.type) || []
-                })) : [],
-                timestamp: new Date().toISOString()
-            });
             setRoomId(roomId);
             roomIdRef.current = roomId;
             pendingUpdates.current.clear(); // Clear pending updates for new room
@@ -225,19 +194,10 @@ const useGameLogic = (boardRefOverride = null) => {
         });
 
         socket.on('game_update', (state) => {
-            console.log(`[CLIENT] Получены данные game_update от сервера:`, {
-                gridSize: state.grid ? `${state.grid.length}x${state.grid[0]?.length || 0}` : 'неизвестно',
-                playersCount: state.players ? Object.keys(state.players).length : 0,
-                gameOver: state.gameOver,
-                timestamp: new Date().toISOString()
-            });
             updateGameState(state);
         });
 
         socket.on('game_over', () => {
-            console.log(`[CLIENT] Получено событие game_over от сервера:`, {
-                timestamp: new Date().toISOString()
-            });
             setGameOver(true);
         });
 
@@ -247,45 +207,18 @@ const useGameLogic = (boardRefOverride = null) => {
 
         // Handle player events
         socket.on('player_joined', ({ player }) => {
-            console.log(`[CLIENT] Игрок присоединился:`, {
-                playerId: player.id.substring(0, 8),
-                color: player.color,
-                score: player.score,
-                figuresCount: player.figures?.length || 0,
-                figuresTypes: player.figures?.map(f => f.type) || [],
-                timestamp: new Date().toISOString()
-            });
             setPlayersList(prev => [...prev, player]);
         });
 
         socket.on('player_left', ({ playerId }) => {
-            console.log(`[CLIENT] Игрок отключился:`, {
-                playerId,
-                timestamp: new Date().toISOString()
-            });
             setPlayersList(prev => prev.filter(p => p.id !== playerId));
         });
 
         socket.on('players_list_updated', ({ playersList }) => {
-            console.log(`[CLIENT] Список игроков обновлен:`, {
-                playersCount: playersList.length,
-                players: playersList.map(p => ({
-                    id: p.id.substring(0, 8),
-                    color: p.color,
-                    score: p.score,
-                    figuresCount: p.figures?.length || 0,
-                    figuresTypes: p.figures?.map(f => f.type) || []
-                })),
-                timestamp: new Date().toISOString()
-            });
             setPlayersList(playersList);
         });
 
         socket.on('error', (message) => {
-            console.log(`[CLIENT] Получена ошибка от сервера:`, {
-                message,
-                timestamp: new Date().toISOString()
-            });
             if (message === 'Invalid move') return;
             alert(message);
             if (message === 'Room not found') {
@@ -385,19 +318,11 @@ const useGameLogic = (boardRefOverride = null) => {
     }, [boardRef, updateBoardMetrics]);
 
     const finalizeDrawing = useCallback(() => {
-        console.log(`[CLIENT] Finalizing drawing with ${selectedPixels.current.length} pixels`);
         if (selectedPixels.current.length >= 4 && roomIdRef.current && !gameOver) {
             // Check if the selected pixels match any of the available figures
             const matchedFigureIndex = checkMatch(selectedPixels.current, myFigures);
             if (matchedFigureIndex !== -1) {
-                console.log(`[CLIENT] Завершение рисования фигуры:`, {
-                    pixelsCount: selectedPixels.current.length,
-                    roomId: roomIdRef.current,
-                    timestamp: new Date().toISOString()
-                });
                 SocketManager.placeFigure(roomIdRef.current, selectedPixels.current);
-            } else {
-                console.log(`[CLIENT] Нарисованная фигура не соответствует доступным фигурам`);
             }
         }
 
@@ -544,7 +469,6 @@ const useGameLogic = (boardRefOverride = null) => {
     }, [gameOver, getGridCoordinatesFromPointer, handleInteraction]);
 
     const handlePointerUp = useCallback((event) => {
-        console.log('Pointer up event:', event);
         if (activePointerId.current !== event.pointerId) return;
         event.preventDefault();
         finalizeDrawing();

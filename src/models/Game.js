@@ -202,24 +202,9 @@ class Game {
         const excludeTypes = [placedType, ...remainingTypes];
         
         if (matchedFigureIndex > -1) {
-            console.log(`[SERVER] Замена фигуры на индексе ${matchedFigureIndex}:`, {
-                playerId,
-                placedType,
-                remainingTypes,
-                excludeTypes,
-                beforeFigures: player.figures.map((f, i) => ({ index: i, type: f.type })),
-            });
-            
             // Generate new figure excluding placed type and remaining types
             const newFigure = generateNewFigure(excludeTypes);
             player.figures[matchedFigureIndex] = newFigure;
-            
-            console.log(`[SERVER] После замены фигур:`, {
-                playerId,
-                matchedFigureIndex,
-                newFigure: { type: newFigure.type, cells: newFigure.cells },
-                afterFigures: player.figures.map((f, i) => ({ index: i, type: f.type })),
-            });
         }
 
         // 5. Check lines
@@ -246,7 +231,6 @@ class Game {
             for (let x = 0; x < 10; x++) {
                 const cell = this.grid[y][x];
                 if (cell && cell.playerId === playerId && cell.state === 'drawing') {
-                    console.log(`[SERVER] playerId: ${playerId}, cell:`, cell.playerId);
                     this.grid[y][x] = null;
                 }
             }
