@@ -21,11 +21,12 @@ const useGameLogic = (boardRefOverride = null) => {
     const userColor = useRef(getUserColor()); // Personal color for this user
     const internalBoardRef = useRef(null);
     const boardRef = boardRefOverride ?? internalBoardRef;
-    const boardMetrics = useRef({ rect: null, cellWidth: 0, cellHeight: 0 });
+    const boardMetrics = useRef({ rect: null, cellWidth: 0, cellHeight: 0, lastUpdate: 0 });
     const activePointerId = useRef(null);
     const lastPointerCell = useRef(null);
     const pointerCaptureTarget = useRef(null);
     const pendingUpdates = useRef(new Set()); // Track recently updated pixels to avoid redundant server updates
+    const isResizing = useRef(false); // Track resize state to force metric recalculation
 
     // Helper to check if pixels match any of the allowed figures (subset check)
     const checkMatch = (pixels, figures) => {
@@ -257,24 +258,35 @@ const useGameLogic = (boardRefOverride = null) => {
         };
     }, []);
 
-    const updateBoardMetrics = useCallback(() => {
+    const updateBoardMetrics = useCallback((forceUpdate = false) => {
         if (!boardRef.current) return;
+        
         const rect = boardRef.current.getBoundingClientRect();
         const columns = gridRef.current[0]?.length || 1;
         const rows = gridRef.current.length || 1;
-        boardMetrics.current = {
-            rect,
-            cellWidth: columns ? rect.width / columns : 0,
-            cellHeight: rows ? rect.height / rows : 0
-        };
+        const now = Date.now();
+        
+        // Only update if forced, or if metrics are missing, or if resizing flag is set
+        const shouldUpdate = forceUpdate || 
+                           !boardMetrics.current.rect || 
+                           isResizing.current ||
+                           now - boardMetrics.current.lastUpdate > 100; // Update if older than 100ms
+        
+        if (shouldUpdate) {
+            boardMetrics.current = {
+                rect,
+                cellWidth: columns ? rect.width / columns : 0,
+                cellHeight: rows ? rect.height / rows : 0,
+                lastUpdate: now
+            };
+        }
     }, [boardRef]);
 
     const getGridCoordinatesFromPointer = useCallback((event) => {
         if (!boardRef.current) return null;
 
-        if (!boardMetrics.current.rect) {
-            updateBoardMetrics();
-        }
+        // Always ensure metrics are current before calculating coordinates
+        updateBoardMetrics(true); // Force update to get fresh metrics
 
         const { rect, cellWidth, cellHeight } = boardMetrics.current;
 
@@ -282,6 +294,7 @@ const useGameLogic = (boardRefOverride = null) => {
             return null;
         }
 
+        // Calculate coordinates relative to the board
         const x = Math.floor((event.clientX - rect.left) / cellWidth);
         const y = Math.floor((event.clientY - rect.top) / cellHeight);
 
@@ -301,22 +314,43 @@ const useGameLogic = (boardRefOverride = null) => {
     useLayoutEffect(() => {
         if (!boardRef.current) return;
 
-        updateBoardMetrics();
+        updateBoardMetrics(true); // Initial force update
 
-        const handleResize = () => updateBoardMetrics();
+        const handleResizeStart = () => {
+            isResizing.current = true;
+        };
 
+        const handleResize = () => {
+            // Set resizing flag and force update
+            isResizing.current = true;
+            updateBoardMetrics(true);
+            
+            // Clear resizing flag after a short delay to allow for smooth transitions
+            clearTimeout(handleResize.timeoutId);
+            handleResize.timeoutId = setTimeout(() => {
+                isResizing.current = false;
+                updateBoardMetrics(true);
+            }, 150);
+        };
+
+        window.addEventListener('resize', handleResizeStart, { passive: true });
         window.addEventListener('resize', handleResize);
         window.addEventListener('orientationchange', handleResize);
 
         let observer;
         if (typeof ResizeObserver !== 'undefined') {
-            observer = new ResizeObserver(() => updateBoardMetrics());
+            observer = new ResizeObserver(() => {
+                isResizing.current = true;
+                updateBoardMetrics(true);
+            });
             observer.observe(boardRef.current);
         }
 
         return () => {
+            window.removeEventListener('resize', handleResizeStart);
             window.removeEventListener('resize', handleResize);
             window.removeEventListener('orientationchange', handleResize);
+            clearTimeout(handleResize.timeoutId);
             if (observer) {
                 observer.disconnect();
             }
