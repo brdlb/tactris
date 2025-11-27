@@ -1,28 +1,8 @@
 import React from 'react';
 import { FIGURES } from '../../../constants/figures';
+import FigureRenderer from './FigureRenderer';
 
 const FiguresPanel = ({ score, figures, playerColor }) => {
-    // Render helper for figures
-    const renderFigure = (figure) => {
-        if (!figure || !figure.cells) return null;
-
-        const shape = figure.cells;
-
-        // Create a mini grid for the figure
-        const w = 4, h = 4;
-        const grid = Array(h).fill(null).map(() => Array(w).fill(false));
-        shape.forEach(([x, y]) => {
-            if (grid[y] && grid[y][x] !== undefined) grid[y][x] = true;
-        });
-
-        return (
-            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${w}, 10px)`, gap: '1px', margin: '5px' }}>
-                {grid.map((row, y) => row.map((filled, x) => (
-                    <div key={`${x}-${y}`} style={{ width: '10px', height: '10px', backgroundColor: filled ? playerColor : 'transparent' }} />
-                )))}
-            </div>
-        );
-    };
 
     return (
         <div className="figures-panel">
@@ -33,7 +13,13 @@ const FiguresPanel = ({ score, figures, playerColor }) => {
                 <div style={{ display: 'flex' }}>
                     {figures.map((figure, i) => (
                         <div key={i} style={{ marginRight: '10px' }}>
-                            {renderFigure(figure)}
+                            <FigureRenderer 
+                                figure={figure} 
+                                color={playerColor}
+                                cellSize={10}
+                                gap="1px"
+                                margin="5px"
+                            />
                         </div>
                     ))}
                 </div>
