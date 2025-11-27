@@ -1,7 +1,25 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { getUserHue, setUserHue } from '../../../utils/colorUtils';
 import './GameBoard.css'; // Reusing existing styles for now
 
-const SettingsModal = ({ isOpen, onClose, theme, onToggleTheme }) => {
+const SettingsModal = ({ isOpen, onClose, theme, onToggleTheme, onHueChange }) => {
+    const [hue, setHue] = useState(getUserHue());
+
+    useEffect(() => {
+        if (isOpen) {
+            setHue(getUserHue());
+        }
+    }, [isOpen]);
+
+    const handleHueChange = (event) => {
+        const newHue = parseInt(event.target.value, 10);
+        setHue(newHue);
+        setUserHue(newHue);
+        if (onHueChange) {
+            onHueChange(newHue);
+        }
+    };
+
     if (!isOpen) return null;
 
     return (
@@ -26,6 +44,32 @@ const SettingsModal = ({ isOpen, onClose, theme, onToggleTheme }) => {
                                 <span className="slider-icon">{theme === 'dark' ? '🌙' : '☀️'}</span>
                             </span>
                         </label>
+                    </div>
+                    <div className="setting-item">
+                        <span>Pixel Hue</span>
+                        <div className="hue-control">
+                            <div className="hue-slider-container">
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="360"
+                                    value={hue}
+                                    onChange={handleHueChange}
+                                    className="hue-slider"
+                                    style={{
+                                        background: `linear-gradient(to right, 
+                                            hsl(0, 70%, 85%), 
+                                            hsl(60, 70%, 85%), 
+                                            hsl(120, 70%, 85%), 
+                                            hsl(180, 70%, 85%), 
+                                            hsl(240, 70%, 85%), 
+                                            hsl(300, 70%, 85%), 
+                                            hsl(360, 70%, 85%))`
+                                    }}
+                                />
+                            </div>
+                            <div className="hue-value">{hue}°</div>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -169,6 +169,32 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('update_player_color', ({ roomId, color }) => {
+    console.log(`[SERVER] User ${socket.id} updating color in room ${roomId} to ${color}`);
+    const game = games.get(roomId);
+    if (game) {
+      const success = game.updatePlayerColor(socket.id, color);
+      if (success) {
+        // Send updated game state to all players in the room
+        const gameState = game.getState();
+        const playersList = game.getPlayersList();
+        console.log(`[SERVER] player_color_updated:`, {
+          roomId,
+          playerId: socket.id.substring(0, 8),
+          newColor: color,
+          playersCount: playersList.length,
+          timestamp: new Date().toISOString()
+        });
+        io.to(roomId).emit('game_update', gameState);
+        io.to(roomId).emit('players_list_updated', { playersList });
+      } else {
+        socket.emit('error', 'Player not found in room');
+      }
+    } else {
+      socket.emit('error', 'Room not found');
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
     

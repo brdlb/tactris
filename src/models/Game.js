@@ -108,6 +108,15 @@ class Game {
         }));
     }
 
+    updatePlayerColor(playerId, newColor) {
+        const player = this.players.get(playerId);
+        if (player) {
+            player.color = newColor;
+            return true;
+        }
+        return false;
+    }
+
     placePixel(playerId, status, position) {
         if (this.gameOver) return false;
         const { x, y } = position;

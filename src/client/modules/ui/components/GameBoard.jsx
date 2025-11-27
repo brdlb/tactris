@@ -27,7 +27,8 @@ const GameBoard = () => {
         handlePointerDown,
         handlePointerMove,
         handlePointerUp,
-        handlePointerCancel
+        handlePointerCancel,
+        handleHueChange
     } = useGameLogic(boardRef);
 
     const toggleSettings = () => {
@@ -50,6 +51,7 @@ const GameBoard = () => {
                 onClose={toggleSettings}
                 theme={theme}
                 onToggleTheme={toggleTheme}
+                onHueChange={handleHueChange}
             />
 
             <h1 className="game-title">Tactris</h1>

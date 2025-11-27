@@ -108,6 +108,15 @@ class SocketManager {
     getRooms() {
         this.socket.emit('get_rooms');
     }
+
+    updatePlayerColor(roomId, newColor) {
+        console.log(`[CLIENT] Отправка события update_player_color:`, {
+            roomId,
+            newColor,
+            timestamp: new Date().toISOString()
+        });
+        this.socket.emit('update_player_color', { roomId, color: newColor });
+    }
 }
 
 export default new SocketManager();

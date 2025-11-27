@@ -448,6 +448,13 @@ const useGameLogic = (boardRefOverride = null) => {
         setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
     };
 
+    const handleHueChange = (newHue) => {
+        userColor.current = getUserColor();
+        if (roomIdRef.current) {
+            SocketManager.updatePlayerColor(roomIdRef.current, userColor.current);
+        }
+    };
+
     const handleInteraction = (x, y) => {
         const activeRoomId = roomIdRef.current;
         if (!activeRoomId || gameOver) return;
@@ -563,7 +570,8 @@ const useGameLogic = (boardRefOverride = null) => {
         handlePointerDown,
         handlePointerMove,
         handlePointerUp,
-        handlePointerCancel
+        handlePointerCancel,
+        handleHueChange
     };
 };
 
