@@ -62,6 +62,12 @@ const closePool = async () => {
   console.log('Database connection pool closed');
 };
 
+// Import Repository Manager
+const RepositoryManager = require('./repositories');
+
+// Initialize repository manager with the database pool
+const repositoryManager = new RepositoryManager(pool);
+
 module.exports = {
   pool,
   getClient,
@@ -69,4 +75,11 @@ module.exports = {
   healthCheck,
   closePool,
   dbConfig,
+  repositoryManager,
+  // Individual repositories for direct access if needed
+  users: repositoryManager.users,
+  gameSessions: repositoryManager.gameSessions,
+  gameStatistics: repositoryManager.gameStatistics,
+  leaderboard: repositoryManager.leaderboard,
+  userSettings: repositoryManager.userSettings,
 };

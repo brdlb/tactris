@@ -4,7 +4,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const { Game } = require('./models/Game');
-const { pool, query, healthCheck, closePool } = require('./config/db');
+const { pool, query, healthCheck, closePool, repositoryManager } = require('./config/db');
 
 const app = express();
 const server = http.createServer(app);

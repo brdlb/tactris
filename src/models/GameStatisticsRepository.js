@@ -1,0 +1,304 @@
+/**
+ * GameStatisticsRepository - Aggregates and updates user statistics
+ */
+class GameStatisticsRepository {
+  constructor(db) {
+    this.db = db;
+  }
+
+  /**
+   * Creates a new game statistics record
+   * @param {Object} statsData - Statistics data to create
+   * @returns {Promise<Object>} The created statistics record
+   */
+  async create(statsData) {
+    const {
+      user_id,
+      total_games,
+      wins,
+      losses,
+      draws,
+      total_score,
+      total_lines_cleared,
+      total_duration,
+      best_score,
+      best_lines_cleared,
+      average_score,
+      average_lines_cleared,
+      average_duration,
+      games_played_today
+    } = statsData;
+
+    const query = `
+      INSERT INTO game_statistics (
+        user_id, total_games, wins, losses, draws, total_score, 
+        total_lines_cleared, total_duration, best_score, best_lines_cleared,
+        average_score, average_lines_cleared, average_duration, games_played_today
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      RETURNING *;
+    `;
+
+    const values = [
+      user_id, total_games, wins, losses, draws, total_score,
+      total_lines_cleared, total_duration, best_score, best_lines_cleared,
+      average_score, average_lines_cleared, average_duration, games_played_today
+    ];
+
+    try {
+      const result = await this.db.query(query, values);
+      return result.rows[0];
+    } catch (error) {
+      throw new Error(`Error creating game statistics: ${error.message}`);
+    }
+  }
+
+  /**
+   * Finds statistics by user ID
+   * @param {string} userId - User ID to find statistics for
+   * @returns {Promise<Object|null>} The found statistics or null
+   */
+  async findByUserId(userId) {
+    const query = 'SELECT * FROM game_statistics WHERE user_id = $1;';
+    const values = [userId];
+
+    try {
+      const result = await this.db.query(query, values);
+      return result.rows[0] || null;
+    } catch (error) {
+      throw new Error(`Error finding game statistics by user ID: ${error.message}`);
+    }
+  }
+
+  /**
+   * Updates user statistics
+   * @param {string} userId - User ID to update statistics for
+   * @param {Object} updates - Fields to update
+   * @returns {Promise<Object>} The updated statistics
+   */
+  async update(userId, updates) {
+    const allowedFields = [
+      'total_games', 'wins', 'losses', 'draws', 'total_score', 
+      'total_lines_cleared', 'total_duration', 'best_score', 'best_lines_cleared',
+      'average_score', 'average_lines_cleared', 'average_duration', 'games_played_today'
+    ];
+    
+    const updateFields = [];
+    const values = [];
+    let valueIndex = 2;
+
+    for (const [key, value] of Object.entries(updates)) {
+      if (allowedFields.includes(key)) {
+        updateFields.push(`${key} = $${valueIndex}`);
+        values.push(value);
+        valueIndex++;
+      }
+    }
+
+    if (updateFields.length === 0) {
+      throw new Error('No valid fields to update');
+    }
+
+    const query = `
+      UPDATE game_statistics 
+      SET ${updateFields.join(', ')}, updated_at = NOW()
+      WHERE user_id = $1
+      RETURNING *;
+    `;
+    values.unshift(userId); // Add user ID as the first parameter
+
+    try {
+      const result = await this.db.query(query, values);
+      if (result.rows.length === 0) {
+        throw new Error('Game statistics not found');
+      }
+      return result.rows[0];
+    } catch (error) {
+      throw new Error(`Error updating game statistics: ${error.message}`);
+    }
+  }
+
+  /**
+   * Updates user statistics based on a completed game session
+   * @param {string} userId - User ID to update statistics for
+   * @param {Object} gameSession - Completed game session data
+   * @returns {Promise<Object>} The updated statistics
+   */
+  async updateFromGameSession(userId, gameSession) {
+    // First, get the current statistics
+    let currentStats = await this.findByUserId(userId);
+    
+    if (!currentStats) {
+      // If no stats exist, create a new record
+      currentStats = await this.create({
+        user_id: userId,
+        total_games: 0,
+        wins: 0,
+        losses: 0,
+        draws: 0,
+        total_score: 0,
+        total_lines_cleared: 0,
+        total_duration: 0,
+        best_score: 0,
+        best_lines_cleared: 0,
+        average_score: 0,
+        average_lines_cleared: 0,
+        average_duration: 0,
+        games_played_today: 0
+      });
+    }
+
+    // Calculate new statistics based on the game session
+    const gameResult = gameSession.game_result;
+    const newTotalGames = currentStats.total_games + 1;
+    const newWins = gameResult === 'win' ? currentStats.wins + 1 : currentStats.wins;
+    const newLosses = gameResult === 'loss' ? currentStats.losses + 1 : currentStats.losses;
+    const newDraws = gameResult === 'draw' ? currentStats.draws + 1 : currentStats.draws;
+    const newTotalScore = currentStats.total_score + gameSession.score;
+    const newTotalLinesCleared = currentStats.total_lines_cleared + gameSession.lines_cleared;
+    const newTotalDuration = currentStats.total_duration + gameSession.duration_seconds;
+    
+    // Update best scores if needed
+    const newBestScore = Math.max(currentStats.best_score, gameSession.score);
+    const newBestLinesCleared = Math.max(currentStats.best_lines_cleared, gameSession.lines_cleared);
+    
+    // Calculate averages
+    const newAverageScore = newTotalScore / newTotalGames;
+    const newAverageLinesCleared = newTotalLinesCleared / newTotalGames;
+    const newAverageDuration = newTotalDuration / newTotalGames;
+
+    // Update the statistics record
+    const updatedStats = await this.update(userId, {
+      total_games: newTotalGames,
+      wins: newWins,
+      losses: newLosses,
+      draws: newDraws,
+      total_score: newTotalScore,
+      total_lines_cleared: newTotalLinesCleared,
+      total_duration: newTotalDuration,
+      best_score: newBestScore,
+      best_lines_cleared: newBestLinesCleared,
+      average_score: newAverageScore,
+      average_lines_cleared: newAverageLinesCleared,
+      average_duration: newAverageDuration
+    });
+
+    return updatedStats;
+  }
+
+  /**
+   * Increments the games played today counter for a user
+   * @param {string} userId - User ID to increment games played today for
+   * @returns {Promise<Object>} The updated statistics
+   */
+  async incrementGamesPlayedToday(userId) {
+    const query = `
+      UPDATE game_statistics 
+      SET games_played_today = games_played_today + 1, updated_at = NOW()
+      WHERE user_id = $1
+      RETURNING *;
+    `;
+    const values = [userId];
+
+    try {
+      const result = await this.db.query(query, values);
+      if (result.rows.length === 0) {
+        throw new Error('Game statistics not found');
+      }
+      return result.rows[0];
+    } catch (error) {
+      throw new Error(`Error incrementing games played today: ${error.message}`);
+    }
+  }
+
+  /**
+   * Resets the games played today counter for all users
+   * @returns {Promise<number>} Number of records updated
+   */
+  async resetGamesPlayedToday() {
+    const query = `
+      UPDATE game_statistics 
+      SET games_played_today = 0, updated_at = NOW();
+    `;
+
+    try {
+      const result = await this.db.query(query);
+      return result.rowCount;
+    } catch (error) {
+      throw new Error(`Error resetting games played today: ${error.message}`);
+    }
+  }
+
+  /**
+   * Gets the top users by score
+   * @param {number} limit - Number of top users to return (default: 10)
+   * @returns {Promise<Array>} Array of top users by score
+   */
+  async getTopByScore(limit = 10) {
+    const query = `
+      SELECT 
+        gs.user_id,
+        gs.best_score,
+        gs.total_games,
+        u.username,
+        u.avatar_url
+      FROM game_statistics gs
+      JOIN users u ON gs.user_id = u.id
+      ORDER BY gs.best_score DESC
+      LIMIT $1;
+    `;
+    const values = [limit];
+
+    try {
+      const result = await this.db.query(query, values);
+      return result.rows;
+    } catch (error) {
+      throw new Error(`Error getting top users by score: ${error.message}`);
+    }
+  }
+
+  /**
+   * Gets the top users by lines cleared
+   * @param {number} limit - Number of top users to return (default: 10)
+   * @returns {Promise<Array>} Array of top users by lines cleared
+   */
+  async getTopByLinesCleared(limit = 10) {
+    const query = `
+      SELECT 
+        gs.user_id,
+        gs.best_lines_cleared,
+        gs.total_games,
+        u.username,
+        u.avatar_url
+      FROM game_statistics gs
+      JOIN users u ON gs.user_id = u.id
+      ORDER BY gs.best_lines_cleared DESC
+      LIMIT $1;
+    `;
+    const values = [limit];
+
+    try {
+      const result = await this.db.query(query, values);
+      return result.rows;
+    } catch (error) {
+      throw new Error(`Error getting top users by lines cleared: ${error.message}`);
+    }
+  }
+
+  /**
+   * Gets win rate for a user
+   * @param {string} userId - User ID to get win rate for
+   * @returns {Promise<number>} Win rate as a percentage
+   */
+  async getWinRate(userId) {
+    const stats = await this.findByUserId(userId);
+    
+    if (!stats || stats.total_games === 0) {
+      return 0;
+    }
+    
+    return (stats.wins / stats.total_games) * 100;
+  }
+}
+
+module.exports = GameStatisticsRepository;
