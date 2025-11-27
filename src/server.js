@@ -1,8 +1,10 @@
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const { Game } = require('./models/Game');
+const { pool, query, healthCheck, closePool } = require('./config/db');
 
 const app = express();
 const server = http.createServer(app);
@@ -173,4 +175,39 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {});
+
+// Graceful shutdown handling
+process.on('SIGINT', async () => {
+  console.log('Received SIGINT, shutting down gracefully...');
+  await closePool();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('Received SIGTERM, shutting down gracefully...');
+  await closePool();
+  process.exit(0);
+});
+
+// Start the server after checking database connection
+const startServer = async () => {
+  try {
+    // Perform database health check
+    const dbHealth = await healthCheck();
+    if (dbHealth.status === 'error') {
+      console.error('Database connection failed:', dbHealth.message);
+      process.exit(1);
+    }
+    console.log('Database connection successful');
+
+    server.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+      console.log('Database connection pool initialized');
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+};
+
+startServer();
