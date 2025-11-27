@@ -1,3 +1,5 @@
+const { GameModel } = require('./');
+
 const FIGURES = {
     I: [[0, 0], [1, 0], [2, 0], [3, 0]],
     O: [[0, 0], [1, 0], [0, 1], [1, 1]],
@@ -58,13 +60,34 @@ function generateNewFigure(excludeTypes = []) {
 }
 
 class Game {
-    constructor(id) {
-        this.id = id;
-        this.grid = Array(10).fill(null).map(() => Array(10).fill(null)); // 10x10 grid
+    constructor(gameModel) {
+        this.gameModel = gameModel;
+        this.grid = this.gameModel.game_state ? JSON.parse(this.gameModel.game_state) : Array(10).fill(null).map(() => Array(10).fill(null));
         this.players = new Map();
-        this.gameOver = false;
     }
 
+    static async create(playerId) {
+        const newFigure = generateNewFigure();
+        const gameData = {
+            player_id: playerId,
+            game_state: JSON.stringify(Array(10).fill(null).map(() => Array(10).fill(null))),
+            current_figure: JSON.stringify(newFigure),
+            score: 0,
+            lines_cleared: 0,
+            is_game_over: false,
+        };
+        const gameModel = await GameModel.create(gameData);
+        return new Game(gameModel);
+    }
+
+    static async findByPlayerId(playerId) {
+        const gameModels = await GameModel.findByPlayerId(playerId);
+        if (gameModels && gameModels.length > 0) {
+            return new Game(gameModels[0]);
+        }
+        return null;
+    }
+    
     addPlayer(playerId, color = 'red') {
         if (!this.players.has(playerId)) {
             const playerFigures = [
@@ -82,10 +105,13 @@ class Game {
 
     getState() {
         return {
-            id: this.id,
+            id: this.gameModel.id,
             grid: this.grid,
             players: Object.fromEntries(this.players),
-            gameOver: this.gameOver
+            gameOver: this.gameModel.is_game_over,
+            score: this.gameModel.score,
+            linesCleared: this.gameModel.lines_cleared,
+            currentFigure: this.gameModel.current_figure ? JSON.parse(this.gameModel.current_figure) : null,
         };
     }
 
@@ -118,7 +144,7 @@ class Game {
     }
 
     placePixel(playerId, status, position) {
-        if (this.gameOver) return false;
+        if (this.gameModel.is_game_over) return false;
         const { x, y } = position;
 
         if (x < 0 || x >= 10 || y < 0 || y >= 10) {
@@ -152,8 +178,8 @@ class Game {
         return true;
     }
 
-    placeFigure(playerId, pixels, roomId = null, io = null) {
-        if (this.gameOver) return false;
+    async placeFigure(playerId, pixels, roomId = null, io = null) {
+        if (this.gameModel.is_game_over) return false;
         const player = this.players.get(playerId);
         if (!player) {
             this.clearTemporary(playerId);
@@ -184,16 +210,13 @@ class Game {
         }
 
         // 3. Place pixels (Solidify)
-        // First, clear any temporary pixels that might be leftover (though usually they are part of the figure)
-        // Actually, we should just overwrite the pixels in the figure with solid ones.
-        // But we should also clean up any "stray" drawing pixels if the user drew extra stuff.
         this.clearTemporary(playerId, roomId, io);
 
         for (const p of pixels) {
             this.grid[p.y][p.x] = { playerId, color: player.color }; // No 'state' means solid
         }
 
-        // 4. Replace figure at the same index (don't change order)
+        // 4. Replace figure at the same index
         const matchedFigure = player.figures[matchedFigureIndex];
         const placedType = matchedFigure.type;
         const remainingTypes = player.figures
@@ -205,23 +228,29 @@ class Game {
             // Generate new figure excluding placed type and remaining types
             const newFigure = generateNewFigure(excludeTypes);
             player.figures[matchedFigureIndex] = newFigure;
+            this.gameModel.current_figure = JSON.stringify(newFigure);
         }
 
         // 5. Check lines
         const linesCleared = this.checkLines();
 
         // 6. Update Score
-        // +4 for placing figure
-        player.score += 4;
-
-        // +10 per line
+        this.gameModel.score += 4;
         if (linesCleared > 0) {
-            player.score += 10 * linesCleared;
-            // Bonus if > 1 line
+            this.gameModel.score += 10 * linesCleared;
             if (linesCleared > 1) {
-                player.score += 10 * linesCleared;
+                this.gameModel.score += 10 * linesCleared;
             }
         }
+        this.gameModel.lines_cleared += linesCleared;
+
+        // 7. Update database
+        await GameModel.update(this.gameModel.id, {
+            game_state: JSON.stringify(this.grid),
+            current_figure: this.gameModel.current_figure,
+            score: this.gameModel.score,
+            lines_cleared: this.gameModel.lines_cleared,
+        });
 
         return true;
     }
@@ -236,7 +265,6 @@ class Game {
             }
         }
         
-        // Send update to all players if roomId and io are provided
         if (roomId && io) {
             const gameState = this.getState();
             io.to(roomId).emit('game_update', gameState);
@@ -246,7 +274,6 @@ class Game {
     checkMatch(pixels, figures) {
         if (!pixels || pixels.length === 0) return -1;
 
-        // Normalize pixels
         const minX = Math.min(...pixels.map(p => p.x));
         const minY = Math.min(...pixels.map(p => p.y));
         const normalized = pixels.map(p => ({ x: p.x - minX, y: p.y - minY }));
@@ -269,14 +296,12 @@ class Game {
         const fullRowIndices = [];
         const fullColIndices = [];
 
-        // 1. Identify full rows
         for (let y = 0; y < 10; y++) {
             if (this.grid[y].every(cell => cell !== null)) {
                 fullRowIndices.push(y);
             }
         }
 
-        // 2. Identify full cols
         for (let x = 0; x < 10; x++) {
             let colFilled = true;
             for (let y = 0; y < 10; y++) {
@@ -289,20 +314,17 @@ class Game {
         }
 
         if (fullRowIndices.length === 0 && fullColIndices.length === 0) {
-            return;
+            return 0;
         }
 
-        // 3. Process Rows (Shift to Center)
         let topRows = this.grid.slice(0, 5);
         let bottomRows = this.grid.slice(5, 10);
 
-        // Filter out full rows from top and unshift empty rows
         topRows = topRows.filter((_, index) => !fullRowIndices.includes(index));
         while (topRows.length < 5) {
             topRows.unshift(Array(10).fill(null));
         }
 
-        // Filter out full rows from bottom and push empty rows
         bottomRows = bottomRows.filter((_, index) => !fullRowIndices.includes(index + 5));
         while (bottomRows.length < 5) {
             bottomRows.push(Array(10).fill(null));
@@ -310,19 +332,16 @@ class Game {
 
         this.grid = [...topRows, ...bottomRows];
 
-        // 4. Process Columns (Shift to Center)
         for (let y = 0; y < 10; y++) {
             let row = this.grid[y];
             let leftHalf = row.slice(0, 5);
             let rightHalf = row.slice(5, 10);
 
-            // Filter out full cols from left and unshift nulls
             leftHalf = leftHalf.filter((_, index) => !fullColIndices.includes(index));
             while (leftHalf.length < 5) {
                 leftHalf.unshift(null);
             }
 
-            // Filter out full cols from right and push nulls
             rightHalf = rightHalf.filter((_, index) => !fullColIndices.includes(index + 5));
             while (rightHalf.length < 5) {
                 rightHalf.push(null);
@@ -334,7 +353,7 @@ class Game {
         return fullRowIndices.length + fullColIndices.length;
     }
 
-    checkGameOver() {
+    async checkGameOver() {
         for (const player of this.players.values()) {
             for (const figure of player.figures) {
                 if (this.canPlaceFigure(player.id, figure)) {
@@ -342,7 +361,8 @@ class Game {
                 }
             }
         }
-        this.gameOver = true;
+        this.gameModel.is_game_over = true;
+        await GameModel.update(this.gameModel.id, { is_game_over: true });
         return true;
     }
 
@@ -377,14 +397,12 @@ class Game {
         return false;
     }
 
-    restart() {
-        // Clear the grid
+    async restart() {
         this.grid = Array(10).fill(null).map(() => Array(10).fill(null));
+        this.gameModel.is_game_over = false;
+        this.gameModel.score = 0;
+        this.gameModel.lines_cleared = 0;
         
-        // Reset game over state
-        this.gameOver = false;
-        
-        // Reset all players' scores and figures
         for (const player of this.players.values()) {
             player.score = 0;
             player.figures = [
@@ -392,6 +410,16 @@ class Game {
                 generateNewFigure()
             ];
         }
+        
+        this.gameModel.current_figure = JSON.stringify(this.players.values().next().value.figures[0]);
+
+        await GameModel.update(this.gameModel.id, {
+            game_state: JSON.stringify(this.grid),
+            is_game_over: false,
+            score: 0,
+            lines_cleared: 0,
+            current_figure: this.gameModel.current_figure
+        });
     }
 }
 

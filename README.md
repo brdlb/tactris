@@ -194,3 +194,9 @@ If you have questions or suggestions, please create an Issue in the repository o
 ---
 
 **Enjoy playing Tactris! 🎮**
+
+
+PS:
+
+На сервере настроена   postgresql. Есть USER tactris_user WITH PASSWORD 'tactris_dev_password_123' 
+

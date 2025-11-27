@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "db:init": "psql -U ${PG_USER:-postgres} -d ${PG_DATABASE:-tactris} -a -f schema.sql"
   },
   "dependencies": {
     "express": "^4.18.2",
