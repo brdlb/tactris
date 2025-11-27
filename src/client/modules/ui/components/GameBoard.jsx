@@ -121,7 +121,6 @@ const GameBoard = () => {
                                                 className="player-color"
                                                 style={{ backgroundColor: player.color }}
                                             ></div>
-                                            <span>Игрок {index + 2}</span>
                                             <div className="player-score">{player.score || 0}</div>
                                         </div>
                                         {renderPlayerFigures(player.figures)}
