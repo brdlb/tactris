@@ -1,7 +1,7 @@
 import React from 'react';
 import { FIGURES } from '../../../constants/figures';
 
-const FiguresPanel = ({ score, figures }) => {
+const FiguresPanel = ({ score, figures, playerColor }) => {
     // Render helper for figures
     const renderFigure = (figure) => {
         if (!figure || !figure.cells) return null;
@@ -18,7 +18,7 @@ const FiguresPanel = ({ score, figures }) => {
         return (
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${w}, 10px)`, gap: '1px', margin: '5px' }}>
                 {grid.map((row, y) => row.map((filled, x) => (
-                    <div key={`${x}-${y}`} style={{ width: '10px', height: '10px', backgroundColor: filled ? 'var(--text-primary)' : 'transparent' }} />
+                    <div key={`${x}-${y}`} style={{ width: '10px', height: '10px', backgroundColor: filled ? playerColor : 'transparent' }} />
                 )))}
             </div>
         );

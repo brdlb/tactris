@@ -71,7 +71,11 @@ const GameBoard = () => {
 
             {roomId && (
                 <div className="game-content">
-                    <FiguresPanel score={score} figures={myFigures} />
+                    <FiguresPanel 
+                        score={score} 
+                        figures={myFigures}
+                        playerColor={playersList.find(p => p.id === SocketManager.getSocket()?.id)?.color}
+                    />
 
                     <div className="game-board-wrapper">
                         {/* Display players in panels - excluding current user from panels since they see their own info in FiguresPanel */}
