@@ -30,28 +30,22 @@ class SocketManager {
     }
 
     setupRoomEventListeners() {
-        // Handle room creation/joining with players list
-        this.socket.on('room_created', (data) => {
-            this.emit('roomCreated', data);
-        });
-
-        this.socket.on('room_joined', (data) => {
-            this.emit('roomJoined', data);
-        });
-
-        // Handle player events
-        this.socket.on('player_joined', (data) => {
-            this.emit('playerJoined', data);
-        });
-
-        this.socket.on('player_left', (data) => {
-            this.emit('playerLeft', data);
-        });
-
-        this.socket.on('players_list_updated', (data) => {
-            this.emit('playersListUpdated', data);
-        });
-    }
+            // Map server events to client events
+            const eventMappings = {
+                'room_created': 'roomCreated',
+                'room_joined': 'roomJoined',
+                'player_joined': 'playerJoined',
+                'player_left': 'playerLeft',
+                'players_list_updated': 'playersListUpdated'
+            };
+    
+            // Set up event listeners based on the mapping
+            Object.entries(eventMappings).forEach(([serverEvent, clientEvent]) => {
+                this.socket.on(serverEvent, (data) => {
+                    this.emit(clientEvent, data);
+                });
+            });
+        }
 
     // Event listener management
     on(event, callback) {

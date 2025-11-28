@@ -194,6 +194,32 @@ COMMENT ON COLUMN public.leaderboard_entries.period_start IS 'Start of time peri
 
 
 --
+-- Name: user_sessions; Type: TABLE; Schema: public; Owner: tactris_user
+--
+
+CREATE TABLE public.user_sessions (
+    id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
+    user_id uuid NOT NULL,
+    session_token character varying(255) NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    ip_address inet,
+    user_agent text,
+    is_active boolean DEFAULT true NOT NULL
+);
+
+
+ALTER TABLE public.user_sessions OWNER TO tactris_user;
+
+--
+-- Name: TABLE user_sessions; Type: COMMENT; Schema: public; Owner: tactris_user
+--
+
+COMMENT ON TABLE public.user_sessions IS 'User session management with expiration and tracking';
+
+
+--
 -- Name: user_settings; Type: TABLE; Schema: public; Owner: tactris_user
 --
 
@@ -234,6 +260,7 @@ CREATE TABLE public.users (
     email character varying(255),
     display_name character varying(100),
     profile_picture_url text,
+    username character varying(100),
     is_anonymous boolean DEFAULT true NOT NULL,
     last_seen_at timestamp with time zone DEFAULT now() NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
@@ -269,6 +296,13 @@ COMMENT ON COLUMN public.users.google_id IS 'Unique Google OAuth user identifier
 --
 
 COMMENT ON COLUMN public.users.is_anonymous IS 'Flag indicating if user is playing anonymously';
+
+
+--
+-- Name: COLUMN users.username; Type: COMMENT; Schema: public; Owner: tactris_user
+--
+
+COMMENT ON COLUMN public.users.username IS 'Display name for the user';
 
 
 --
@@ -320,6 +354,22 @@ ALTER TABLE ONLY public.leaderboard_entries
 
 
 --
+-- Name: user_sessions user_sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: tactris_user
+--
+
+ALTER TABLE ONLY public.user_sessions
+    ADD CONSTRAINT user_sessions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: user_sessions user_sessions_session_token_key; Type: CONSTRAINT; Schema: public; Owner: tactris_user
+--
+
+ALTER TABLE ONLY public.user_sessions
+    ADD CONSTRAINT user_sessions_session_token_key UNIQUE (session_token);
+
+
+--
 -- Name: user_settings user_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: tactris_user
 --
 
@@ -344,7 +394,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: users users_email_key; Type: CONSTRAINT; Schema: public; Owner: tactris_user
+-- Name: users_email_key; Type: CONSTRAINT; Schema: public; Owner: tactris_user
 --
 
 ALTER TABLE ONLY public.users
@@ -360,11 +410,18 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: tactris_user
+-- Name: users_pkey; Type: CONSTRAINT; Schema: public; Owner: tactris_user
 --
 
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: user_sessions update_user_sessions_updated_at; Type: TRIGGER; Schema: public; Owner: tactris_user
+--
+
+CREATE TRIGGER update_user_sessions_updated_at BEFORE UPDATE ON public.user_sessions FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
@@ -386,6 +443,14 @@ CREATE TRIGGER update_user_settings_updated_at BEFORE UPDATE ON public.user_sett
 --
 
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON public.users FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+
+--
+-- Name: user_sessions user_sessions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: tactris_user
+--
+
+ALTER TABLE ONLY public.user_sessions
+    ADD CONSTRAINT user_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 
 --
@@ -531,4 +596,3 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON TABLES 
 --
 
 \unrestrict b3c2EaCOlMB5PeLHezoe8yvG7gglanVgMR6HfDYEUfBg743K6XP1YoJDbwqcs8l
-

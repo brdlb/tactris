@@ -7,6 +7,7 @@ import FiguresPanel from './FiguresPanel';
 import GameGrid from './GameGrid';
 import Panel from './Panel';
 import FigureRenderer from './FigureRenderer';
+import PlayerPanels from './PlayerPanels';
 import './GameBoard.css';
 
 const GameBoard = () => {
@@ -85,58 +86,21 @@ const GameBoard = () => {
                     />
 
                     <div className="game-board-wrapper">
-                        {/* Display players in panels - excluding current user from panels since they see their own info in FiguresPanel */}
-                        {playersList.filter(player => player.id !== SocketManager.getSocket()?.id).slice(0, 3).map((player, index) => {
-                            const positions = ['top-right', 'bottom-right', 'bottom-left'];
-                            const position = positions[index] || 'top-right';
-
-                            // Helper to render figures for other players using the reusable FigureRenderer
-                            const renderPlayerFigures = (figures) => {
-                                if (!figures || figures.length === 0) return null;
-
-                                return (
-                                    <div style={{ display: 'flex', marginTop: '5px' }}>
-                                        {figures.map((figure, i) => (
-                                            <div key={i} style={{ marginRight: '5px' }}>
-                                                <FigureRenderer 
-                                                    figure={figure} 
-                                                    color={player.color}
-                                                    cellSize={8}
-                                                    gap="1px"
-                                                    margin="2px"
-                                                />
-                                            </div>
-                                        ))}
+                                        <PlayerPanels
+                                            playersList={playersList}
+                                            currentSocketId={SocketManager.getSocket()?.id}
+                                        />
+                    
+                                        <GameGrid
+                                            grid={grid}
+                                            roomId={roomId}
+                                            boardRef={boardRef}
+                                            onPointerDown={handlePointerDown}
+                                            onPointerMove={handlePointerMove}
+                                            onPointerUp={handlePointerUp}
+                                            onPointerCancel={handlePointerCancel}
+                                        />
                                     </div>
-                                );
-                            };
-
-                            return (
-                                <Panel key={player.id} position={position}>
-                                    <div className="panel-content">
-                                        <div className="player-info">
-                                            <div
-                                                className="player-color"
-                                                style={{ backgroundColor: player.color }}
-                                            ></div>
-                                            <div className="player-score">{player.score || 0}</div>
-                                        </div>
-                                        {renderPlayerFigures(player.figures)}
-                                    </div>
-                                </Panel>
-                            );
-                        })}
-
-                        <GameGrid
-                            grid={grid}
-                            roomId={roomId}
-                            boardRef={boardRef}
-                            onPointerDown={handlePointerDown}
-                            onPointerMove={handlePointerMove}
-                            onPointerUp={handlePointerUp}
-                            onPointerCancel={handlePointerCancel}
-                        />
-                    </div>
                 </div>
             )}
         </div>

@@ -24,16 +24,16 @@ class GameSessionService {
     return await TransactionManager.executeWithRetry(this.gameSessionRepository.db, async (client) => {
       // Update the game session using the client connection
       const sessionUpdateQuery = `
-        UPDATE game_sessions 
-        SET opponent_id = $2, game_mode = $3, grid_width = $4, grid_height = $5, 
-            initial_grid = $6, final_grid = $7, duration_seconds = $8, lines_cleared = $9, 
-            figures_placed = $10, score = $11, game_result = $12, session_data = $13, updated_at = NOW()
+        UPDATE game_sessions
+        SET game_mode = $2, grid_width = $3, grid_height = $4,
+            initial_grid = $5, final_grid = $6, duration_seconds = $7, lines_cleared = $8,
+            figures_placed = $9, score = $10, game_result = $11, session_data = $12, updated_at = NOW()
         WHERE id = $1
         RETURNING *;
       `;
       
       const sessionValues = [
-        sessionId, sessionUpdates.opponent_id, sessionUpdates.game_mode, sessionUpdates.grid_width, sessionUpdates.grid_height,
+        sessionId, sessionUpdates.game_mode, sessionUpdates.grid_width, sessionUpdates.grid_height,
         sessionUpdates.initial_grid, sessionUpdates.final_grid, sessionUpdates.duration_seconds, sessionUpdates.lines_cleared,
         sessionUpdates.figures_placed, sessionUpdates.score, sessionUpdates.game_result, sessionUpdates.session_data
       ];

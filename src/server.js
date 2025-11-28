@@ -3,9 +3,19 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const session = require('express-session');
+const passport = require('passport');
+const cookieParser = require('cookie-parser');
 const { Game } = require('./models/Game');
 const { pool, query, healthCheck, closePool, repositoryManager } = require('./config/db');
 const GameSessionService = require('./services/GameSessionService');
+const AuthService = require('./services/AuthService');
+const UserRepository = require('./models/UserRepository');
+const SessionRepository = require('./models/SessionRepository');
+
+// Import authentication routes and middleware
+const authRoutes = require('./routes/auth');
+const { sessionValidation } = require('./middleware/sessionValidation');
 
 // Initialize the GameSessionService with repositories
 const gameSessionService = new GameSessionService(
@@ -27,25 +37,110 @@ const io = new Server(server, {
 // Trust proxy when running behind nginx
 app.set('trust proxy', 1);
 
+// Middleware setup
+app.use(express.json());
+app.use(cookieParser());
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'tactris_secret_key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production', // Set to true in production with HTTPS
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Apply session validation middleware to all routes
+app.use(sessionValidation);
+
+// Routes
+app.use('/auth', authRoutes);
+
 // Serve static files from the client build directory (for production)
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../dist')));
 }
 
+// Middleware to authenticate socket connections
+io.use((socket, next) => {
+  // Extract session token from handshake auth or headers
+  const sessionToken = socket.handshake.auth?.token || socket.handshake.headers?.authorization?.replace('Bearer ', '');
+  
+  if (!sessionToken) {
+    // Allow unauthenticated connections but mark as anonymous
+    // Create an anonymous user record to get a proper UUID
+    repositoryManager.users.createAnonymous()
+      .then(user => {
+        socket.userId = user.id; // Use the database user UUID instead of socket ID
+        socket.isAnonymous = true;
+        socket.anonymousUserRecord = user; // Store the user record for potential later use
+        return next();
+      })
+      .catch(err => {
+        console.error('Error creating anonymous user:', err);
+        // Fallback to socket ID if user creation fails
+        socket.userId = socket.id;
+        socket.isAnonymous = true;
+        return next();
+      });
+  } else {
+    // Validate the session token using our auth service
+    const authService = new AuthService(repositoryManager.users, repositoryManager.sessions);
+    authService.validateSession(sessionToken)
+      .then(session => {
+        if (session) {
+          socket.userId = session.user_id;
+          socket.isAnonymous = false;
+          next();
+        } else {
+          // Invalid session, create an anonymous user
+          repositoryManager.users.createAnonymous()
+            .then(user => {
+              socket.userId = user.id; // Use the database user UUID
+              socket.isAnonymous = true;
+              socket.anonymousUserRecord = user;
+              return next();
+            })
+            .catch(err => {
+              console.error('Error creating anonymous user:', err);
+              // Fallback to socket ID if user creation fails
+              socket.userId = socket.id;
+              socket.isAnonymous = true;
+              return next();
+            });
+        }
+      })
+      .catch(err => {
+        // Error validating session, create an anonymous user
+        repositoryManager.users.createAnonymous()
+          .then(user => {
+            socket.userId = user.id; // Use the database user UUID
+            socket.isAnonymous = true;
+            socket.anonymousUserRecord = user;
+            return next();
+          })
+          .catch(err => {
+            console.error('Error creating anonymous user:', err);
+            // Fallback to socket ID if user creation fails
+            socket.userId = socket.id;
+            socket.isAnonymous = true;
+            return next();
+          });
+      });
+  }
+});
+
 const games = new Map();
 
 io.on('connection', (socket) => {
 
-  socket.on('create_room', async ({ color }) => {
-    const roomId = Math.random().toString(36).substring(7);
-    const game = new Game(roomId);
-    game.addPlayer(socket.id, color); // Add creator as player with their color
-    
-    // Create a game session record in the database for the creator
+  // Helper function to create a game session record in the database
+  const createGameSession = async (game, playerId, isJoining = false) => {
     try {
       const gameSessionData = {
-        user_id: socket.id, // This would need to be the actual user ID from authentication
-        opponent_id: null, // Will be set when another player joins
+        player_id: socket.userId, // Use the authenticated user ID from socket connection
         game_mode: 'classic', // Default game mode
         grid_width: game.gridWidth,
         grid_height: game.gridHeight,
@@ -58,7 +153,8 @@ io.on('connection', (socket) => {
         game_result: 'in_progress', // Will be updated when game ends
         session_data: JSON.stringify({
           players: Array.from(game.players.entries()),
-          moves: []
+          moves: [],
+          is_anonymous: socket.isAnonymous
         })
       };
       
@@ -69,11 +165,36 @@ io.on('connection', (socket) => {
       if (!game.playerSessions) {
         game.playerSessions = {};
       }
-      game.playerSessions[socket.id] = createdSession.id;
+      game.playerSessions[playerId] = createdSession.id;
+      
+      // If this is a joining player and we now have 2 players, update opponent IDs
+      if (isJoining && game.players.size === 2) {
+        // Find the other player in the game
+        const players = Array.from(game.players.keys());
+        const otherPlayerId = players.find(id => id !== playerId);
+        
+        // Update both players' game sessions with each other as opponents
+        if (otherPlayerId && game.playerSessions[otherPlayerId] && game.playerSessions[playerId]) {
+          // Update the existing player's session to have the new player as opponent
+          // Note: opponent_id column doesn't exist in the current schema, so this functionality is not supported
+          
+          // Update the joining player's session to have the existing player as opponent
+          // Note: opponent_id column doesn't exist in the current schema, so this functionality is not supported
+        }
+      }
     } catch (error) {
-      console.error('Error creating game session:', error);
+      console.error(`Error creating game session for player ${playerId}:`, error);
       // Continue with the game creation even if session creation fails
     }
+  };
+
+  socket.on('create_room', async ({ color }) => {
+    const roomId = Math.random().toString(36).substring(7);
+    const game = new Game(roomId);
+    game.addPlayer(socket.id, color, socket.userId); // Add creator as player with their color and authenticated user ID
+    
+    // Create a game session record in the database for the creator
+    await createGameSession(game, socket.id, false);
     
     games.set(roomId, game);
     socket.join(roomId);
@@ -95,61 +216,10 @@ io.on('connection', (socket) => {
     if (games.has(roomId)) {
       socket.join(roomId);
       const game = games.get(roomId);
-      game.addPlayer(socket.id, color); // Add joiner as player with their color
+      game.addPlayer(socket.id, color, socket.userId); // Add joiner as player with their color and authenticated user ID
       
       // Create a game session record in the database for the joining player
-      try {
-        const gameSessionData = {
-          user_id: socket.id, // This would need to be the actual user ID from authentication
-          opponent_id: null, // Will be set after we know the opponent
-          game_mode: 'classic', // Default game mode
-          grid_width: game.gridWidth,
-          grid_height: game.gridHeight,
-          initial_grid: JSON.stringify(game.getInitialGrid()),
-          final_grid: null, // Will be set when game ends
-          duration_seconds: 0, // Will be calculated when game ends
-          lines_cleared: 0, // Will be updated as game progresses
-          figures_placed: 0, // Will be updated as game progresses
-          score: 0, // Will be updated as game progresses
-          game_result: 'in_progress', // Will be updated when game ends
-          session_data: JSON.stringify({
-            players: Array.from(game.players.entries()),
-            moves: []
-          })
-        };
-        
-        // Create the game session in the database
-        const createdSession = await repositoryManager.gameSessions.create(gameSessionData);
-        
-        // Store the session ID in the game instance for this player
-        if (!game.playerSessions) {
-          game.playerSessions = {};
-        }
-        game.playerSessions[socket.id] = createdSession.id;
-        
-        // Update the opponent_id in the game sessions for both players
-        if (game.players.size === 2) { // Now we have 2 players
-          // Find the other player in the game
-          const players = Array.from(game.players.keys());
-          const otherPlayerId = players.find(id => id !== socket.id);
-          
-          // Update both players' game sessions with each other as opponents
-          if (otherPlayerId && game.playerSessions[otherPlayerId] && game.playerSessions[socket.id]) {
-            // Update the existing player's session to have the new player as opponent
-            await repositoryManager.gameSessions.update(game.playerSessions[otherPlayerId], {
-              opponent_id: socket.id
-            });
-            
-            // Update the joining player's session to have the existing player as opponent
-            await repositoryManager.gameSessions.update(game.playerSessions[socket.id], {
-              opponent_id: otherPlayerId
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Error creating game session for joining player:', error);
-        // Continue with the game joining even if session creation fails
-      }
+      await createGameSession(game, socket.id, true);
       
       // Send current players list to the joining user
       const playersList = game.getPlayersList();
@@ -188,75 +258,82 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('place_figure', async ({ roomId, pixels }) => {
-    const game = games.get(roomId);
-    if (game) {
-      const success = game.placeFigure(socket.id, pixels, roomId, io);
-      if (success) {
-        const gameState = game.getState();
-        io.to(roomId).emit('game_update', gameState);
-        if (game.checkGameOver()) {
-          // Handle game completion with transaction for each player
-          const gameInstance = games.get(roomId);
-          if (gameInstance && gameInstance.playerSessions) {
-            // Process each player's game session
-            for (const [playerId, sessionId] of Object.entries(gameInstance.playerSessions)) {
-              try {
-                // Prepare game session data for storage
-                const gameSessionData = {
-                  user_id: playerId, // Use the specific player's ID
-                  opponent_id: Array.from(gameInstance.players.keys()).find(id => id !== playerId) || null,
-                  game_mode: 'classic', // This would need to be determined based on the game mode
-                  grid_width: gameInstance.gridWidth,
-                  grid_height: gameInstance.gridHeight,
-                  initial_grid: JSON.stringify(gameInstance.getInitialGrid()),
-                  final_grid: JSON.stringify(gameInstance.grid),
-                  duration_seconds: gameInstance.getDuration ? gameInstance.getDuration() : 0,
-                  lines_cleared: gameInstance.getLinesCleared ? gameInstance.getLinesCleared() : 0,
-                  figures_placed: gameInstance.getFiguresPlaced ? gameInstance.getFiguresPlaced() : 0,
-                  score: gameInstance.getScore ? gameInstance.getScore(playerId) : 0,
-                  game_result: gameInstance.getGameResult ? gameInstance.getGameResult(playerId) : 'unknown',
-                  session_data: JSON.stringify({
-                    players: Array.from(gameInstance.players.entries()),
-                    moves: gameInstance.moves || []
-                  })
-                };
-                
-                // Update this when we have proper user authentication
-                // For now, using playerId as a placeholder for user_id
-                
-                // Use the service to complete the game session with proper transactions
-                await gameSessionService.completeGameSessionWithRepositoryMethods(
-                  sessionId, // Use the player's specific session ID
-                  {
-                    final_grid: JSON.stringify(gameInstance.grid),
-                    duration_seconds: gameSessionData.duration_seconds,
-                    lines_cleared: gameSessionData.lines_cleared,
-                    figures_placed: gameSessionData.figures_placed,
-                    score: gameSessionData.score,
-                    game_result: gameSessionData.game_result,
-                    session_data: gameSessionData.session_data
-                  },
-                  playerId, // The user ID for statistics update
-                  gameSessionData
-                );
-              } catch (error) {
-                console.error(`Error completing game session for player ${playerId}:`, error);
-                // Continue processing other players' sessions
-              }
-            }
-          } else {
-            console.warn('Game instance or player sessions not found for game completion');
-          }
-          io.to(roomId).emit('game_over');
-        }
-      } else {
-        socket.emit('error', 'Invalid move');
-        // Revert client state
-        socket.emit('game_update', game.getState());
+  // Helper function to complete game sessions for all players
+    const completeGameSessions = async (roomId) => {
+      const gameInstance = games.get(roomId);
+      if (!gameInstance || !gameInstance.playerSessions) {
+        console.warn('Game instance or player sessions not found for game completion');
+        return;
       }
-    }
-  });
+  
+      // Process each player's game session
+      for (const [playerId, sessionId] of Object.entries(gameInstance.playerSessions)) {
+        try {
+          // Get the authenticated user ID for this player (if available)
+          const authenticatedUserId = gameInstance.authenticatedUserIds ?
+            gameInstance.authenticatedUserIds[playerId] : playerId;
+          
+          const opponentId = Array.from(gameInstance.players.keys()).find(id => id !== playerId) || null;
+          
+          const gameSessionData = {
+            player_id: authenticatedUserId,
+            game_mode: 'classic',
+            grid_width: gameInstance.gridWidth,
+            grid_height: gameInstance.gridHeight,
+            initial_grid: JSON.stringify(gameInstance.getInitialGrid()),
+            final_grid: JSON.stringify(gameInstance.grid),
+            duration_seconds: gameInstance.getDuration ? gameInstance.getDuration() : 0,
+            lines_cleared: gameInstance.getLinesCleared ? gameInstance.getLinesCleared() : 0,
+            figures_placed: gameInstance.getFiguresPlaced ? gameInstance.getFiguresPlaced() : 0,
+            score: gameInstance.getScore ? gameInstance.getScore(playerId) : 0,
+            game_result: gameInstance.getGameResult ? gameInstance.getGameResult(playerId) : 'unknown',
+            session_data: JSON.stringify({
+              players: Array.from(gameInstance.players.entries()),
+              moves: gameInstance.moves || [],
+              authenticated_user_id: authenticatedUserId
+            })
+          };
+          
+          // Use the service to complete the game session with proper transactions
+          await gameSessionService.completeGameSessionWithRepositoryMethods(
+            sessionId,
+            {
+              final_grid: JSON.stringify(gameInstance.grid),
+              duration_seconds: gameSessionData.duration_seconds,
+              lines_cleared: gameSessionData.lines_cleared,
+              figures_placed: gameSessionData.figures_placed,
+              score: gameSessionData.score,
+              game_result: gameSessionData.game_result,
+              session_data: gameSessionData.session_data
+            },
+            authenticatedUserId,
+            gameSessionData
+          );
+        } catch (error) {
+          console.error(`Error completing game session for player ${playerId}:`, error);
+          // Continue processing other players' sessions
+        }
+      }
+    };
+  
+    socket.on('place_figure', async ({ roomId, pixels }) => {
+      const game = games.get(roomId);
+      if (game) {
+        const success = game.placeFigure(socket.id, pixels, roomId, io);
+        if (success) {
+          const gameState = game.getState();
+          io.to(roomId).emit('game_update', gameState);
+          if (game.checkGameOver()) {
+            await completeGameSessions(roomId);
+            io.to(roomId).emit('game_over');
+          }
+        } else {
+          socket.emit('error', 'Invalid move');
+          // Revert client state
+          socket.emit('game_update', game.getState());
+        }
+      }
+   });
 
   socket.on('update_player_color', ({ roomId, color }) => {
     const game = games.get(roomId);
@@ -374,6 +451,19 @@ process.on('SIGTERM', async () => {
   process.exit(0);
 });
 
+// Initialize repositories and auth service for cleanup
+const authServiceForCleanup = new AuthService(repositoryManager.users, repositoryManager.sessions);
+
+// Function to perform periodic cleanup
+const performPeriodicCleanup = async () => {
+  try {
+    const cleanupResult = await authServiceForCleanup.performCleanup();
+    console.log(`Periodic cleanup completed: ${cleanupResult.expiredSessionsRemoved} expired sessions removed, ${cleanupResult.oldAnonymousUsersRemoved} old anonymous users removed`);
+  } catch (error) {
+    console.error('Error during periodic cleanup:', error);
+  }
+};
+
 // Start the server after checking database connection
 const startServer = async () => {
   try {
@@ -385,10 +475,26 @@ const startServer = async () => {
     }
     console.log('Database connection successful');
 
+    // Fetch and display current user data
+    try {
+      const users = await repositoryManager.users.getAllUsers();
+      console.log(`\nCurrent users in database: ${users.length}`);
+      console.log('User data:');
+      users.forEach(user => {
+        console.log(`  ID: ${user.id}, Username: ${user.username}, Email: ${user.email}, Anonymous: ${user.is_anonymous}, Created: ${user.created_at}`);
+      });
+    } catch (error) {
+      console.error('Error fetching user data during initialization:', error);
+    }
+
+    // Start the server
     server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
       console.log('Database connection pool initialized');
     });
+
+    // Perform cleanup once at server startup
+    setTimeout(performPeriodicCleanup, 30000); // 30 seconds after startup
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);

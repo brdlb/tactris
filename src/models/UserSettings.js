@@ -403,4 +403,4 @@ class UserSettings {
   }
 }
 
-export default UserSettings;
+module.exports = UserSettings;

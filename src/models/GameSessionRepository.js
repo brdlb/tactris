@@ -15,8 +15,7 @@ class GameSessionRepository {
    */
   async create(sessionData) {
     const {
-      user_id,
-      opponent_id,
+      player_id,
       game_mode,
       grid_width,
       grid_height,
@@ -32,16 +31,16 @@ class GameSessionRepository {
 
     const query = `
       INSERT INTO game_sessions (
-        user_id, opponent_id, game_mode, grid_width, grid_height, 
-        initial_grid, final_grid, duration_seconds, lines_cleared, 
+        player_id, game_mode, grid_width, grid_height,
+        initial_grid, final_grid, duration_seconds, lines_cleared,
         figures_placed, score, game_result, session_data
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *;
     `;
 
     const values = [
-      user_id, opponent_id, game_mode, grid_width, grid_height,
+      player_id, game_mode, grid_width, grid_height,
       initial_grid, final_grid, duration_seconds, lines_cleared,
       figures_placed, score, game_result, session_data
     ];
@@ -78,14 +77,14 @@ class GameSessionRepository {
    * @param {number} offset - Number of sessions to skip (default: 0)
    * @returns {Promise<Array>} Array of game sessions
    */
-  async findByUserId(userId, limit = 10, offset = 0) {
+  async findByPlayerId(playerId, limit = 10, offset = 0) {
     const query = `
-      SELECT * FROM game_sessions 
-      WHERE user_id = $1 
-      ORDER BY created_at DESC 
+      SELECT * FROM game_sessions
+      WHERE player_id = $1
+      ORDER BY created_at DESC
       LIMIT $2 OFFSET $3;
     `;
-    const values = [userId, limit, offset];
+    const values = [playerId, limit, offset];
 
     try {
       const result = await this.db.query(query, values);
@@ -103,14 +102,14 @@ class GameSessionRepository {
    * @param {number} offset - Number of sessions to skip (default: 0)
    * @returns {Promise<Array>} Array of game sessions
    */
-  async findByUserIdAndResult(userId, gameResult, limit = 10, offset = 0) {
+  async findByPlayerIdAndResult(playerId, gameResult, limit = 10, offset = 0) {
     const query = `
-      SELECT * FROM game_sessions 
-      WHERE user_id = $1 AND game_result = $2
-      ORDER BY created_at DESC 
+      SELECT * FROM game_sessions
+      WHERE player_id = $1 AND game_result = $2
+      ORDER BY created_at DESC
       LIMIT $3 OFFSET $4;
     `;
-    const values = [userId, gameResult, limit, offset];
+    const values = [playerId, gameResult, limit, offset];
 
     try {
       const result = await this.db.query(query, values);
@@ -128,8 +127,8 @@ class GameSessionRepository {
    */
   async update(id, updates) {
     const allowedFields = [
-      'opponent_id', 'game_mode', 'grid_width', 'grid_height', 
-      'initial_grid', 'final_grid', 'duration_seconds', 'lines_cleared', 
+      'game_mode', 'grid_width', 'grid_height',
+      'initial_grid', 'final_grid', 'duration_seconds', 'lines_cleared',
       'figures_placed', 'score', 'game_result', 'session_data'
     ];
     
@@ -173,9 +172,9 @@ class GameSessionRepository {
    * @param {string} userId - User ID to get statistics for
    * @returns {Promise<Object>} Statistics object
    */
-  async getUserStats(userId) {
+  async getPlayerStats(playerId) {
     const query = `
-      SELECT 
+      SELECT
         COUNT(*) as total_games,
         SUM(CASE WHEN game_result = 'win' THEN 1 ELSE 0 END) as wins,
         SUM(CASE WHEN game_result = 'loss' THEN 1 ELSE 0 END) as losses,
@@ -185,10 +184,10 @@ class GameSessionRepository {
         AVG(lines_cleared) as average_lines_cleared,
         MAX(score) as best_score,
         MAX(lines_cleared) as most_lines_cleared
-      FROM game_sessions 
-      WHERE user_id = $1;
+      FROM game_sessions
+      WHERE player_id = $1;
     `;
-    const values = [userId];
+    const values = [playerId];
 
     try {
       const result = await this.db.query(query, values);
@@ -204,14 +203,14 @@ class GameSessionRepository {
    * @param {number} limit - Number of sessions to return (default: 5)
    * @returns {Promise<Array>} Array of recent game sessions
    */
-  async getRecentSessions(userId, limit = 5) {
+  async getRecentSessions(playerId, limit = 5) {
     const query = `
-      SELECT * FROM game_sessions 
-      WHERE user_id = $1 
-      ORDER BY created_at DESC 
+      SELECT * FROM game_sessions
+      WHERE player_id = $1
+      ORDER BY created_at DESC
       LIMIT $2;
     `;
-    const values = [userId, limit];
+    const values = [playerId, limit];
 
     try {
       const result = await this.db.query(query, values);
@@ -228,15 +227,15 @@ class GameSessionRepository {
    * @param {Date} endDate - End date
    * @returns {Promise<Array>} Array of game sessions
    */
-  async getSessionsByDateRange(userId, startDate, endDate) {
+  async getSessionsByDateRange(playerId, startDate, endDate) {
     const query = `
-      SELECT * FROM game_sessions 
-      WHERE user_id = $1 
-        AND created_at >= $2 
+      SELECT * FROM game_sessions
+      WHERE player_id = $1
+        AND created_at >= $2
         AND created_at <= $3
       ORDER BY created_at DESC;
     `;
-    const values = [userId, startDate, endDate];
+    const values = [playerId, startDate, endDate];
 
     try {
       const result = await this.db.query(query, values);
@@ -254,21 +253,21 @@ class GameSessionRepository {
    * @param {Object} gameSessionData - Completed game session data for statistics calculation
    * @returns {Promise<Object>} Object containing updated session and statistics
    */
-  async completeSessionWithStatsUpdate(sessionId, sessionUpdates, userId, gameSessionData) {
+  async completeSessionWithStatsUpdate(sessionId, sessionUpdates, playerId, gameSessionData) {
     // Use the transaction manager to ensure atomicity
     return await TransactionManager.executeWithRetry(this.db, async (client) => {
       // Update the game session
       const sessionUpdateQuery = `
         UPDATE game_sessions
-        SET opponent_id = $2, game_mode = $3, grid_width = $4, grid_height = $5,
-            initial_grid = $6, final_grid = $7, duration_seconds = $8, lines_cleared = $9,
-            figures_placed = $10, score = $11, game_result = $12, session_data = $13, updated_at = NOW()
+        SET game_mode = $2, grid_width = $3, grid_height = $4,
+            initial_grid = $5, final_grid = $6, duration_seconds = $7, lines_cleared = $8,
+            figures_placed = $9, score = $10, game_result = $11, session_data = $12, updated_at = NOW()
         WHERE id = $1
         RETURNING *;
       `;
       
       const sessionValues = [
-        sessionId, sessionUpdates.opponent_id, sessionUpdates.game_mode, sessionUpdates.grid_width, sessionUpdates.grid_height,
+        sessionId, sessionUpdates.game_mode, sessionUpdates.grid_width, sessionUpdates.grid_height,
         sessionUpdates.initial_grid, sessionUpdates.final_grid, sessionUpdates.duration_seconds, sessionUpdates.lines_cleared,
         sessionUpdates.figures_placed, sessionUpdates.score, sessionUpdates.game_result, sessionUpdates.session_data
       ];
@@ -280,9 +279,9 @@ class GameSessionRepository {
       
       const updatedSession = sessionResult.rows[0];
       
-      // Get the current statistics for the user
+      // Get the current statistics for the player
       const statsQuery = 'SELECT * FROM game_statistics WHERE user_id = $1;';
-      const statsResult = await client.query(statsQuery, [userId]);
+      const statsResult = await client.query(statsQuery, [playerId]);
       
       let currentStats;
       if (statsResult.rows.length === 0) {
@@ -298,7 +297,7 @@ class GameSessionRepository {
         `;
         
         const initialStatsValues = [
-          userId, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+          playerId, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
         ];
         
         const createResult = await client.query(createStatsQuery, initialStatsValues);
@@ -337,7 +336,7 @@ class GameSessionRepository {
       `;
       
       const statsValues = [
-        userId, newTotalGames, newWins, newLosses, newDraws, newTotalScore,
+        playerId, newTotalGames, newWins, newLosses, newDraws, newTotalScore,
         newTotalLinesCleared, newTotalDuration, newBestScore, newBestLinesCleared,
         newAverageScore, newAverageLinesCleared, newAverageDuration
       ];

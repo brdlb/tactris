@@ -7,6 +7,7 @@ const GameSessionRepository = require('../models/GameSessionRepository');
 const GameStatisticsRepository = require('../models/GameStatisticsRepository');
 const LeaderboardRepository = require('../models/LeaderboardRepository');
 const UserSettingsRepository = require('../models/UserSettingsRepository');
+const SessionRepository = require('../models/SessionRepository');
 
 class RepositoryManager {
   constructor(db) {
@@ -23,6 +24,7 @@ class RepositoryManager {
     this.gameStatistics = new GameStatisticsRepository(this.db);
     this.leaderboard = new LeaderboardRepository(this.db);
     this.userSettings = new UserSettingsRepository(this.db);
+    this.sessions = new SessionRepository(this.db);
   }
 
   /**
@@ -35,7 +37,8 @@ class RepositoryManager {
       gameSessions: this.gameSessions,
       gameStatistics: this.gameStatistics,
       leaderboard: this.leaderboard,
-      userSettings: this.userSettings
+      userSettings: this.userSettings,
+      sessions: this.sessions
     };
   }
 
@@ -52,7 +55,8 @@ class RepositoryManager {
         gameSessions: new GameSessionRepository(client),
         gameStatistics: new GameStatisticsRepository(client),
         leaderboard: new LeaderboardRepository(client),
-        userSettings: new UserSettingsRepository(client)
+        userSettings: new UserSettingsRepository(client),
+        sessions: new SessionRepository(client)
       };
       
       return await transactionFunction(txRepos);

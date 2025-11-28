@@ -366,4 +366,4 @@ class GameStatistics {
   }
 }
 
-export default GameStatistics;
+module.exports = GameStatistics;

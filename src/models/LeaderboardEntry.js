@@ -289,4 +289,4 @@ class LeaderboardEntry {
   }
 }
 
-export default LeaderboardEntry;
+module.exports = LeaderboardEntry;

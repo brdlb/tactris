@@ -264,4 +264,4 @@ class GameSession {
   }
 }
 
-export default GameSession;
+module.exports = GameSession;

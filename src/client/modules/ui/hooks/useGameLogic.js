@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react
 import SocketManager from '../../network/SocketManager';
 import { getUserColor } from '../../../utils/colorUtils';
 import { FIGURES } from '../../../constants/figures';
+import { checkMatch } from '../../../utils/figureUtils';
 
 const useGameLogic = (boardRefOverride = null) => {
     const [grid, setGrid] = useState(() => Array(10).fill(null).map(() => Array(10).fill(null)));
@@ -28,68 +29,34 @@ const useGameLogic = (boardRefOverride = null) => {
     const pendingUpdates = useRef(new Set()); // Track recently updated pixels to avoid redundant server updates
     const isResizing = useRef(false); // Track resize state to force metric recalculation
 
-    // Helper to check if pixels match any of the allowed figures (subset check)
-    const checkMatch = (pixels, figures) => {
-        if (pixels.length === 0) return -1;
 
-        // Normalize pixels to (0,0)
-        const minX = Math.min(...pixels.map(p => p.x));
-        const minY = Math.min(...pixels.map(p => p.y));
-        const normalized = pixels.map(p => ({ x: p.x - minX, y: p.y - minY }));
-
-        for (let i = 0; i < figures.length; i++) {
-            const figure = figures[i];
-            if (!figure.cells) continue;
-
-            // Check all 4 rotations
-            let currentShape = figure.cells;
-            for (let r = 0; r < 4; r++) {
-                // Check if normalized pixels are a subset of currentShape
-                const isSubset = normalized.every(p =>
-                    currentShape.some(fp => fp[0] === p.x && fp[1] === p.y)
-                );
-
-                if (isSubset) return i;
-
-                // Rotate shape 90 degrees
-                // (x, y) -> (-y, x)
-                // Then normalize again to keep it positive
-                const rotated = currentShape.map(([x, y]) => [-y, x]);
-                const rMinX = Math.min(...rotated.map(p => p[0]));
-                const rMinY = Math.min(...rotated.map(p => p[1]));
-                currentShape = rotated.map(([x, y]) => [x - rMinX, y - rMinY]);
-            }
-        }
-        return -1;
-    };
-
-    // Helper to remove first pixel from queue and clear it from grid
-    const removeFirstPixelFromQueue = () => {
-        if (selectedPixels.current.length === 0) return;
-
-        const removedPixel = selectedPixels.current.shift();
-        const socketId = SocketManager.getSocket().id;
-        let newGrid = [...gridRef.current];
-
-        const ensureRow = (rowIndex) => {
-            if (newGrid[rowIndex] === gridRef.current[rowIndex]) {
-                newGrid[rowIndex] = [...gridRef.current[rowIndex]];
+    // Helper to create a new grid with a pixel update
+        const updateGridPixel = (grid, x, y, value) => {
+            const newGrid = [...grid];
+            newGrid[y] = [...grid[y]];
+            newGrid[y][x] = value;
+            return newGrid;
+        };
+    
+        // Helper to remove first pixel from queue and clear it from grid
+        const removeFirstPixelFromQueue = () => {
+            if (selectedPixels.current.length === 0) return;
+    
+            const removedPixel = selectedPixels.current.shift();
+            let newGrid = gridRef.current;
+    
+            newGrid = updateGridPixel(newGrid, removedPixel.x, removedPixel.y, null);
+    
+            // Track this pixel as recently updated by current user (removal)
+            pendingUpdates.current.add(`${removedPixel.x}-${removedPixel.y}`);
+    
+            gridRef.current = newGrid;
+            setGrid(newGrid);
+    
+            if (roomIdRef.current) {
+                SocketManager.placePixel(roomIdRef.current, 0, removedPixel);
             }
         };
-
-        ensureRow(removedPixel.y);
-        newGrid[removedPixel.y][removedPixel.x] = null;
-
-        // Track this pixel as recently updated by current user (removal)
-        pendingUpdates.current.add(`${removedPixel.x}-${removedPixel.y}`);
-
-        gridRef.current = newGrid;
-        setGrid(newGrid);
-
-        if (roomIdRef.current) {
-            SocketManager.placePixel(roomIdRef.current, 0, removedPixel);
-        }
-    };
 
     // Apply theme to document
     useEffect(() => {
@@ -106,71 +73,67 @@ const useGameLogic = (boardRefOverride = null) => {
         const socket = SocketManager.connect();
 
         const updateGameState = (state) => {
-            const currentGrid = gridRef.current;
-            const newGrid = state.grid;
-            const socketId = socket.id;
-            const pendingUpdatesSet = pendingUpdates.current;
-
-            // Create a new grid that preserves recent local changes
-            let processedGrid = newGrid.map((row, y) =>
-                row.map((cell, x) => {
-                    const pixelKey = `${x}-${y}`;
-                    const currentCell = currentGrid[y]?.[x];
-
-                    // Skip updating if this pixel was recently modified locally
-                    if (pendingUpdatesSet.has(pixelKey)) {
-                        return currentCell;
+                    const currentGrid = gridRef.current;
+                    const newGrid = state.grid;
+                    const pendingUpdatesSet = pendingUpdates.current;
+        
+                    // Create a new grid that preserves recent local changes
+                    const processedGrid = newGrid.map((row, y) =>
+                        row.map((cell, x) => {
+                            const pixelKey = `${x}-${y}`;
+                            const currentCell = currentGrid[y]?.[x];
+        
+                            // Skip updating if this pixel was recently modified locally
+                            return pendingUpdatesSet.has(pixelKey) ? currentCell : cell;
+                        })
+                    );
+        
+                    setGrid(processedGrid);
+                    gridRef.current = processedGrid;
+        
+                    // Update player-specific data
+                    const myPlayer = state.players && state.players[socket.id];
+                    if (myPlayer) {
+                        // Update figures if they changed
+                        if (myPlayer.figures) {
+                            const figuresChanged = myFigures.length !== myPlayer.figures.length ||
+                                myFigures.some((fig, i) => {
+                                    const newFig = myPlayer.figures[i];
+                                    return !fig || !newFig ||
+                                        fig.type !== newFig.type ||
+                                        JSON.stringify(fig.cells) !== JSON.stringify(newFig.cells);
+                                });
+        
+                            if (figuresChanged) {
+                                setMyFigures(myPlayer.figures);
+                            }
+                        }
+                        
+                        // Update score if it changed
+                        if (myPlayer.score !== undefined && myPlayer.score !== score) {
+                            setScore(myPlayer.score);
+                        }
                     }
-
-                    // Otherwise use the server state
-                    return cell;
-                })
-            );
-
-            setGrid(processedGrid);
-            gridRef.current = processedGrid;
-
-            const myPlayer = state.players && state.players[socket.id];
-            if (myPlayer) {
-                if (myPlayer.figures) {
-                    // Ensure we maintain stable references to avoid unnecessary re-renders
-                    // Only update if the figures array or its contents actually changed
-                    const currentFigures = myFigures;
-                    const newFigures = myPlayer.figures;
-
-                    // Check if figures changed
-                    const figuresChanged = currentFigures.length !== newFigures.length ||
-                        currentFigures.some((fig, i) => {
-                            const newFig = newFigures[i];
-                            return !fig || !newFig ||
-                                fig.type !== newFig.type ||
-                                JSON.stringify(fig.cells) !== JSON.stringify(newFig.cells);
-                        });
-
-                    if (figuresChanged) {
-                        setMyFigures(newFigures);
+        
+                    // Update players list to sync opponents' data (scores, figures)
+                    if (state.players) {
+                        const updatedPlayersList = Object.values(state.players).map(player => ({
+                            id: player.id,
+                            color: player.color,
+                            score: player.score,
+                            figures: player.figures
+                        }));
+                        setPlayersList(updatedPlayersList);
                     }
-                }
-                if (myPlayer.score !== undefined) setScore(myPlayer.score);
-            }
-
-            // Update players list to sync opponents' data (scores, figures)
-            if (state.players) {
-                const updatedPlayersList = Object.values(state.players).map(player => ({
-                    id: player.id,
-                    color: player.color,
-                    score: player.score,
-                    figures: player.figures
-                }));
-                setPlayersList(updatedPlayersList);
-            }
-            if (state.gameOver !== undefined) {
-                setGameOver(state.gameOver);
-            }
-
-            // Clean up old pending updates (keep only recent ones)
-            pendingUpdatesSet.clear();
-        };
+                    
+                    // Update game over state if it changed
+                    if (state.gameOver !== undefined && state.gameOver !== gameOver) {
+                        setGameOver(state.gameOver);
+                    }
+        
+                    // Clean up old pending updates (keep only recent ones)
+                    pendingUpdatesSet.clear();
+                };
 
         socket.on('room_created', ({ roomId, state, playersList }) => {
             setRoomId(roomId);
@@ -427,45 +390,41 @@ const useGameLogic = (boardRefOverride = null) => {
     };
 
     const handleInteraction = (x, y) => {
-        const activeRoomId = roomIdRef.current;
-        if (!activeRoomId || gameOver) return;
-
-        const socketId = SocketManager.getSocket().id;
-        let newGrid = [...gridRef.current];
-
-        const ensureRow = (rowIndex) => {
-            if (newGrid[rowIndex] === gridRef.current[rowIndex]) {
-                newGrid[rowIndex] = [...gridRef.current[rowIndex]];
+            const activeRoomId = roomIdRef.current;
+            if (!activeRoomId || gameOver) return;
+    
+            // Check if pixel is already selected to avoid duplicates
+            if (selectedPixels.current.some(p => p.x === x && p.y === y)) return;
+    
+            const newPixel = { x, y };
+            selectedPixels.current.push(newPixel);
+    
+            // Update grid with the new pixel
+            let newGrid = gridRef.current;
+            newGrid = updateGridPixel(newGrid, x, y, {
+                playerId: SocketManager.getSocket().id,
+                color: userColor.current,
+                state: 'drawing'
+            });
+            
+            SocketManager.placePixel(activeRoomId, 1, newPixel);
+    
+            // Track this pixel as recently updated by current user
+            pendingUpdates.current.add(`${x}-${y}`);
+    
+            // If we have 4 or more pixels, check if they match any figure
+            if (selectedPixels.current.length >= 4) {
+                const matchedFigureIndex = checkMatch(selectedPixels.current, myFigures);
+    
+                // If doesn't match any figure, remove the first pixel
+                if (matchedFigureIndex === -1) {
+                    removeFirstPixelFromQueue();
+                }
             }
+    
+            gridRef.current = newGrid;
+            setGrid(newGrid);
         };
-
-        // Check if pixel is already selected to avoid duplicates
-        if (selectedPixels.current.some(p => p.x === x && p.y === y)) return;
-
-        const newPixel = { x, y };
-        selectedPixels.current.push(newPixel);
-
-        // Place pixel on grid
-        ensureRow(y);
-        newGrid[y][x] = { playerId: socketId, color: userColor.current, state: 'drawing' };
-        SocketManager.placePixel(activeRoomId, 1, newPixel);
-
-        // Track this pixel as recently updated by current user
-        pendingUpdates.current.add(`${x}-${y}`);
-
-        // If we have 4 or more pixels, check if they match any figure
-        if (selectedPixels.current.length >= 4) {
-            const matchedFigureIndex = checkMatch(selectedPixels.current, myFigures);
-
-            // If doesn't match any figure, remove the first pixel
-            if (matchedFigureIndex === -1) {
-                removeFirstPixelFromQueue();
-            }
-        }
-
-        gridRef.current = newGrid;
-        setGrid(newGrid);
-    };
 
     const handlePointerDown = useCallback((event) => {
         if (gameOver || !roomIdRef.current) return;
