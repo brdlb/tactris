@@ -84,6 +84,15 @@ function createNewAnonymousUser(socket, next) {
           socket.anonymousToken = anonymousToken; // Store the token for sending to client
           socket.anonymousUserRecord = updatedUser; // Store the user record for potential later use
           return next();
+        })
+        .catch(err => {
+          console.warn('Warning: Could not update anonymous token (migration may not be run yet):', err);
+          // If the column doesn't exist, use the user as-is without the token
+          socket.userId = user.id; // Use the database user UUID
+          socket.isAnonymous = true;
+          socket.anonymousToken = null; // No token available
+          socket.anonymousUserRecord = user; // Store the user record as-is
+          return next();
         });
     })
     .catch(err => {

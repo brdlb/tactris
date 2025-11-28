@@ -158,7 +158,7 @@ class UserRepository {
     const anonymousId = `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const username = `Anonymous_${Math.floor(Math.random() * 10000)}`;
     
-    // Try to insert with the anonymous_token column first
+    // Create anonymous user without anonymous_token initially
     const query = `
       INSERT INTO users (anonymous_id, username, is_anonymous)
       VALUES ($1, $2, true)
