@@ -12,15 +12,30 @@ class SocketManager {
             const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
             const host = window.location.hostname;
             const serverUrl = `${protocol}//${host}`;
+            
+            // Get the anonymous token from localStorage if it exists
+            const anonymousToken = localStorage.getItem('anonymousToken');
 
             this.socket = io(serverUrl, {
                 transports: ['websocket', 'polling'],
                 timeout: 20000,
-                forceNew: true
+                forceNew: true,
+                // Send the anonymous token with the connection handshake
+                auth: {
+                    anonymousToken: anonymousToken || undefined
+                }
             });
             
             // Set up room event listeners
             this.setupRoomEventListeners();
+            
+            // Listen for the server to send back the anonymous token
+            this.socket.on('anonymous_token', (data) => {
+                if (data.token) {
+                    // Store the anonymous token in localStorage
+                    localStorage.setItem('anonymousToken', data.token);
+                }
+            });
         }
         return this.socket;
     }

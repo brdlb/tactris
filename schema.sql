@@ -262,6 +262,7 @@ CREATE TABLE public.users (
     profile_picture_url text,
     username character varying(100),
     is_anonymous boolean DEFAULT true NOT NULL,
+    anonymous_token character varying(255),
     last_seen_at timestamp with time zone DEFAULT now() NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
@@ -383,6 +384,14 @@ ALTER TABLE ONLY public.user_settings
 
 ALTER TABLE ONLY public.user_settings
     ADD CONSTRAINT user_settings_user_id_key UNIQUE (user_id);
+
+
+--
+-- Name: users users_anonymous_token_key; Type: CONSTRAINT; Schema: public; Owner: tactris_user
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_anonymous_token_key UNIQUE (anonymous_token);
 
 
 --

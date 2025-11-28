@@ -113,7 +113,7 @@ class UserRepository {
    * @returns {Promise<Object>} The updated user
    */
   async update(id, updates) {
-    const allowedFields = ['username', 'email', 'avatar_url', 'is_anonymous'];
+    const allowedFields = ['username', 'email', 'avatar_url', 'is_anonymous', 'anonymous_token'];
     const updateFields = [];
     const values = [];
     let valueIndex = 2;
@@ -158,6 +158,7 @@ class UserRepository {
     const anonymousId = `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const username = `Anonymous_${Math.floor(Math.random() * 10000)}`;
     
+    // Try to insert with the anonymous_token column first
     const query = `
       INSERT INTO users (anonymous_id, username, is_anonymous)
       VALUES ($1, $2, true)
@@ -169,6 +170,49 @@ class UserRepository {
       return result.rows[0];
     } catch (error) {
       throw new Error(`Error creating anonymous user: ${error.message}`);
+    }
+  }
+  
+  /**
+   * Finds a user by their anonymous token
+   * @param {string} anonymousToken - Anonymous token to find
+   * @returns {Promise<Object|null>} The found user or null
+   */
+  async findByAnonymousToken(anonymousToken) {
+    const query = 'SELECT * FROM users WHERE anonymous_token = $1;';
+    const values = [anonymousToken];
+    
+    try {
+      const result = await this.db.query(query, values);
+      return result.rows[0] || null;
+    } catch (error) {
+      throw new Error(`Error finding user by anonymous token: ${error.message}`);
+    }
+  }
+  
+  /**
+   * Updates the anonymous token for a user
+   * @param {string} userId - User ID to update
+   * @param {string} anonymousToken - Anonymous token to set
+   * @returns {Promise<Object>} The updated user
+   */
+  async updateAnonymousToken(userId, anonymousToken) {
+    const query = `
+      UPDATE users
+      SET anonymous_token = $2
+      WHERE id = $1
+      RETURNING *;
+    `;
+    const values = [userId, anonymousToken];
+    
+    try {
+      const result = await this.db.query(query, values);
+      if (result.rows.length === 0) {
+        throw new Error('User not found');
+      }
+      return result.rows[0];
+    } catch (error) {
+      throw new Error(`Error updating anonymous token: ${error.message}`);
     }
   }
 
@@ -300,8 +344,8 @@ class UserRepository {
    */
   async updateLastSeen(id) {
     const query = `
-      UPDATE users 
-      SET last_seen = NOW()
+      UPDATE users
+      SET last_seen_at = NOW()
       WHERE id = $1
       RETURNING *;
     `;

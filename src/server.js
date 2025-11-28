@@ -9,6 +9,7 @@ const cookieParser = require('cookie-parser');
 const { Game } = require('./models/Game');
 const { pool, query, healthCheck, closePool, repositoryManager } = require('./config/db');
 const GameSessionService = require('./services/GameSessionService');
+const crypto = require('crypto');
 const AuthService = require('./services/AuthService');
 const UserRepository = require('./models/UserRepository');
 const SessionRepository = require('./models/SessionRepository');
@@ -63,28 +64,68 @@ if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../dist')));
 }
 
+// Function to generate a secure anonymous token
+function generateAnonymousToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+// Helper function to create a new anonymous user
+function createNewAnonymousUser(socket, next) {
+  repositoryManager.users.createAnonymous()
+    .then(user => {
+      // Generate an anonymous token for this user
+      const anonymousToken = generateAnonymousToken();
+      
+      // Update the user record with the anonymous token
+      return repositoryManager.users.updateAnonymousToken(user.id, anonymousToken)
+        .then(updatedUser => {
+          socket.userId = updatedUser.id; // Use the database user UUID
+          socket.isAnonymous = true;
+          socket.anonymousToken = anonymousToken; // Store the token for sending to client
+          socket.anonymousUserRecord = updatedUser; // Store the user record for potential later use
+          return next();
+        });
+    })
+    .catch(err => {
+      console.error('Error creating anonymous user:', err);
+      // Fallback to socket ID if user creation fails
+      socket.userId = socket.id;
+      socket.isAnonymous = true;
+      socket.anonymousToken = null;
+      return next();
+    });
+}
+
 // Middleware to authenticate socket connections
 io.use((socket, next) => {
   // Extract session token from handshake auth or headers
   const sessionToken = socket.handshake.auth?.token || socket.handshake.headers?.authorization?.replace('Bearer ', '');
+  const anonymousToken = socket.handshake.auth?.anonymousToken || socket.handshake.headers?.['x-anonymous-token'];
   
-  if (!sessionToken) {
-    // Allow unauthenticated connections but mark as anonymous
-    // Create an anonymous user record to get a proper UUID
-    repositoryManager.users.createAnonymous()
+  // Check if the anonymous token is provided and valid
+  if (anonymousToken) {
+    // Validate the anonymous token by looking it up in the database
+    repositoryManager.users.findByAnonymousToken(anonymousToken)
       .then(user => {
-        socket.userId = user.id; // Use the database user UUID instead of socket ID
-        socket.isAnonymous = true;
-        socket.anonymousUserRecord = user; // Store the user record for potential later use
-        return next();
+        if (user) {
+          // Valid anonymous token found, use existing user
+          socket.userId = user.id;
+          socket.isAnonymous = true;
+          socket.anonymousToken = anonymousToken; // Store the token for later use
+          return next();
+        } else {
+          // Invalid token, create a new anonymous user
+          createNewAnonymousUser(socket, next);
+        }
       })
       .catch(err => {
-        console.error('Error creating anonymous user:', err);
-        // Fallback to socket ID if user creation fails
-        socket.userId = socket.id;
-        socket.isAnonymous = true;
-        return next();
+        console.error('Error validating anonymous token:', err);
+        // If there's an error validating the token, create a new anonymous user
+        createNewAnonymousUser(socket, next);
       });
+  } else if (!sessionToken) {
+    // No session token and no anonymous token provided, create a new anonymous user
+    createNewAnonymousUser(socket, next);
   } else {
     // Validate the session token using our auth service
     const authService = new AuthService(repositoryManager.users, repositoryManager.sessions);
@@ -96,38 +137,12 @@ io.use((socket, next) => {
           next();
         } else {
           // Invalid session, create an anonymous user
-          repositoryManager.users.createAnonymous()
-            .then(user => {
-              socket.userId = user.id; // Use the database user UUID
-              socket.isAnonymous = true;
-              socket.anonymousUserRecord = user;
-              return next();
-            })
-            .catch(err => {
-              console.error('Error creating anonymous user:', err);
-              // Fallback to socket ID if user creation fails
-              socket.userId = socket.id;
-              socket.isAnonymous = true;
-              return next();
-            });
+          createNewAnonymousUser(socket, next);
         }
       })
       .catch(err => {
         // Error validating session, create an anonymous user
-        repositoryManager.users.createAnonymous()
-          .then(user => {
-            socket.userId = user.id; // Use the database user UUID
-            socket.isAnonymous = true;
-            socket.anonymousUserRecord = user;
-            return next();
-          })
-          .catch(err => {
-            console.error('Error creating anonymous user:', err);
-            // Fallback to socket ID if user creation fails
-            socket.userId = socket.id;
-            socket.isAnonymous = true;
-            return next();
-          });
+        createNewAnonymousUser(socket, next);
       });
   }
 });
@@ -135,8 +150,18 @@ io.use((socket, next) => {
 const games = new Map();
 
 io.on('connection', (socket) => {
+  // Send the anonymous token to the client if they are an anonymous user
+  if (socket.anonymousToken && socket.isAnonymous) {
+    socket.emit('anonymous_token', { token: socket.anonymousToken });
+    
+    // Update the last seen timestamp for the user
+    repositoryManager.users.updateLastSeen(socket.userId)
+      .catch(err => {
+        console.error('Error updating last seen timestamp:', err);
+      });
+  }
 
-  // Helper function to create a game session record in the database
+ // Helper function to create a game session record in the database
   const createGameSession = async (game, playerId, isJoining = false) => {
     try {
       const gameSessionData = {
