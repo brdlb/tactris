@@ -110,16 +110,18 @@ class GameSessionService {
       const updateStatsQuery = `
         UPDATE game_statistics
         SET total_games = $2, wins = $3, losses = $4, draws = $5, total_score = $6,
-            total_lines_cleared = $7, total_duration = $8, best_score = $9, best_lines_cleared = $10,
-            average_score = $11, average_lines_cleared = $12, average_duration = $13, games_played_today = $14, updated_at = NOW()
+            total_lines_cleared = $7, total_figures_placed = $8, total_play_time_seconds = $9,
+            best_score = $10, best_lines_cleared = $11,
+            average_score = $12, average_lines_cleared = $13, average_lines_per_game = $14, average_duration = $15, games_played_today = $16, updated_at = NOW()
         WHERE user_id = $1
         RETURNING *;
       `;
       
       const statsValues = [
         userId, newTotalGames, newWins, newLosses, newDraws, newTotalScore,
-        newTotalLinesCleared, newTotalDuration, newBestScore, newBestLinesCleared,
-        newAverageScore, newAverageLinesCleared, newAverageDuration, parseInt(currentStats.games_played_today) + 1
+        newTotalLinesCleared, currentStats.total_figures_placed + (gameSessionData.figures_placed || 0), currentStats.total_play_time_seconds + (gameSessionData.duration_seconds || 0),
+        newBestScore, newBestLinesCleared,
+        newAverageScore, newAverageLinesCleared, newTotalLinesCleared / newTotalGames, newAverageDuration, parseInt(currentStats.games_played_today) + 1
       ];
       
       const updateStatsResult = await client.query(updateStatsQuery, statsValues);
@@ -228,16 +230,18 @@ class GameSessionService {
         const updateStatsQuery = `
           UPDATE game_statistics
           SET total_games = $2, wins = $3, losses = $4, draws = $5, total_score = $6,
-              total_lines_cleared = $7, total_duration = $8, best_score = $9, best_lines_cleared = $10,
-              average_score = $11, average_lines_cleared = $12, average_duration = $13, games_played_today = $14, updated_at = NOW()
+              total_lines_cleared = $7, total_figures_placed = $8, total_play_time_seconds = $9,
+              best_score = $10, best_lines_cleared = $11,
+              average_score = $12, average_lines_cleared = $13, average_lines_per_game = $14, average_duration = $15, games_played_today = $16, updated_at = NOW()
           WHERE user_id = $1
           RETURNING *;
         `;
         
         const statsValues = [
           userId, newTotalGames, newWins, newLosses, newDraws, newTotalScore,
-          newTotalLinesCleared, newTotalDuration, newBestScore, newBestLinesCleared,
-          newAverageScore, newAverageLinesCleared, newAverageDuration, parseInt(currentStats.games_played_today) + 1
+          newTotalLinesCleared, currentStats.total_figures_placed + (gameSessionData.figures_placed || 0), currentStats.total_play_time_seconds + (gameSessionData.duration_seconds || 0),
+          newBestScore, newBestLinesCleared,
+          newAverageScore, newAverageLinesCleared, newTotalLinesCleared / newTotalGames, newAverageDuration, parseInt(currentStats.games_played_today) + 1
         ];
         
         const updateStatsResult = await client.query(updateStatsQuery, statsValues);
