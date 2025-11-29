@@ -1,5 +1,6 @@
 import React from 'react';
 import './GameBoard.css'; // Reusing existing styles for now
+import { secondsToDhms } from '../../../utils/timeUtils';
 
 // Utility function to safely format a number with toFixed, handling null, undefined, and non-numeric values
 const safeFormatNumber = (value, defaultValue = 0, decimalPlaces = 0) => {
@@ -8,6 +9,7 @@ const safeFormatNumber = (value, defaultValue = 0, decimalPlaces = 0) => {
   }
   return Number(value).toFixed(decimalPlaces);
 };
+
 
 const StatsModal = ({ isOpen, onClose, statsData }) => {
     console.log('📊 [StatsModal] Received statsData prop:', statsData);
@@ -80,8 +82,8 @@ const StatsModal = ({ isOpen, onClose, statsData }) => {
                             <span className="stat-value">{safeFormatNumber(stats.total_figures_placed, 0)}</span>
                         </div>
                         <div className="stat-item">
-                            <span className="stat-label">Play Time (sec)</span>
-                            <span className="stat-value">{safeFormatNumber(stats.total_play_time_seconds, 0)}</span>
+                            <span className="stat-label">Play Time</span>
+                            <span className="stat-value">{secondsToDhms(stats.total_play_time_seconds)}</span>
                         </div>
                         <div className="stat-item">
                             <span className="stat-label">Avg Lines/Game</span>
