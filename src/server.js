@@ -14,8 +14,9 @@ const AuthService = require('./services/AuthService');
 const UserRepository = require('./models/UserRepository');
 const SessionRepository = require('./models/SessionRepository');
 
-// Import authentication routes and middleware
+// Import routes and middleware
 const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/users');
 const { sessionValidation } = require('./middleware/sessionValidation');
 
 // Initialize the GameSessionService with repositories
@@ -53,11 +54,74 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Apply session validation middleware to all routes
+// Define public routes that should bypass session validation
+// Public endpoint for user statistics - must be defined before global session validation
+app.get('/api/user/stats/public', async (req, res) => {
+  try {
+    const { user_id } = req.query;
+    console.log('Received request for user stats with user_id:', user_id);
+    
+    if (!user_id) {
+      return res.status(400).json({ error: 'user_id parameter is required' });
+    }
+
+    // Get user statistics from the repository
+    const stats = await repositoryManager.gameStatistics.findByUserId(user_id);
+    
+    if (!stats) {
+      // If no stats exist for the user, return default stats
+      return res.status(200).json({
+        user_id: user_id,
+        total_games: 0,
+        total_wins: 0,
+        win_rate: 0,
+        total_score: 0,
+        average_score: 0,
+        best_score: 0,
+        total_lines_cleared: 0,
+        average_lines_cleared: 0,
+        best_lines_cleared: 0,
+        total_figures_placed: 0,
+        total_play_time_seconds: 0,
+        average_lines_per_game: 0,
+        rating: 1000
+      });
+    }
+
+    // Calculate win rate
+    const winRate = stats.total_games > 0 ? (stats.wins / stats.total_games) * 100 : 0;
+
+    // Return formatted statistics
+    const responseData = {
+      user_id: user_id,
+      total_games: stats.total_games,
+      total_wins: stats.wins,
+      win_rate: winRate,
+      total_score: stats.total_score,
+      average_score: stats.average_score || 0,
+      best_score: stats.best_score,
+      total_lines_cleared: stats.total_lines_cleared,
+      average_lines_cleared: stats.average_lines_cleared || 0,
+      best_lines_cleared: stats.best_lines_cleared,
+      total_figures_placed: stats.total_figures_placed || 0,
+      total_play_time_seconds: stats.total_play_time_seconds || 0,
+      average_lines_per_game: stats.average_lines_per_game || 0,
+      rating: stats.rating || 1000
+    };
+    
+    res.status(200).json(responseData);
+  } catch (error) {
+    console.error('Error fetching public user stats:', error);
+    res.status(500).json({ error: 'Failed to fetch user statistics' });
+  }
+});
+
+// Apply session validation middleware to all other routes
 app.use(sessionValidation);
 
 // Routes
 app.use('/auth', authRoutes);
+app.use('/api/user', userRoutes);
 
 // Serve static files from the client build directory (for production)
 if (process.env.NODE_ENV === 'production') {
@@ -159,9 +223,12 @@ io.use((socket, next) => {
 const games = new Map();
 
 io.on('connection', (socket) => {
-  // Send the anonymous token to the client if they are an anonymous user
+  // Send the anonymous token and user_id to the client if they are an anonymous user
   if (socket.anonymousToken && socket.isAnonymous) {
-    socket.emit('anonymous_token', { token: socket.anonymousToken });
+    socket.emit('anonymous_token', { 
+      token: socket.anonymousToken,
+      user_id: socket.userId 
+    });
     
     // Update the last seen timestamp for the user
     repositoryManager.users.updateLastSeen(socket.userId)
@@ -170,8 +237,146 @@ io.on('connection', (socket) => {
       });
   }
 
- // Helper function to create a game session record in the database
-  const createGameSession = async (game, playerId, isJoining = false) => {
+ // Helper function to complete game sessions for all players
+   const completeGameSessions = async (roomId) => {
+     const gameInstance = games.get(roomId);
+     if (!gameInstance || !gameInstance.playerSessions) {
+       console.warn('Game instance or player sessions not found for game completion');
+       return;
+     }
+ 
+     // Process each player's game session
+     for (const [playerId, sessionId] of Object.entries(gameInstance.playerSessions)) {
+       try {
+         // Get the authenticated user ID for this player (if available)
+         const authenticatedUserId = gameInstance.authenticatedUserIds ?
+           gameInstance.authenticatedUserIds[playerId] : playerId;
+         
+         const opponentId = Array.from(gameInstance.players.keys()).find(id => id !== playerId) || null;
+         
+         const gameSessionData = {
+           player_id: authenticatedUserId,
+           game_mode: 'classic',
+           grid_width: gameInstance.gridWidth,
+           grid_height: gameInstance.gridHeight,
+           initial_grid: JSON.stringify(gameInstance.getInitialGrid()),
+           final_grid: JSON.stringify(gameInstance.grid),
+           duration_seconds: gameInstance.getDuration ? gameInstance.getDuration() : 0,
+           lines_cleared: gameInstance.getLinesCleared ? gameInstance.getLinesCleared() : 0,
+           figures_placed: gameInstance.getFiguresPlaced ? gameInstance.getFiguresPlaced() : 0,
+           score: gameInstance.getScore ? gameInstance.getScore(playerId) : 0,
+           game_result: gameInstance.getGameResult ? gameInstance.getGameResult(playerId) : 'completed',
+           session_data: JSON.stringify({
+             players: Array.from(gameInstance.players.entries()),
+             moves: gameInstance.moves || [],
+             authenticated_user_id: authenticatedUserId
+           })
+         };
+         
+         // Log the data that will be written to the database for debugging
+         console.log(`Game completion data for player ${playerId}:`, {
+           player_id: authenticatedUserId,
+           game_mode: gameSessionData.game_mode,
+           grid_width: gameSessionData.grid_width,
+           grid_height: gameSessionData.grid_height,
+           initial_grid: gameSessionData.initial_grid,
+           final_grid: gameSessionData.final_grid,
+           duration_seconds: gameSessionData.duration_seconds,
+           lines_cleared: gameSessionData.lines_cleared,
+           figures_placed: gameSessionData.figures_placed,
+           score: gameSessionData.score,
+           game_result: gameSessionData.game_result,
+           session_data: gameSessionData.session_data
+         });
+         
+         // Use the service to complete the game session with proper transactions
+         const result = await gameSessionService.completeGameSessionWithRepositoryMethods(
+           sessionId,
+           {
+             final_grid: JSON.stringify(gameInstance.grid),
+             duration_seconds: gameSessionData.duration_seconds,
+             lines_cleared: gameSessionData.lines_cleared,
+             figures_placed: gameSessionData.figures_placed,
+             score: gameSessionData.score,
+             game_result: gameSessionData.game_result,
+             session_data: gameSessionData.session_data
+           },
+           authenticatedUserId,
+           gameSessionData
+         );
+         
+         // Log the updated session and statistics
+         console.log(`Updated session and statistics for player ${playerId}:`, {
+           session: result.session,
+           statistics: result.statistics
+         });
+       } catch (error) {
+         console.error(`Error completing game session for player ${playerId}:`, error);
+         // Continue processing other players' sessions
+       }
+     }
+   };
+ 
+   // Helper function to complete a single player's game session when they leave a room
+   const completePlayerSessionOnLeave = async (roomId, playerId) => {
+     const gameInstance = games.get(roomId);
+     if (!gameInstance || !gameInstance.playerSessions || !gameInstance.playerSessions[playerId]) {
+       console.warn(`Game instance or player session not found for player ${playerId} in room ${roomId}`);
+       return;
+     }
+ 
+     try {
+       const sessionId = gameInstance.playerSessions[playerId];
+       
+       // Get the authenticated user ID for this player (if available)
+       const authenticatedUserId = gameInstance.authenticatedUserIds ?
+         gameInstance.authenticatedUserIds[playerId] : playerId;
+       
+       // Prepare game session data for statistics calculation
+       const gameSessionData = {
+         player_id: authenticatedUserId,
+         game_mode: 'classic',
+         grid_width: gameInstance.gridWidth,
+         grid_height: gameInstance.gridHeight,
+         initial_grid: JSON.stringify(gameInstance.getInitialGrid()),
+         final_grid: JSON.stringify(gameInstance.grid),
+         duration_seconds: gameInstance.getDuration ? gameInstance.getDuration() : 0,
+         lines_cleared: gameInstance.getLinesCleared ? gameInstance.getLinesCleared() : 0,
+         figures_placed: gameInstance.getFiguresPlaced ? gameInstance.getFiguresPlaced() : 0,
+         score: gameInstance.getScore ? gameInstance.getScore(playerId) : 0,
+         game_result: gameInstance.gameOver ? gameInstance.getGameResult(playerId) : 'quit', // Use 'quit' if player left before game ended
+         session_data: JSON.stringify({
+           players: Array.from(gameInstance.players.entries()),
+           moves: gameInstance.moves || [],
+           authenticated_user_id: authenticatedUserId
+         })
+       };
+       
+       // Update the game session with final data and update statistics
+       const result = await gameSessionService.completeGameSessionWithRepositoryMethods(
+         sessionId,
+         {
+           final_grid: JSON.stringify(gameInstance.grid),
+           duration_seconds: gameSessionData.duration_seconds,
+           lines_cleared: gameSessionData.lines_cleared,
+           figures_placed: gameSessionData.figures_placed,
+           score: gameSessionData.score,
+           game_result: gameSessionData.game_result, // Set result to 'quit' when player leaves
+           session_data: gameSessionData.session_data
+         },
+         authenticatedUserId,
+         gameSessionData
+       );
+       
+       console.log(`Updated session and statistics for player ${playerId} who left room ${roomId}`);
+       
+     } catch (error) {
+       console.error(`Error updating game session and statistics for player ${playerId} who left room ${roomId}:`, error);
+     }
+   };
+ 
+   // Helper function to create a game session record in the database
+   const createGameSession = async (game, playerId, isJoining = false) => {
     try {
       const gameSessionData = {
         player_id: socket.userId, // Use the authenticated user ID from socket connection
@@ -292,63 +497,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Helper function to complete game sessions for all players
-    const completeGameSessions = async (roomId) => {
-      const gameInstance = games.get(roomId);
-      if (!gameInstance || !gameInstance.playerSessions) {
-        console.warn('Game instance or player sessions not found for game completion');
-        return;
-      }
-  
-      // Process each player's game session
-      for (const [playerId, sessionId] of Object.entries(gameInstance.playerSessions)) {
-        try {
-          // Get the authenticated user ID for this player (if available)
-          const authenticatedUserId = gameInstance.authenticatedUserIds ?
-            gameInstance.authenticatedUserIds[playerId] : playerId;
-          
-          const opponentId = Array.from(gameInstance.players.keys()).find(id => id !== playerId) || null;
-          
-          const gameSessionData = {
-            player_id: authenticatedUserId,
-            game_mode: 'classic',
-            grid_width: gameInstance.gridWidth,
-            grid_height: gameInstance.gridHeight,
-            initial_grid: JSON.stringify(gameInstance.getInitialGrid()),
-            final_grid: JSON.stringify(gameInstance.grid),
-            duration_seconds: gameInstance.getDuration ? gameInstance.getDuration() : 0,
-            lines_cleared: gameInstance.getLinesCleared ? gameInstance.getLinesCleared() : 0,
-            figures_placed: gameInstance.getFiguresPlaced ? gameInstance.getFiguresPlaced() : 0,
-            score: gameInstance.getScore ? gameInstance.getScore(playerId) : 0,
-            game_result: gameInstance.getGameResult ? gameInstance.getGameResult(playerId) : 'unknown',
-            session_data: JSON.stringify({
-              players: Array.from(gameInstance.players.entries()),
-              moves: gameInstance.moves || [],
-              authenticated_user_id: authenticatedUserId
-            })
-          };
-          
-          // Use the service to complete the game session with proper transactions
-          await gameSessionService.completeGameSessionWithRepositoryMethods(
-            sessionId,
-            {
-              final_grid: JSON.stringify(gameInstance.grid),
-              duration_seconds: gameSessionData.duration_seconds,
-              lines_cleared: gameSessionData.lines_cleared,
-              figures_placed: gameSessionData.figures_placed,
-              score: gameSessionData.score,
-              game_result: gameSessionData.game_result,
-              session_data: gameSessionData.session_data
-            },
-            authenticatedUserId,
-            gameSessionData
-          );
-        } catch (error) {
-          console.error(`Error completing game session for player ${playerId}:`, error);
-          // Continue processing other players' sessions
-        }
-      }
-    };
   
     socket.on('place_figure', async ({ roomId, pixels }) => {
       const game = games.get(roomId);
@@ -423,51 +571,49 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', async () => {
-    
-    // Find all rooms the disconnected user was part of
-    const roomsToNotify = [];
-    
-    for (const [roomId, game] of games.entries()) {
-      if (game.removePlayer(socket.id)) {
-        roomsToNotify.push(roomId);
-        
-        // If the game was in progress and a player disconnected, we might want to update the game session
-        if (!game.gameOver && game.players.size > 0) {
-          // Consider the disconnected player as having left/forfeited
-          // For now, we'll just continue the game with remaining players
-        } else if (game.players.size === 0) {
-          // If room is empty, remove it and potentially mark game as abandoned
-          if (game.playerSessions && game.playerSessions[socket.id]) {
-            try {
-              await repositoryManager.gameSessions.update(game.playerSessions[socket.id], {
-                game_result: 'abandoned'
-              });
-            } catch (error) {
-              console.error(`Error updating game session for abandoned game (player ${socket.id}):`, error);
-            }
-          }
-        }
-        
-        // Notify other players in the room about player leaving
-        socket.to(roomId).emit('player_left', {
-          playerId: socket.id
-        });
-        
-        // If room is empty, remove it
-        if (game.players.size === 0) {
-          games.delete(roomId);
-        } else {
-          // Send updated players list to remaining players
-          const playersList = game.getPlayersList();
-          io.to(roomId).emit('players_list_updated', { playersList });
-        }
-      }
-    }
-    
-    // Update room list for all clients
-    const roomList = Array.from(games.values()).map(g => ({ id: g.id }));
-    io.emit('rooms_list', roomList);
-  });
+     
+     // Find all rooms the disconnected user was part of
+     const roomsToNotify = [];
+     
+     for (const [roomId, game] of games.entries()) {
+       if (game.removePlayer(socket.id)) {
+         roomsToNotify.push(roomId);
+         
+         // Update the game session and statistics for the leaving player
+         await completePlayerSessionOnLeave(roomId, socket.id);
+         
+         // If the game was in progress and a player disconnected, we might want to update the game session
+         if (!game.gameOver && game.players.size > 0) {
+           // Consider the disconnected player as having left/forfeited
+           // For now, we'll just continue the game with remaining players
+         } else if (game.players.size === 0) {
+           // If room is empty, remove it and potentially mark game as abandoned
+           if (game.playerSessions && game.playerSessions[socket.id]) {
+             try {
+               await repositoryManager.gameSessions.update(game.playerSessions[socket.id], {
+                 game_result: 'abandoned'
+               });
+             } catch (error) {
+               console.error(`Error updating game session for abandoned game (player ${socket.id}):`, error);
+             }
+           }
+         }
+         
+         // Notify other players in the room about player leaving
+         socket.to(roomId).emit('player_left', {
+           playerId: socket.id
+         });
+         
+         // Send updated players list to remaining players
+         const playersList = game.getPlayersList();
+         io.to(roomId).emit('players_list_updated', { playersList });
+       }
+     }
+     
+     // Update room list for all clients
+     const roomList = Array.from(games.values()).map(g => ({ id: g.id }));
+     io.emit('rooms_list', roomList);
+   });
 });
 
 const PORT = process.env.PORT || 3000;

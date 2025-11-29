@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getUserHue, setUserHue } from '../../../utils/colorUtils';
 import './GameBoard.css'; // Reusing existing styles for now
 
-const SettingsModal = ({ isOpen, onClose, theme, onToggleTheme, onHueChange }) => {
+const SettingsModal = ({ isOpen, onClose, theme, onToggleTheme, onHueChange, onShowStats }) => {
     const [hue, setHue] = useState(getUserHue());
 
     useEffect(() => {
@@ -32,6 +32,14 @@ const SettingsModal = ({ isOpen, onClose, theme, onToggleTheme, onHueChange }) =
                     </button>
                 </div>
                 <div className="modal-body">
+                    <div className="setting-item centered-stats">
+                        <button className="restart-btn stats-btn-centered" onClick={() => {
+                            onClose();
+                            onShowStats();
+                        }}>
+                            Stats
+                        </button>
+                    </div>
                     <div className="setting-item">
                         <span>Theme</span>
                         <label className="theme-switch">
@@ -57,13 +65,13 @@ const SettingsModal = ({ isOpen, onClose, theme, onToggleTheme, onHueChange }) =
                                     onChange={handleHueChange}
                                     className="hue-slider"
                                     style={{
-                                        background: `linear-gradient(to right, 
-                                            hsl(0, 70%, 85%), 
-                                            hsl(60, 70%, 85%), 
-                                            hsl(120, 70%, 85%), 
-                                            hsl(180, 70%, 85%), 
-                                            hsl(240, 70%, 85%), 
-                                            hsl(300, 70%, 85%), 
+                                        background: `linear-gradient(to right,
+                                            hsl(0, 70%, 85%),
+                                            hsl(60, 70%, 85%),
+                                            hsl(120, 70%, 85%),
+                                            hsl(180, 70%, 85%),
+                                            hsl(240, 70%, 85%),
+                                            hsl(300, 70%, 85%),
                                             hsl(360, 70%, 85%))`
                                     }}
                                 />

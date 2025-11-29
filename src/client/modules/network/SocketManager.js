@@ -29,11 +29,15 @@ class SocketManager {
             // Set up room event listeners
             this.setupRoomEventListeners();
             
-            // Listen for the server to send back the anonymous token
+            // Listen for the server to send back the anonymous token and user_id
             this.socket.on('anonymous_token', (data) => {
                 if (data.token) {
                     // Store the anonymous token in localStorage
                     localStorage.setItem('anonymousToken', data.token);
+                }
+                if (data.user_id) {
+                    // Store the user_id in localStorage
+                    localStorage.setItem('userId', data.user_id);
                 }
             });
         }

@@ -1,7 +1,8 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import useGameLogic from '../hooks/useGameLogic';
 import SocketManager from '../../network/SocketManager';
 import SettingsModal from './SettingsModal';
+import StatsModal from './StatsModal';
 import RoomControls from './RoomControls';
 import FiguresPanel from './FiguresPanel';
 import GameGrid from './GameGrid';
@@ -12,6 +13,8 @@ import './GameBoard.css';
 
 const GameBoard = () => {
     const [showSettings, setShowSettings] = useState(false);
+    const [showStats, setShowStats] = useState(false);
+    const [statsData, setStatsData] = useState(null);
     const boardRef = useRef(null);
 
     const {
@@ -32,11 +35,103 @@ const GameBoard = () => {
         handlePointerCancel,
         handleHueChange,
         handleRestart
+    
     } = useGameLogic(boardRef);
 
     const toggleSettings = () => {
         setShowSettings(!showSettings);
     };
+
+    const showStatsModal = async () => {
+        try {
+            // Get the user_id from localStorage
+            const userId = localStorage.getItem('userId');
+            
+            if (!userId) {
+                console.log('📊 [GameBoard] No user_id found, using default stats');
+                setStatsData({
+                    total_games: 0,
+                    total_wins: 0,
+                    win_rate: 0,
+                    total_score: 0,
+                    average_score: 0,
+                    best_score: 0,
+                    total_lines_cleared: 0,
+                    average_lines_cleared: 0,
+                    best_lines_cleared: 0,
+                    total_figures_placed: 0,
+                    total_play_time_seconds: 0,
+                    average_lines_per_game: 0,
+                    rating: 1000
+                });
+                setShowStats(true);
+                return;
+            }
+            
+            // Make an API call to get user statistics using public endpoint
+            const response = await fetch(`/api/user/stats/public?user_id=${userId}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log('📊 [GameBoard] Statistics data received from API:', data);
+                setStatsData(data);
+            } else {
+                // If the API call fails, set default stats
+                console.log('📊 [GameBoard] API call failed, using default stats');
+                setStatsData({
+                    total_games: 0,
+                    total_wins: 0,
+                    win_rate: 0,
+                    total_score: 0,
+                    average_score: 0,
+                    best_score: 0,
+                    total_lines_cleared: 0,
+                    average_lines_cleared: 0,
+                    best_lines_cleared: 0,
+                    total_figures_placed: 0,
+                    total_play_time_seconds: 0,
+                    average_lines_per_game: 0,
+                    rating: 1000
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching stats:', error);
+            // Set default stats in case of error
+            setStatsData({
+                total_games: 0,
+                total_wins: 0,
+                win_rate: 0,
+                total_score: 0,
+                average_score: 0,
+                best_score: 0,
+                total_lines_cleared: 0,
+                average_lines_cleared: 0,
+                best_lines_cleared: 0,
+                total_figures_placed: 0,
+                total_play_time_seconds: 0,
+                average_lines_per_game: 0,
+                rating: 1000
+            });
+        }
+        
+        setShowStats(true);
+    };
+
+    // Set the player color as a CSS variable for buttons to use
+    const currentPlayerColor = playersList.find(p => p.id === SocketManager.getSocket()?.id)?.color;
+    React.useEffect(() => {
+        if (currentPlayerColor) {
+            document.documentElement.style.setProperty('--player-color', currentPlayerColor);
+        } else {
+            // Reset to default when no player color is available
+            document.documentElement.style.setProperty('--player-color', '#4CAF50');
+        }
+    }, [currentPlayerColor]);
 
     return (
         <div className="game-container">
@@ -55,6 +150,13 @@ const GameBoard = () => {
                 theme={theme}
                 onToggleTheme={toggleTheme}
                 onHueChange={handleHueChange}
+                onShowStats={showStatsModal}
+            />
+
+            <StatsModal
+                isOpen={showStats}
+                onClose={() => setShowStats(false)}
+                statsData={statsData}
             />
 
             <h1 className="game-title">Tactris</h1>
