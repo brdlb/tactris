@@ -32,14 +32,6 @@ const SettingsModal = ({ isOpen, onClose, theme, onToggleTheme, onHueChange, onS
                     </button>
                 </div>
                 <div className="modal-body">
-                    <div className="setting-item centered-stats">
-                        <button className="restart-btn stats-btn-centered" onClick={() => {
-                            onClose();
-                            onShowStats();
-                        }}>
-                            Stats
-                        </button>
-                    </div>
                     <div className="setting-item">
                         <span>Theme</span>
                         <label className="theme-switch">
@@ -78,6 +70,14 @@ const SettingsModal = ({ isOpen, onClose, theme, onToggleTheme, onHueChange, onS
                             </div>
                             <div className="hue-value">{hue}°</div>
                         </div>
+                    </div>
+                    <div className="setting-item centered-stats">
+                        <button className="restart-btn stats-btn-centered" onClick={() => {
+                            onClose();
+                            onShowStats();
+                        }}>
+                            Statistics
+                        </button>
                     </div>
                 </div>
             </div>
