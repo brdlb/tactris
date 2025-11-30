@@ -293,6 +293,19 @@ body {
         border: 1px solid #999;
     }
 
+    .grid-cell {
+        /* Ensure minimum touch target size */
+        min-width: 32px;
+        min-height: 32px;
+    }
+
+    /* Prevent zoom on input focus */
+    input,
+    select,
+    textarea {
+        font-size: 16px;
+    }
+
     /* Panels positioned on right/left sides in landscape */
     .panel-top-right {
         top: 0;
@@ -313,15 +326,19 @@ body {
     }
 }
 
-/* Portrait: Height > Width */
-@media (orientation: portrait) {
+/* ============================================
+   Landscape Orientation (Desktop & Tablet)
+   ============================================ */
+@media (orientation: landscape) and (hover: hover) {
     .game-content {
         flex-direction: row;
         align-items: flex-start;
     }
 
     .figures-panel {
-        margin-bottom: 20px;
+        margin-right: 0;
+        margin-bottom: 8px;
+        padding: 8px;
     }
 
     /* Panels positioned on top/bottom in portrait */
@@ -386,6 +403,9 @@ body {
     transform: scale(0.95);
 }
 
+/* ============================================
+   Room Controls
+   ============================================ */
 .room-controls {
     margin-bottom: 20px;
     text-align: center;
