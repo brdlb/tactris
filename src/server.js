@@ -11,8 +11,17 @@ const { pool, query, healthCheck, closePool, repositoryManager } = require('./co
 const GameSessionService = require('./services/GameSessionService');
 const crypto = require('crypto');
 const AuthService = require('./services/AuthService');
+
+// Helper function to create a short hash of userId for logging
+function shortUserIdHash(userId) {
+  if (!userId) return 'unknown';
+  return userId.slice(-6); // Take last 6 characters of userId
+}
 const UserRepository = require('./models/UserRepository');
 const SessionRepository = require('./models/SessionRepository');
+
+// Define restore timeout constant
+const RESTORE_TIMEOUT_MS = 600000; // 10 minutes in milliseconds
 
 // Import routes and middleware
 const authRoutes = require('./routes/auth');
@@ -59,7 +68,7 @@ app.use(passport.session());
 app.get('/api/user/stats/public', async (req, res) => {
   try {
     const { user_id } = req.query;
-    console.log('Received request for user stats with user_id:', user_id);
+    console.log('Received request for user stats with user_id:', shortUserIdHash(user_id));
     
     if (!user_id) {
       return res.status(400).json({ error: 'user_id parameter is required' });
@@ -220,7 +229,16 @@ io.use((socket, next) => {
 });
 
 const games = new Map();
+const recentlyDisconnected = new Map();
 
+setInterval(() => {
+  const now = Date.now();
+  for (const [userId, data] of recentlyDisconnected.entries()) {
+    if (now - data.timestamp > RESTORE_TIMEOUT_MS) {
+      recentlyDisconnected.delete(userId);
+    }
+  }
+}, 60000);
 io.on('connection', (socket) => {
   // Send the anonymous token and user_id to the client if they are an anonymous user
   if (socket.anonymousToken && socket.isAnonymous) {
@@ -319,8 +337,9 @@ io.on('connection', (socket) => {
    // Helper function to complete a single player's game session when they leave a room
    const completePlayerSessionOnLeave = async (roomId, playerId) => {
      const gameInstance = games.get(roomId);
+     console.log(`[DIAGNOSTIC] completePlayerSessionOnLeave: checking playerSessions[${playerId.slice(-6)}] = ${!!(gameInstance?.playerSessions?.[playerId])}`);
      if (!gameInstance || !gameInstance.playerSessions || !gameInstance.playerSessions[playerId]) {
-       console.warn(`Game instance or player session not found for player ${playerId} in room ${roomId}`);
+       console.warn(`Game instance or player session not found for player ${shortUserIdHash(playerId)} in room ${roomId}`);
        return;
      }
  
@@ -351,49 +370,92 @@ io.on('connection', (socket) => {
          })
        };
        
-       // Update the game session with final data and update statistics
-       const result = await gameSessionService.completeGameSessionWithRepositoryMethods(
-         sessionId,
-         {
+       // Check if game is not over, and if so, take a snapshot of the player's state
+       if (!gameInstance.gameOver) {
+         const snapshot = gameInstance.getPlayerState(playerId);
+         const updates = {
            final_grid: JSON.stringify(gameInstance.grid),
            duration_seconds: gameSessionData.duration_seconds,
            lines_cleared: gameSessionData.lines_cleared,
            figures_placed: gameSessionData.figures_placed,
            score: gameSessionData.score,
-           game_result: gameSessionData.game_result, // Set result to 'quit' when player leaves
+           game_result: 'paused',
+           paused_at: new Date().toISOString(),
+           player_state: JSON.stringify(snapshot),
            session_data: gameSessionData.session_data
-         },
-         authenticatedUserId,
-         gameSessionData
-       );
+         };
+         
+         // Update the game session with paused data
+         const result = await gameSessionService.completeGameSessionWithRepositoryMethods(
+           sessionId,
+           updates,
+           authenticatedUserId,
+           gameSessionData
+         );
+       } else {
+         // Update the game session with final data and update statistics
+         const result = await gameSessionService.completeGameSessionWithRepositoryMethods(
+           sessionId,
+           {
+             final_grid: JSON.stringify(gameInstance.grid),
+             duration_seconds: gameSessionData.duration_seconds,
+             lines_cleared: gameSessionData.lines_cleared,
+             figures_placed: gameSessionData.figures_placed,
+             score: gameSessionData.score,
+             game_result: gameSessionData.game_result, // Set result to 'quit' when player leaves
+             session_data: gameSessionData.session_data
+           },
+           authenticatedUserId,
+           gameSessionData
+         );
+       }
        
-       console.log(`Updated session and statistics for player ${playerId} who left room ${roomId}`);
+       console.log(`Updated session and statistics for player ${shortUserIdHash(authenticatedUserId)} who left room ${roomId}`);
+
+       const afterLeaveSession = await repositoryManager.gameSessions.findById(sessionId);
+       console.log(`[DIAGNOSTIC] Session after completePlayerSessionOnLeave (gameOver=${!!gameInstance.gameOver}): game_result='${afterLeaveSession?.game_result || 'null'}', paused_at='${afterLeaveSession?.paused_at || 'null'}'`);
        
      } catch (error) {
-       console.error(`Error updating game session and statistics for player ${playerId} who left room ${roomId}:`, error);
+       console.error(`Error updating game session and statistics for player ${shortUserIdHash(authenticatedUserId)} who left room ${roomId}:`, error);
      }
    };
  
    // Helper function to create a game session record in the database
    const createGameSession = async (game, playerId, isJoining = false) => {
     try {
+      // Get the player's color from the game state or use a default
+      const playerColor = game.players.get(playerId)?.color || '#FF000'; // Default to red if color not found
+      
+      // Ensure the color is in hex format (7 characters max for the database field)
+      let formattedColor = playerColor;
+      if (playerColor.startsWith('rgb(')) {
+        // Convert RGB to hex format
+        const rgbValues = playerColor.match(/\d+/g);
+        if (rgbValues && rgbValues.length >= 3) {
+          const r = parseInt(rgbValues[0]).toString(16).padStart(2, '0');
+          const g = parseInt(rgbValues[1]).toString(16).padStart(2, '0');
+          const b = parseInt(rgbValues[2]).toString(16).padStart(2, '0');
+          formattedColor = `#${r}${g}${b}`;
+        }
+      } else if (playerColor.length > 7) {
+        // If it's a hex color but longer than 7 characters, truncate or validate
+        formattedColor = playerColor.substring(0, 7);
+      }
+      
       const gameSessionData = {
         player_id: socket.userId, // Use the authenticated user ID from socket connection
-        game_mode: 'classic', // Default game mode
-        grid_width: game.gridWidth,
-        grid_height: game.gridHeight,
-        initial_grid: JSON.stringify(game.getInitialGrid()),
-        final_grid: null, // Will be set when game ends
-        duration_seconds: 0, // Will be calculated when game ends
+        room_id: game.id, // Store room ID directly in the table
+        player_color: formattedColor, // Use the player's color from the game state (ensured to be in proper format)
+        final_score: 0, // Will be updated as game progresses
         lines_cleared: 0, // Will be updated as game progresses
+        total_lines_cleared: 0, // Will be updated as game progresses
         figures_placed: 0, // Will be updated as game progresses
-        score: 0, // Will be updated as game progresses
-        game_result: 'in_progress', // Will be updated when game ends
-        session_data: JSON.stringify({
-          players: Array.from(game.players.entries()),
-          moves: [],
-          is_anonymous: socket.isAnonymous
-        })
+        game_duration_seconds: 0, // Will be calculated when game ends
+        final_grid: null, // Will be set when game ends
+        ending_reason: null, // Will be updated when game ends
+        average_time_per_figure: 0, // Will be updated as game progresses
+        max_combo: 0, // Will be updated as game progresses
+        max_single_game_score: 0 // Will be updated as game progresses
       };
       
       // Create the game session in the database
@@ -451,32 +513,166 @@ io.on('connection', (socket) => {
     });
 
   socket.on('join_room', async ({ roomId, color }) => {
-    if (games.has(roomId)) {
-      socket.join(roomId);
-      const game = games.get(roomId);
-      game.addPlayer(socket.id, color, socket.userId); // Add joiner as player with their color and authenticated user ID
-      
-      // Create a game session record in the database for the joining player
-      await createGameSession(game, socket.id, true);
-      
-      // Send current players list to the joining user
-      const playersList = game.getPlayersList();
-      socket.emit('room_joined', {
-        roomId,
-        state: game.getState(),
-        playersList
-      });
-      
-      // Notify other players in the room about new player
-      const newPlayerData = { id: socket.id, color, score: 0 };
-      socket.to(roomId).emit('player_joined', {
-        playerId: socket.id,
-        player: newPlayerData
-      });
-    } else {
-      socket.emit('error', 'Room not found');
-    }
-  });
+      if (games.has(roomId)) {
+        socket.join(roomId);
+        const game = games.get(roomId);
+        
+        // Log the join event
+        console.log(`Player ${shortUserIdHash(socket.userId)} joining room ${roomId}`);
+        
+        // Check for duplicate userId in the game to prevent multiple connections
+        if (game.hasActiveUserId(socket.userId)) {
+          socket.emit('error', 'User already connected to this room');
+          socket.leave(roomId);
+          console.log(`Player ${shortUserIdHash(socket.userId)} already in room ${roomId}, connection rejected`);
+          return;
+        }
+        
+        console.log(`Attempting to join room ${roomId} for player ${shortUserIdHash(socket.userId)}`);
+
+        // Check memory first for quick reconnect (Memory-First Restore)
+        if (recentlyDisconnected.has(socket.userId)) {
+          const recentData = recentlyDisconnected.get(socket.userId);
+          console.log(`Memory restore candidate found for ${shortUserIdHash(socket.userId)} in room ${roomId}, expected ${recentData.roomId}`);
+          if (recentData.roomId === roomId &&
+              Date.now() - recentData.timestamp < RESTORE_TIMEOUT_MS &&
+              games.has(roomId)) {
+            const game = games.get(roomId);
+            if (!game.gameOver) {
+              console.log(`Memory-restoring player ${shortUserIdHash(socket.userId)} to room ${roomId}`);
+              game.addPlayer(socket.id, color, socket.userId, recentData.snapshot);
+              recentlyDisconnected.delete(socket.userId);
+              const playersList = game.getPlayersList();
+              socket.emit('room_joined', {
+                roomId,
+                state: game.getState(),
+                playersList,
+                restored: true
+              });
+              const newPlayerData = { id: socket.id, color, score: recentData.snapshot.score || 0 };
+              socket.to(roomId).emit('player_joined_restored', {
+                playerId: socket.id,
+                player: newPlayerData
+              });
+              return;
+            } else {
+              console.log(`Game over, clearing memory snapshot for ${shortUserIdHash(socket.userId)}`);
+            }
+          }
+          recentlyDisconnected.delete(socket.userId);
+        }
+
+        // Check for recent paused session to restore (for unexpected disconnections)
+        const recentPaused = await repositoryManager.gameSessions.findRestoreCandidate(socket.userId, roomId);
+        console.log(`Checking for restore candidate for player ${shortUserIdHash(socket.userId)} in room ${roomId}: ${recentPaused ? 'FOUND' : 'NOT FOUND'}`);
+        if (recentPaused && !game.gameOver) {
+          const restoreState = recentPaused.player_state || {};
+          console.log(`[DEBUG] Restore state loaded directly (jsonb): keys=${Object.keys(restoreState).join(', ') || 'none'}`);
+          game.addPlayer(socket.id, color, socket.userId, restoreState);
+          
+          // Associate restored session with new socket ID
+          if (!game.playerSessions) {
+            game.playerSessions = {};
+          }
+          game.playerSessions[socket.id] = recentPaused.id;
+          console.log(`[DIAGNOSTIC] Associated restored session ${recentPaused.id} with new socket ${socket.id.slice(-6)}`);
+          
+          // Update the session to mark it as restored (not paused anymore)
+          await repositoryManager.gameSessions.update(recentPaused.id, {
+            ending_reason: null,
+            paused_at: null
+          });
+          
+          // Send current players list to the joining user with restore flag
+          const playersList = game.getPlayersList();
+          socket.emit('room_joined', {
+            roomId,
+            state: game.getState(),
+            playersList,
+            restored: true
+          });
+          
+          // Notify other players in the room about player joined restored
+          const newPlayerData = { id: socket.id, color, score: restoreState.score };
+          socket.to(roomId).emit('player_joined_restored', {
+            playerId: socket.id,
+            player: newPlayerData
+          });
+          
+          console.log(`Returning player ${shortUserIdHash(socket.userId)} restored to room ${roomId}`);
+          return; // Exit early after restoration
+        }
+        
+        // Check if player has an existing session in this room that is paused
+        const existingSession = await repositoryManager.gameSessions.findByPlayerAndRoom(socket.userId, roomId);
+        if (existingSession && existingSession.game_result === 'paused') {
+          // Player has a paused session, restore it
+          try {
+            const restoreState = JSON.parse(existingSession.player_state);
+            game.addPlayer(socket.id, color, socket.userId, restoreState);
+            
+            // Associate restored session with new socket ID
+            if (!game.playerSessions) {
+              game.playerSessions = {};
+            }
+            game.playerSessions[socket.id] = existingSession.id;
+            console.log(`[DIAGNOSTIC] Associated existing paused session ${existingSession.id} with new socket ${socket.id.slice(-6)}`);
+            
+            // Update the session to mark it as restored (not paused anymore)
+            await repositoryManager.gameSessions.update(existingSession.id, {
+              ending_reason: null,
+              paused_at: null
+            });
+            
+            // Send current players list to the joining user with restore flag
+            const playersList = game.getPlayersList();
+            socket.emit('room_joined', {
+              roomId,
+              state: game.getState(),
+              playersList,
+              restored: true
+            });
+            
+            // Notify other players in the room about player joined restored
+            const newPlayerData = { id: socket.id, color, score: restoreState.score };
+            socket.to(roomId).emit('player_joined_restored', {
+              playerId: socket.id,
+              player: newPlayerData
+            });
+            
+            console.log(`Returning player ${shortUserIdHash(socket.userId)} restored paused session in room ${roomId}`);
+            return; // Exit early after restoration
+          } catch (error) {
+            console.error(`Error restoring paused session for player ${shortUserIdHash(socket.userId)} in room ${roomId}:`, error);
+          }
+        }
+        
+        game.addPlayer(socket.id, color, socket.userId); // Add joiner as player with their color and authenticated user ID
+        
+        // Create a game session record in the database for the joining player
+        await createGameSession(game, socket.id, true);
+        
+        // Send current players list to the joining user
+        const playersList = game.getPlayersList();
+        socket.emit('room_joined', {
+          roomId,
+          state: game.getState(),
+          playersList
+        });
+        
+        // Notify other players in the room about new player
+        const newPlayerData = { id: socket.id, color, score: 0 };
+        socket.to(roomId).emit('player_joined', {
+          playerId: socket.id,
+          player: newPlayerData
+        });
+        
+        console.log(`New player ${shortUserIdHash(socket.userId)} joined room ${roomId}`);
+      } else {
+        socket.emit('error', 'Room not found');
+        console.log(`Player ${shortUserIdHash(socket.userId)} attempted to join non-existent room ${roomId}`);
+      }
+    });
 
   socket.on('get_rooms', () => {
     const roomList = Array.from(games.values()).map(g => ({ id: g.id }));
@@ -569,53 +765,100 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Function to handle player leaving a room (both intentional and due to disconnect)
+  const handlePlayerLeave = async (roomId) => {
+    const game = games.get(roomId);
+    if (game && game.players.has(socket.id)) {
+      console.log(`Player ${shortUserIdHash(socket.userId)} leaving room ${roomId}`);
+
+      // Immediately snapshot player state to memory for quick reconnect
+      const snapshot = game.getPlayerState(socket.id);
+      recentlyDisconnected.set(socket.userId, {
+        roomId,
+        snapshot,
+        timestamp: Date.now()
+      });
+
+      // Clear active flag early (userIdToSocket.delete)
+      game.userIdToSocket.delete(socket.userId);
+
+      // Update the game session and statistics for the leaving player BEFORE removing them
+      // The completePlayerSessionOnLeave function already handles pause vs complete logic based on game state
+      try {
+        await completePlayerSessionOnLeave(roomId, socket.id);
+      } catch (error) {
+        console.error(`Error completing player session on leave:`, error);
+        return; // Don't clear snapshot or removePlayer on failure
+      }
+      // Now remove the player from the game
+      game.removePlayer(socket.id);
+
+      // Clear memory snapshot on successful disconnect handling
+      recentlyDisconnected.delete(socket.userId);
+
+      // If the game was in progress and a player disconnected, we might want to update the game session
+      if (!game.gameOver && game.players.size > 0) {
+        // Consider the disconnected player as having left/forfeited
+        // For now, we'll just continue the game with remaining players
+      } else if (game.players.size === 0) {
+        // If room is empty, remove it and potentially mark game as abandoned
+        if (game.playerSessions && game.playerSessions[socket.id]) {
+          try {
+            await repositoryManager.gameSessions.update(game.playerSessions[socket.id], {
+              game_result: 'abandoned'
+            });
+
+            const abandonedSession = await repositoryManager.gameSessions.findById(game.playerSessions[socket.id]);
+            console.log(`[DIAGNOSTIC] Session after empty room abandoned override: game_result='${abandonedSession?.game_result || 'null'}', paused_at='${abandonedSession?.paused_at || 'null'}'`);
+          } catch (error) {
+            console.error(`Error updating game session for abandoned game (player ${socket.id}):`, error);
+          }
+        }
+      }
+      
+      // Notify other players in the room about player leaving
+      socket.to(roomId).emit('player_left', {
+        playerId: socket.id
+      });
+      
+      // Send updated players list to remaining players
+      const playersList = game.getPlayersList();
+      io.to(roomId).emit('players_list_updated', { playersList });
+    }
+  };
+
+  // Handle intentional room leaving
+  socket.on('leave_room', async ({ roomId }) => {
+    console.log(`Player ${shortUserIdHash(socket.userId)} intentionally leaving room ${roomId}`);
+    await handlePlayerLeave(roomId);
+    
+    // Update room list for all clients
+    const roomList = Array.from(games.values()).map(g => ({ id: g.id }));
+    io.emit('rooms_list', roomList);
+  });
+
   socket.on('disconnect', async () => {
-     
-     // Find all rooms the disconnected user was part of
-     const roomsToNotify = [];
-     
-     for (const [roomId, game] of games.entries()) {
-       if (game.players.has(socket.id)) {
-         roomsToNotify.push(roomId);
-         
-         // Update the game session and statistics for the leaving player BEFORE removing them
-         await completePlayerSessionOnLeave(roomId, socket.id);
-         
-         // Now remove the player from the game
-         game.removePlayer(socket.id);
-         
-         // If the game was in progress and a player disconnected, we might want to update the game session
-         if (!game.gameOver && game.players.size > 0) {
-           // Consider the disconnected player as having left/forfeited
-           // For now, we'll just continue the game with remaining players
-         } else if (game.players.size === 0) {
-           // If room is empty, remove it and potentially mark game as abandoned
-           if (game.playerSessions && game.playerSessions[socket.id]) {
-             try {
-               await repositoryManager.gameSessions.update(game.playerSessions[socket.id], {
-                 game_result: 'abandoned'
-               });
-             } catch (error) {
-               console.error(`Error updating game session for abandoned game (player ${socket.id}):`, error);
-             }
-           }
-         }
-         
-         // Notify other players in the room about player leaving
-         socket.to(roomId).emit('player_left', {
-           playerId: socket.id
-         });
-         
-         // Send updated players list to remaining players
-         const playersList = game.getPlayersList();
-         io.to(roomId).emit('players_list_updated', { playersList });
-       }
-     }
-     
-     // Update room list for all clients
-     const roomList = Array.from(games.values()).map(g => ({ id: g.id }));
-     io.emit('rooms_list', roomList);
-   });
+    
+    // Find all rooms the disconnected user was part of
+    const roomsToNotify = [];
+    
+    for (const [roomId, game] of games.entries()) {
+      if (game.players.has(socket.id)) {
+        roomsToNotify.push(roomId);
+        await handlePlayerLeave(roomId);
+      }
+    }
+    
+    if (roomsToNotify.length > 0) {
+      console.log(`Player ${shortUserIdHash(socket.userId)} disconnected from ${roomsToNotify.length} room(s)`);
+    } else {
+      console.log(`Player ${shortUserIdHash(socket.userId)} disconnected (was not in any rooms)`);
+    }
+    
+    // Update room list for all clients
+    const roomList = Array.from(games.values()).map(g => ({ id: g.id }));
+    io.emit('rooms_list', roomList);
+  });
 });
 
 const PORT = process.env.PORT || 3000;

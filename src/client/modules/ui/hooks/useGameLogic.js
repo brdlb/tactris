@@ -16,6 +16,7 @@ const useGameLogic = (boardRefOverride = null) => {
 
     const [gameOver, setGameOver] = useState(false);
     const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
+    const [isRestored, setIsRestored] = useState(false);
 
     const selectedPixels = useRef([]); // Queue of {x, y} to track order
     const isDrawing = useRef(false);
@@ -71,6 +72,15 @@ const useGameLogic = (boardRefOverride = null) => {
             document.body.style.backgroundColor = '#f0f0f0';
     
             const socket = SocketManager.connect();
+            
+            // Add disconnect logging
+            socket.on('disconnect', (reason) => {
+                console.log(`Socket disconnected: ${reason}`);
+            });
+            
+            socket.on('reconnect', (attemptNumber) => {
+                console.log(`Socket reconnected after ${attemptNumber} attempts`);
+            });
             
             const updateGameState = (state) => {
                                 const currentGrid = gridRef.current;
@@ -132,6 +142,7 @@ const useGameLogic = (boardRefOverride = null) => {
                             };
 
         socket.on('room_created', ({ roomId, state, playersList }) => {
+            console.log(`Room ${roomId} created successfully`);
             setRoomId(roomId);
             roomIdRef.current = roomId;
             pendingUpdates.current.clear(); // Clear pending updates for new room
@@ -143,11 +154,15 @@ const useGameLogic = (boardRefOverride = null) => {
         });
 
         socket.on('room_joined', ({ roomId, state, playersList }) => {
+            console.log(`Successfully joined room ${roomId}`);
             setRoomId(roomId);
             roomIdRef.current = roomId;
             pendingUpdates.current.clear(); // Clear pending updates for new room
             updateGameState(state);
-            if (playersList) setPlayersList(playersList);
+            if (playersList) setPlayersList(playersList.map(player => ({
+                ...player,
+                displayId: player.id ? `P-${player.id.slice(-6)}` : `P-${Math.floor(Math.random() * 10000)}` // Use short hash of id or random number
+            })));
             selectedPixels.current = [];
             setGameOver(false);
             window.history.pushState({}, '', `?room=${roomId}`);
@@ -173,15 +188,33 @@ const useGameLogic = (boardRefOverride = null) => {
 
         // Handle player events
         socket.on('player_joined', ({ player }) => {
-            setPlayersList(prev => [...prev, player]);
+            console.log(`New player ${player.id} joined the room`);
+            const playerWithDisplayId = {
+                ...player,
+                displayId: player.id ? `P-${player.id.slice(-6)}` : `P-${Math.floor(Math.random() * 10000)}`
+            };
+            setPlayersList(prev => [...prev, playerWithDisplayId]);
+        });
+
+        socket.on('player_joined_restored', ({ player }) => {
+            console.log(`Returning player ${player.id} restored to the room`);
+            const playerWithDisplayId = {
+                ...player,
+                displayId: player.id ? `P-${player.id.slice(-6)}` : `P-${Math.floor(Math.random() * 1000)}`
+            };
+            setPlayersList(prev => [...prev, playerWithDisplayId]);
         });
 
         socket.on('player_left', ({ playerId }) => {
+            console.log(`Player ${playerId} left the room`);
             setPlayersList(prev => prev.filter(p => p.id !== playerId));
         });
 
         socket.on('players_list_updated', ({ playersList }) => {
-            setPlayersList(playersList);
+            setPlayersList(playersList.map(player => ({
+                ...player,
+                displayId: player.id ? `P-${player.id.slice(-6)}` : `P-${Math.floor(Math.random() * 1000)}`
+            })));
         });
 
         socket.on('error', (message) => {
@@ -191,6 +224,12 @@ const useGameLogic = (boardRefOverride = null) => {
                 // Clear the invalid room from URL
                 window.history.pushState({}, '', window.location.pathname);
             }
+        });
+
+        socket.on('restored', () => {
+            setIsRestored(true);
+            pendingUpdates.current.clear();
+            // Additional restoration logic would go here if needed
         });
 
         // Request initial list
@@ -204,6 +243,7 @@ const useGameLogic = (boardRefOverride = null) => {
         }
 
         return () => {
+            console.log('Cleaning up game logic socket listeners');
             socket.off('room_created');
             socket.off('room_joined');
             socket.off('game_update');
@@ -384,6 +424,16 @@ const useGameLogic = (boardRefOverride = null) => {
             SocketManager.restartGame(roomIdRef.current);
         }
     };
+    
+    const handleLeaveRoom = () => {
+        if (roomIdRef.current) {
+            SocketManager.leaveRoom(roomIdRef.current);
+            setRoomId(null);
+            roomIdRef.current = null;
+            localStorage.removeItem('currentRoomId'); // Clear the room ID from local storage
+            window.history.pushState({}, '', window.location.pathname); // Clear room from URL
+        }
+    };
 
     const handleInteraction = (x, y) => {
             const activeRoomId = roomIdRef.current;
@@ -488,6 +538,7 @@ const useGameLogic = (boardRefOverride = null) => {
             myFigures,
             score,
             gameOver,
+            isRestored,
             theme,
             toggleTheme,
             handleCreateRoom,
@@ -497,7 +548,8 @@ const useGameLogic = (boardRefOverride = null) => {
             handlePointerUp,
             handlePointerCancel,
             handleHueChange,
-            handleRestart
+            handleRestart,
+            handleLeaveRoom
         };
 };
 

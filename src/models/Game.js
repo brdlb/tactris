@@ -65,6 +65,7 @@ class Game {
         this.grid = Array(this.gridHeight).fill(null).map(() => Array(this.gridWidth).fill(null)); // 10x10 grid
         this.initialGrid = Array(this.gridHeight).fill(null).map(() => Array(this.gridWidth).fill(null)); // Initial empty grid
         this.players = new Map();
+        this.userIdToSocket = new Map(); // Map to store userId to socketId mapping for persistent identification
         this.authenticatedUserIds = {}; // Map to store authenticated user IDs for each socket ID
         this.playerJoinTimes = {}; // Track when each player joined the game
         this.gameOver = false;
@@ -75,28 +76,165 @@ class Game {
         this.rotateable = rotateable; // Whether players can draw figures with any rotation
     }
 
-    addPlayer(playerId, color = 'red', authenticatedUserId = null) {
-        if (!this.players.has(playerId)) {
+    // RESTORE: Check if a userId has an active player in the game
+    hasActiveUserId(userId) {
+        return this.userIdToSocket.has(userId);
+    }
+
+    // RESTORE: Get player data by userId instead of socketId
+    getPlayerByUserId(userId) {
+        const socketId = this.userIdToSocket.get(userId);
+        if (socketId) {
+            return this.players.get(socketId);
+        }
+        return null;
+    }
+
+    // RESTORE: Enhanced addPlayer method to handle restoration
+    addPlayer(socketId, color = 'red', userId = null, restoreState = null) {
+        if (!this.players.has(socketId)) {
+            // Check for duplicate userId in the game (restore scenario)
+            if (userId && this.hasActiveUserId(userId)) {
+                console.log(`Player with userId ${userId} already exists in game, removing previous socket`);
+                const existingSocketId = this.userIdToSocket.get(userId);
+                this.removePlayer(existingSocketId);
+            }
+            
+            let playerData;
+            if (restoreState) {
+                console.log(`Player ${socketId} state restored.`);
+                const playerFigures = restoreState.figures.map(figure => ({
+                    type: figure.type,
+                    cells: figure.cells.map(cell => [...cell])
+                }));
+                playerData = {
+                    id: socketId,
+                    figures: playerFigures,
+                    score: restoreState.score,
+                    color: color
+                };
+            } else {
+                const firstFigure = generateNewFigure();
+                const playerFigures = [
+                    firstFigure,
+                    generateNewFigure([firstFigure.type])
+                ];
+                playerData = {
+                    id: socketId,
+                    figures: playerFigures,
+                    score: 0,
+                    color: color
+                };
+            }
+            this.players.set(socketId, playerData);
+            
+            // Store the join time for this player
+            this.playerJoinTimes[socketId] = Date.now();
+            
+            // Store the authenticated user ID if provided
+            if (userId && userId !== socketId) {
+                this.authenticatedUserIds[socketId] = userId;
+                // Map userId to socketId for persistent identification
+                this.userIdToSocket.set(userId, socketId);
+            }
+        }
+    }
+
+    // RESTORE: Add player with restoration logic (separate method for explicit restore)
+    addPlayerRestore(socketId, color = 'red', userId = null, restoreState = null) {
+        // Check for duplicate userId in the game
+        if (userId && this.hasActiveUserId(userId)) {
+            console.log(`Player with userId ${userId} already exists in game, removing previous socket`);
+            const existingSocketId = this.userIdToSocket.get(userId);
+            this.removePlayer(existingSocketId);
+        }
+        
+        let playerData;
+        if (restoreState) {
+            console.log(`Player ${socketId} state restored.`);
+            const playerFigures = restoreState.figures.map(figure => ({
+                type: figure.type,
+                cells: figure.cells.map(cell => [...cell])
+            }));
+            playerData = {
+                id: socketId,
+                figures: playerFigures,
+                score: restoreState.score,
+                color: color
+            };
+        } else {
             const firstFigure = generateNewFigure();
             const playerFigures = [
                 firstFigure,
                 generateNewFigure([firstFigure.type])
             ];
-            this.players.set(playerId, {
-                id: playerId,
+            playerData = {
+                id: socketId,
                 figures: playerFigures,
                 score: 0,
                 color: color
-            });
-            
-            // Store the join time for this player
-            this.playerJoinTimes[playerId] = Date.now();
-            
-            // Store the authenticated user ID if provided
-            if (authenticatedUserId && authenticatedUserId !== playerId) {
-                this.authenticatedUserIds[playerId] = authenticatedUserId;
-            }
+            };
         }
+        this.players.set(socketId, playerData);
+        
+        // Store the join time for this player
+        this.playerJoinTimes[socketId] = Date.now();
+        
+        // Store the authenticated user ID if provided
+        if (userId && userId !== socketId) {
+            this.authenticatedUserIds[socketId] = userId;
+            // Map userId to socketId for persistent identification
+            this.userIdToSocket.set(userId, socketId);
+        }
+    }
+
+    // RESTORE: Enhanced removePlayer method with cleanup
+    removePlayer(playerId) {
+        if (this.players.has(playerId)) {
+            // Get the userId for this socketId to clean up the mapping
+            let userId = null;
+            for (const [uid, sid] of this.userIdToSocket.entries()) {
+                if (sid === playerId) {
+                    userId = uid;
+                    break;
+                }
+            }
+            
+            this.players.delete(playerId);
+            // Remove the player's join time as well
+            if (this.playerJoinTimes[playerId]) {
+                delete this.playerJoinTimes[playerId];
+            }
+            // Clear any temporary pixels placed by this player
+            this.clearTemporary(playerId);
+            
+            // Clean up userId to socket mapping
+            if (userId) {
+                this.userIdToSocket.delete(userId);
+            }
+            
+            // Clean up authenticated user ID mapping
+            if (this.authenticatedUserIds[playerId]) {
+                delete this.authenticatedUserIds[playerId];
+            }
+            
+            return true;
+        }
+        return false;
+    }
+
+    getPlayerState(socketId) {
+        const player = this.players.get(socketId);
+        if (!player) {
+            return null;
+        }
+        return {
+            score: player.score,
+            figures: [...player.figures.map(f => ({
+                type: f.type,
+                cells: f.cells.map(row => [...row])
+            }))]
+        };
     }
 
     getState() {
@@ -108,22 +246,8 @@ class Game {
                 rotateable: this.rotateable
             };
         }
-
-    removePlayer(playerId) {
-        if (this.players.has(playerId)) {
-            this.players.delete(playerId);
-            // Remove the player's join time as well
-            if (this.playerJoinTimes[playerId]) {
-                delete this.playerJoinTimes[playerId];
-            }
-            // Clear any temporary pixels placed by this player
-            this.clearTemporary(playerId);
-            return true;
-        }
-        return false;
-    }
-
-    getPlayersList() {
+    
+        getPlayersList() {
         return Array.from(this.players.values()).map(player => ({
             id: player.id,
             color: player.color,

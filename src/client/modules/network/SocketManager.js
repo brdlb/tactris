@@ -1,5 +1,5 @@
 import { io } from 'socket.io-client';
-
+import { getUserColor } from '../../utils/colorUtils';
 class SocketManager {
     constructor() {
         this.socket = null;
@@ -28,6 +28,7 @@ class SocketManager {
             
             // Set up room event listeners
             this.setupRoomEventListeners();
+            this.setupRestoreHandlers();
             
             // Listen for the server to send back the anonymous token and user_id
             this.socket.on('anonymous_token', (data) => {
@@ -66,6 +67,28 @@ class SocketManager {
             });
         }
 
+    setupRestoreHandlers() {
+        this.socket.on('room_joined', (data) => {
+            if (data.restored) {
+                this.emit('restored', {});
+            }
+        });
+
+        this.socket.on('room_created', (data) => {
+            if (data.roomId) {
+                localStorage.setItem('currentRoomId', data.roomId);
+            }
+        });
+
+        this.socket.on('reconnect', () => {
+            const roomId = localStorage.getItem('currentRoomId');
+            if (roomId) {
+                const color = getUserColor();
+                this.joinRoom(roomId, color);
+            }
+        });
+    }
+
     // Event listener management
     on(event, callback) {
         if (!this.eventListeners.has(event)) {
@@ -95,6 +118,7 @@ class SocketManager {
         }
 
     joinRoom(roomId, color) {
+        localStorage.setItem('currentRoomId', roomId);
         this.socket.emit('join_room', { roomId, color });
     }
 
@@ -116,6 +140,10 @@ class SocketManager {
 
     restartGame(roomId) {
         this.socket.emit('restart_game', { roomId });
+    }
+    
+    leaveRoom(roomId) {
+        this.socket.emit('leave_room', { roomId });
     }
 }
 

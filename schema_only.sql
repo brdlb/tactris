@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict b3c2EaCOlMB5PeLHezoe8yvG7gglanVgMR6HfDYEUfBg743K6XP1YoJDbwqcs8l
+\restrict f66sggQAasOPwwiW2fvmcl1Ivv1c3IOUnGlRd2HHDnv8h6NkBanZ6GVgw6vW8ik
 
 -- Dumped from database version 17.6 (Ubuntu 17.6-0ubuntu0.25.04.1)
 -- Dumped by pg_dump version 17.6 (Ubuntu 17.6-0ubuntu0.25.04.1)
@@ -63,7 +63,7 @@ CREATE TABLE public.figure_definitions (
     cells jsonb NOT NULL,
     rotation_count integer DEFAULT 1 NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT figure_definitions_figure_type_check CHECK (((figure_type)::text = ANY ((ARRAY['I'::character varying, 'O'::character varying, 'T'::character varying, 'S'::character varying, 'Z'::character varying, 'J'::character varying, 'L'::character varying])::text[])))
+    CONSTRAINT figure_definitions_figure_type_check CHECK (((figure_type)::text = ANY (ARRAY[('I'::character varying)::text, ('O'::character varying)::text, ('T'::character varying)::text, ('S'::character varying)::text, ('Z'::character varying)::text, ('J'::character varying)::text, ('L'::character varying)::text])))
 );
 
 
@@ -97,7 +97,18 @@ CREATE TABLE public.game_sessions (
     average_time_per_figure numeric(5,2),
     max_combo integer DEFAULT 0 NOT NULL,
     max_single_game_score integer DEFAULT 0 NOT NULL,
-    CONSTRAINT game_sessions_ending_reason_check CHECK (((ending_reason)::text = ANY ((ARRAY['game_over'::character varying, 'disconnected'::character varying, 'room_closed'::character varying])::text[])))
+    game_mode character varying(50) DEFAULT 'classic'::character varying,
+    grid_width integer DEFAULT 10,
+    grid_height integer DEFAULT 10,
+    initial_grid jsonb,
+    duration_seconds integer,
+    score integer DEFAULT 0,
+    game_result character varying(20),
+    session_data jsonb,
+    updated_at timestamp with time zone DEFAULT now(),
+    paused_at timestamp with time zone,
+    player_state jsonb,
+    CONSTRAINT game_sessions_ending_reason_check CHECK (((ending_reason)::text = ANY (ARRAY[('game_over'::character varying)::text, ('disconnected'::character varying)::text, ('room_closed'::character varying)::text, ('paused'::character varying)::text])))
 );
 
 
@@ -118,14 +129,75 @@ COMMENT ON COLUMN public.game_sessions.final_grid IS 'JSON representation of the
 
 
 --
+-- Name: COLUMN game_sessions.game_mode; Type: COMMENT; Schema: public; Owner: tactris_user
+--
+
+COMMENT ON COLUMN public.game_sessions.game_mode IS 'Game mode for the session (classic, challenge, etc.)';
+
+
+--
+-- Name: COLUMN game_sessions.grid_width; Type: COMMENT; Schema: public; Owner: tactris_user
+--
+
+COMMENT ON COLUMN public.game_sessions.grid_width IS 'Width of the game grid';
+
+
+--
+-- Name: COLUMN game_sessions.grid_height; Type: COMMENT; Schema: public; Owner: tactris_user
+--
+
+COMMENT ON COLUMN public.game_sessions.grid_height IS 'Height of the game grid';
+
+
+--
+-- Name: COLUMN game_sessions.initial_grid; Type: COMMENT; Schema: public; Owner: tactris_user
+--
+
+COMMENT ON COLUMN public.game_sessions.initial_grid IS 'JSON representation of the initial game grid state';
+
+
+--
+-- Name: COLUMN game_sessions.duration_seconds; Type: COMMENT; Schema: public; Owner: tactris_user
+--
+
+COMMENT ON COLUMN public.game_sessions.duration_seconds IS 'Duration of the game session in seconds';
+
+
+--
+-- Name: COLUMN game_sessions.score; Type: COMMENT; Schema: public; Owner: tactris_user
+--
+
+COMMENT ON COLUMN public.game_sessions.score IS 'Score achieved in the game session';
+
+
+--
+-- Name: COLUMN game_sessions.game_result; Type: COMMENT; Schema: public; Owner: tactris_user
+--
+
+COMMENT ON COLUMN public.game_sessions.game_result IS 'Result of the game session (win, loss, draw)';
+
+
+--
+-- Name: COLUMN game_sessions.session_data; Type: COMMENT; Schema: public; Owner: tactris_user
+--
+
+COMMENT ON COLUMN public.game_sessions.session_data IS 'Additional session data stored as JSON';
+
+
+--
+-- Name: COLUMN game_sessions.updated_at; Type: COMMENT; Schema: public; Owner: tactris_user
+--
+
+COMMENT ON COLUMN public.game_sessions.updated_at IS 'Timestamp of the last update to the game session record';
+
+
+--
 -- Name: game_statistics; Type: TABLE; Schema: public; Owner: tactris_user
 --
 
 CREATE TABLE public.game_statistics (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     user_id uuid NOT NULL,
-    total_games_played integer DEFAULT 0 NOT NULL,
-    total_games_won integer DEFAULT 0 NOT NULL,
     best_score integer DEFAULT 0 NOT NULL,
     best_lines_cleared integer DEFAULT 0 NOT NULL,
     total_lines_cleared bigint DEFAULT 0 NOT NULL,
@@ -133,10 +205,12 @@ CREATE TABLE public.game_statistics (
     total_play_time_seconds bigint DEFAULT 0 NOT NULL,
     average_score numeric(8,2) DEFAULT 0 NOT NULL,
     average_lines_per_game numeric(4,2) DEFAULT 0 NOT NULL,
-    win_rate numeric(5,4) DEFAULT 0 NOT NULL,
-    max_score_streak integer DEFAULT 0 NOT NULL,
-    max_combo_achieved integer DEFAULT 0 NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    total_games integer DEFAULT 0 NOT NULL,
+    total_score bigint DEFAULT 0 NOT NULL,
+    total_duration bigint DEFAULT 0 NOT NULL,
+    average_lines_cleared numeric(6,2) DEFAULT 0 NOT NULL,
+    average_duration numeric(8,2) DEFAULT 0 NOT NULL
 );
 
 
@@ -166,7 +240,7 @@ CREATE TABLE public.leaderboard_entries (
     period_start timestamp with time zone,
     period_end timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT leaderboard_entries_leaderboard_type_check CHECK (((leaderboard_type)::text = ANY ((ARRAY['global_score'::character varying, 'global_lines'::character varying, 'weekly_score'::character varying, 'weekly_lines'::character varying, 'personal_best'::character varying])::text[])))
+    CONSTRAINT leaderboard_entries_leaderboard_type_check CHECK (((leaderboard_type)::text = ANY (ARRAY[('global_score'::character varying)::text, ('global_lines'::character varying)::text, ('weekly_score'::character varying)::text, ('weekly_lines'::character varying)::text, ('personal_best'::character varying)::text])))
 );
 
 
@@ -191,6 +265,41 @@ COMMENT ON COLUMN public.leaderboard_entries.leaderboard_type IS 'Type of leader
 --
 
 COMMENT ON COLUMN public.leaderboard_entries.period_start IS 'Start of time period for periodic leaderboards';
+
+
+--
+-- Name: migrations; Type: TABLE; Schema: public; Owner: tactris_user
+--
+
+CREATE TABLE public.migrations (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    applied_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.migrations OWNER TO tactris_user;
+
+--
+-- Name: migrations_id_seq; Type: SEQUENCE; Schema: public; Owner: tactris_user
+--
+
+CREATE SEQUENCE public.migrations_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.migrations_id_seq OWNER TO tactris_user;
+
+--
+-- Name: migrations_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: tactris_user
+--
+
+ALTER SEQUENCE public.migrations_id_seq OWNED BY public.migrations.id;
 
 
 --
@@ -236,7 +345,7 @@ CREATE TABLE public.user_settings (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT user_settings_player_color_hue_check CHECK (((player_color_hue >= 0) AND (player_color_hue <= 360))),
-    CONSTRAINT user_settings_theme_check CHECK (((theme)::text = ANY ((ARRAY['light'::character varying, 'dark'::character varying])::text[])))
+    CONSTRAINT user_settings_theme_check CHECK (((theme)::text = ANY (ARRAY[('light'::character varying)::text, ('dark'::character varying)::text])))
 );
 
 
@@ -262,10 +371,10 @@ CREATE TABLE public.users (
     profile_picture_url text,
     username character varying(100),
     is_anonymous boolean DEFAULT true NOT NULL,
-    anonymous_token character varying(255),
     last_seen_at timestamp with time zone DEFAULT now() NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    anonymous_token character varying(255)
 );
 
 
@@ -293,6 +402,13 @@ COMMENT ON COLUMN public.users.google_id IS 'Unique Google OAuth user identifier
 
 
 --
+-- Name: COLUMN users.username; Type: COMMENT; Schema: public; Owner: tactris_user
+--
+
+COMMENT ON COLUMN public.users.username IS 'Display name for the user';
+
+
+--
 -- Name: COLUMN users.is_anonymous; Type: COMMENT; Schema: public; Owner: tactris_user
 --
 
@@ -300,10 +416,10 @@ COMMENT ON COLUMN public.users.is_anonymous IS 'Flag indicating if user is playi
 
 
 --
--- Name: COLUMN users.username; Type: COMMENT; Schema: public; Owner: tactris_user
+-- Name: migrations id; Type: DEFAULT; Schema: public; Owner: tactris_user
 --
 
-COMMENT ON COLUMN public.users.username IS 'Display name for the user';
+ALTER TABLE ONLY public.migrations ALTER COLUMN id SET DEFAULT nextval('public.migrations_id_seq'::regclass);
 
 
 --
@@ -355,6 +471,22 @@ ALTER TABLE ONLY public.leaderboard_entries
 
 
 --
+-- Name: migrations migrations_name_key; Type: CONSTRAINT; Schema: public; Owner: tactris_user
+--
+
+ALTER TABLE ONLY public.migrations
+    ADD CONSTRAINT migrations_name_key UNIQUE (name);
+
+
+--
+-- Name: migrations migrations_pkey; Type: CONSTRAINT; Schema: public; Owner: tactris_user
+--
+
+ALTER TABLE ONLY public.migrations
+    ADD CONSTRAINT migrations_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: user_sessions user_sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: tactris_user
 --
 
@@ -387,14 +519,6 @@ ALTER TABLE ONLY public.user_settings
 
 
 --
--- Name: users users_anonymous_token_key; Type: CONSTRAINT; Schema: public; Owner: tactris_user
---
-
-ALTER TABLE ONLY public.users
-    ADD CONSTRAINT users_anonymous_token_key UNIQUE (anonymous_token);
-
-
---
 -- Name: users users_anonymous_id_key; Type: CONSTRAINT; Schema: public; Owner: tactris_user
 --
 
@@ -403,7 +527,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: users_email_key; Type: CONSTRAINT; Schema: public; Owner: tactris_user
+-- Name: users users_email_key; Type: CONSTRAINT; Schema: public; Owner: tactris_user
 --
 
 ALTER TABLE ONLY public.users
@@ -419,7 +543,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: users_pkey; Type: CONSTRAINT; Schema: public; Owner: tactris_user
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: tactris_user
 --
 
 ALTER TABLE ONLY public.users
@@ -427,10 +551,17 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: user_sessions update_user_sessions_updated_at; Type: TRIGGER; Schema: public; Owner: tactris_user
+-- Name: idx_game_sessions_restore; Type: INDEX; Schema: public; Owner: tactris_user
 --
 
-CREATE TRIGGER update_user_sessions_updated_at BEFORE UPDATE ON public.user_sessions FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE INDEX idx_game_sessions_restore ON public.game_sessions USING btree (player_id, room_id, paused_at DESC) WHERE ((ending_reason)::text = 'paused'::text);
+
+
+--
+-- Name: game_sessions update_game_sessions_updated_at; Type: TRIGGER; Schema: public; Owner: tactris_user
+--
+
+CREATE TRIGGER update_game_sessions_updated_at BEFORE UPDATE ON public.game_sessions FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
@@ -438,6 +569,13 @@ CREATE TRIGGER update_user_sessions_updated_at BEFORE UPDATE ON public.user_sess
 --
 
 CREATE TRIGGER update_game_statistics_updated_at BEFORE UPDATE ON public.game_statistics FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+
+--
+-- Name: user_sessions update_user_sessions_updated_at; Type: TRIGGER; Schema: public; Owner: tactris_user
+--
+
+CREATE TRIGGER update_user_sessions_updated_at BEFORE UPDATE ON public.user_sessions FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
@@ -452,14 +590,6 @@ CREATE TRIGGER update_user_settings_updated_at BEFORE UPDATE ON public.user_sett
 --
 
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON public.users FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-
---
--- Name: user_sessions user_sessions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: tactris_user
---
-
-ALTER TABLE ONLY public.user_sessions
-    ADD CONSTRAINT user_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 
 --
@@ -495,6 +625,14 @@ ALTER TABLE ONLY public.leaderboard_entries
 
 
 --
+-- Name: user_sessions user_sessions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: tactris_user
+--
+
+ALTER TABLE ONLY public.user_sessions
+    ADD CONSTRAINT user_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: user_settings user_settings_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: tactris_user
 --
 
@@ -507,76 +645,6 @@ ALTER TABLE ONLY public.user_settings
 --
 
 GRANT ALL ON SCHEMA public TO tactris_user;
-
-
---
--- Name: FUNCTION uuid_generate_v1(); Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON FUNCTION public.uuid_generate_v1() TO tactris_user;
-
-
---
--- Name: FUNCTION uuid_generate_v1mc(); Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON FUNCTION public.uuid_generate_v1mc() TO tactris_user;
-
-
---
--- Name: FUNCTION uuid_generate_v3(namespace uuid, name text); Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON FUNCTION public.uuid_generate_v3(namespace uuid, name text) TO tactris_user;
-
-
---
--- Name: FUNCTION uuid_generate_v4(); Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON FUNCTION public.uuid_generate_v4() TO tactris_user;
-
-
---
--- Name: FUNCTION uuid_generate_v5(namespace uuid, name text); Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON FUNCTION public.uuid_generate_v5(namespace uuid, name text) TO tactris_user;
-
-
---
--- Name: FUNCTION uuid_nil(); Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON FUNCTION public.uuid_nil() TO tactris_user;
-
-
---
--- Name: FUNCTION uuid_ns_dns(); Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON FUNCTION public.uuid_ns_dns() TO tactris_user;
-
-
---
--- Name: FUNCTION uuid_ns_oid(); Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON FUNCTION public.uuid_ns_oid() TO tactris_user;
-
-
---
--- Name: FUNCTION uuid_ns_url(); Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON FUNCTION public.uuid_ns_url() TO tactris_user;
-
-
---
--- Name: FUNCTION uuid_ns_x500(); Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON FUNCTION public.uuid_ns_x500() TO tactris_user;
 
 
 --
@@ -604,4 +672,5 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON TABLES 
 -- PostgreSQL database dump complete
 --
 
-\unrestrict b3c2EaCOlMB5PeLHezoe8yvG7gglanVgMR6HfDYEUfBg743K6XP1YoJDbwqcs8l
+\unrestrict f66sggQAasOPwwiW2fvmcl1Ivv1c3IOUnGlRd2HHDnv8h6NkBanZ6GVgw6vW8ik
+

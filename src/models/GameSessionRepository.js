@@ -2,6 +2,7 @@
  * GameSessionRepository - Tracks game sessions and results
  */
 const TransactionManager = require('../utils/transactionManager');
+const RESTORE_TIMEOUT_MINUTES = process.env.RESTORE_TIMEOUT_MINUTES || 10;
 
 class GameSessionRepository {
   constructor(db) {
@@ -16,33 +17,34 @@ class GameSessionRepository {
   async create(sessionData) {
     const {
       player_id,
-      game_mode,
-      grid_width,
-      grid_height,
-      initial_grid,
-      final_grid,
-      duration_seconds,
+      room_id,
+      player_color,
+      final_score,
       lines_cleared,
+      total_lines_cleared,
       figures_placed,
-      score,
-      game_result,
-      session_data
+      game_duration_seconds,
+      final_grid,
+      ending_reason,
+      average_time_per_figure,
+      max_combo,
+      max_single_game_score
     } = sessionData;
 
     const query = `
       INSERT INTO game_sessions (
-        player_id, game_mode, grid_width, grid_height,
-        initial_grid, final_grid, duration_seconds, lines_cleared,
-        figures_placed, score, game_result, session_data
+        player_id, room_id, player_color, final_score, lines_cleared, total_lines_cleared,
+        figures_placed, game_duration_seconds, final_grid, ending_reason, average_time_per_figure,
+        max_combo, max_single_game_score
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *;
     `;
 
     const values = [
-      player_id, game_mode, grid_width, grid_height,
-      initial_grid, final_grid, duration_seconds, lines_cleared,
-      figures_placed, score, game_result, session_data
+      player_id, room_id, player_color, final_score, lines_cleared, total_lines_cleared,
+      figures_placed, game_duration_seconds, final_grid, ending_reason, average_time_per_figure,
+      max_combo, max_single_game_score
     ];
 
     try {
@@ -127,9 +129,9 @@ class GameSessionRepository {
    */
   async update(id, updates) {
     const allowedFields = [
-      'game_mode', 'grid_width', 'grid_height',
-      'initial_grid', 'final_grid', 'duration_seconds', 'lines_cleared',
-      'figures_placed', 'score', 'game_result', 'session_data'
+      'room_id', 'player_color', 'final_score', 'lines_cleared', 'total_lines_cleared',
+      'figures_placed', 'game_duration_seconds', 'final_grid', 'ending_reason', 'average_time_per_figure',
+      'max_combo', 'max_single_game_score', 'paused_at', 'player_state', 'game_result'
     ];
     
     const updateFields = [];
@@ -149,7 +151,7 @@ class GameSessionRepository {
     }
 
     const query = `
-      UPDATE game_sessions 
+      UPDATE game_sessions
       SET ${updateFields.join(', ')}, updated_at = NOW()
       WHERE id = $1
       RETURNING *;
@@ -176,10 +178,10 @@ class GameSessionRepository {
     const query = `
       SELECT
         COUNT(*) as total_games,
-        AVG(score) as average_score,
-        AVG(duration_seconds) as average_duration,
+        AVG(final_score) as average_score,
+        AVG(game_duration_seconds) as average_duration,
         AVG(lines_cleared) as average_lines_cleared,
-        MAX(score) as best_score,
+        MAX(final_score) as best_score,
         MAX(lines_cleared) as most_lines_cleared
       FROM game_sessions
       WHERE player_id = $1;
@@ -243,6 +245,33 @@ class GameSessionRepository {
       throw new Error(`Error getting sessions by date range: ${error.message}`);
     }
   }
+
+  /**
+    * Finds the latest paused game session that can be restored for a player in a room
+    * @param {string} playerId - Player ID
+    * @param {string} roomId - Room ID
+    * @returns {Promise<Object|null>} The restore candidate session or null
+    */
+   async findRestoreCandidate(playerId, roomId) {
+     const query = `
+       SELECT * FROM game_sessions
+       WHERE player_id = $1 AND room_id = $2
+         AND (game_result = 'paused' OR game_result = 'abandoned')
+       ORDER BY paused_at DESC NULLS LAST LIMIT 1
+     `;
+     const values = [playerId, roomId];
+
+     try {
+       const result = await this.db.query(query, values);
+       console.log(`[DIAGNOSTIC] findRestoreCandidate(playerId=${playerId}, roomId=${roomId}): found ${result.rows.length} rows matching 'paused' within 10min`);
+       if (result.rows.length > 0) {
+         console.log(`  First match: game_result='${result.rows[0].game_result}', paused_at='${result.rows[0].paused_at}', updated_at='${result.rows[0].updated_at}'`);
+       }
+       return result.rows[0] || null;
+     } catch (error) {
+       throw new Error(`Error finding restore candidate: ${error.message}`);
+     }
+   }
 
   /**
    * Completes a game session and updates user statistics atomically
@@ -345,6 +374,55 @@ class GameSessionRepository {
         statistics: updateStatsResult.rows[0]
       };
     });
+  }
+
+  /**
+   * Updates a game session to mark it as unpaused (game in progress again)
+   * @param {string} id - Game session ID to update
+   * @returns {Promise<Object>} The updated game session
+   */
+  async unpause(id) {
+    const query = `
+      UPDATE game_sessions
+      SET game_result = 'in_progress', paused_at = NULL, player_state = NULL, updated_at = NOW()
+      WHERE id = $1
+      RETURNING *;
+    `;
+    const values = [id];
+
+    try {
+      const result = await this.db.query(query, values);
+      if (result.rows.length === 0) {
+        throw new Error('Game session not found');
+      }
+      return result.rows[0];
+    } catch (error) {
+      throw new Error(`Error unpausing game session: ${error.message}`);
+    }
+  }
+
+  /**
+   * Finds the latest game session for a player in a specific room
+   * @param {string} playerId - Player ID
+   * @param {string} roomId - Room ID
+   * @returns {Promise<Object|null>} The game session or null
+   */
+  async findByPlayerAndRoom(playerId, roomId) {
+    const query = `
+      SELECT * FROM game_sessions
+      WHERE player_id = $1 AND room_id = $2
+      ORDER BY started_at DESC LIMIT 1
+    `;
+    // Note: We're looking for session with matching player and room IDs
+    // The room_id is stored directly in the table, not in session_data
+    const values = [playerId, roomId];
+
+    try {
+      const result = await this.db.query(query, values);
+      return result.rows[0] || null;
+    } catch (error) {
+      throw new Error(`Error finding game session by player and room: ${error.message}`);
+    }
   }
 }
 
