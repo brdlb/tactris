@@ -83,7 +83,6 @@ app.get('/api/user/stats/public', async (req, res) => {
         user_id: user_id,
         total_games: 0,
         total_score: 0,
-        total_score: 0,
         average_score: 0,
         best_score: 0,
         total_lines_cleared: 0,
@@ -96,15 +95,10 @@ app.get('/api/user/stats/public', async (req, res) => {
       });
     }
 
-    // Calculate average score
-    const avgScore = stats.total_games > 0 ? stats.total_score / stats.total_games : 0;
-
     // Return formatted statistics
     const responseData = {
       user_id: user_id,
       total_games: stats.total_games,
-      total_score: stats.total_score,
-      average_score: avgScore,
       total_score: stats.total_score,
       average_score: stats.average_score || 0,
       best_score: stats.best_score,
