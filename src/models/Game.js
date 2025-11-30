@@ -77,9 +77,10 @@ class Game {
 
     addPlayer(playerId, color = 'red', authenticatedUserId = null) {
         if (!this.players.has(playerId)) {
+            const firstFigure = generateNewFigure();
             const playerFigures = [
-                generateNewFigure(),
-                generateNewFigure()
+                firstFigure,
+                generateNewFigure([firstFigure.type])
             ];
             this.players.set(playerId, {
                 id: playerId,
@@ -453,9 +454,10 @@ class Game {
         // Reset all players' scores and figures
         for (const player of this.players.values()) {
             player.score = 0;
+            const firstFigure = generateNewFigure();
             player.figures = [
-                generateNewFigure(),
-                generateNewFigure()
+                firstFigure,
+                generateNewFigure([firstFigure.type])
             ];
         }
         
