@@ -426,29 +426,29 @@ io.on('connection', (socket) => {
     }
   };
 
-  socket.on('create_room', async ({ color }) => {
-    const roomId = Math.random().toString(36).substring(7);
-    const game = new Game(roomId);
-    game.addPlayer(socket.id, color, socket.userId); // Add creator as player with their color and authenticated user ID
-    
-    // Create a game session record in the database for the creator
-    await createGameSession(game, socket.id, false);
-    
-    games.set(roomId, game);
-    socket.join(roomId);
-    
-    // Send players list to the room creator
-    const playersList = game.getPlayersList();
-    socket.emit('room_created', {
-      roomId,
-      state: game.getState(),
-      playersList
+  socket.on('create_room', async ({ color, rotateable = false }) => {
+      const roomId = Math.random().toString(36).substring(7);
+      const game = new Game(roomId, rotateable);
+      game.addPlayer(socket.id, color, socket.userId); // Add creator as player with their color and authenticated user ID
+      
+      // Create a game session record in the database for the creator
+      await createGameSession(game, socket.id, false);
+      
+      games.set(roomId, game);
+      socket.join(roomId);
+      
+      // Send players list to the room creator
+      const playersList = game.getPlayersList();
+      socket.emit('room_created', {
+        roomId,
+        state: game.getState(),
+        playersList
+      });
+  
+      // Broadcast updated room list to all clients
+      const roomList = Array.from(games.values()).map(g => ({ id: g.id }));
+      io.emit('rooms_list', roomList);
     });
-
-    // Broadcast updated room list to all clients
-    const roomList = Array.from(games.values()).map(g => ({ id: g.id }));
-    io.emit('rooms_list', roomList);
-  });
 
   socket.on('join_room', async ({ roomId, color }) => {
     if (games.has(roomId)) {

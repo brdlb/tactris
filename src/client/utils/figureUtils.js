@@ -15,31 +15,39 @@ const normalizePixels = (pixels) => {
 };
 
 // Check if pixels match a specific figure in any rotation
-const matchFigure = (normalizedPixels, figure) => {
+const matchFigure = (normalizedPixels, figure, rotateable = false) => {
     if (!figure.cells || figure.cells.length !== normalizedPixels.length) return false;
 
-    // Check all 4 rotations
+    // If rotateable is true, check all 4 rotations; otherwise only check original orientation
     let currentShape = figure.cells;
-    for (let r = 0; r < 4; r++) {
+    if (rotateable) {
+        for (let r = 0; r < 4; r++) {
+            const isSubset = normalizedPixels.every(p =>
+                currentShape.some(fp => fp[0] === p.x && fp[1] === p.y)
+            );
+
+            if (isSubset) return true;
+
+            currentShape = rotateShape(currentShape);
+        }
+    } else {
+        // Only check original orientation
         const isSubset = normalizedPixels.every(p =>
             currentShape.some(fp => fp[0] === p.x && fp[1] === p.y)
         );
-
         if (isSubset) return true;
-
-        currentShape = rotateShape(currentShape);
     }
     return false;
 };
 
 // Helper to check if pixels match any of the allowed figures (subset check)
-const checkMatch = (pixels, figures) => {
+const checkMatch = (pixels, figures, rotateable = false) => {
     if (!pixels || pixels.length === 0) return -1;
 
     const normalized = normalizePixels(pixels);
 
     for (let i = 0; i < figures.length; i++) {
-        if (matchFigure(normalized, figures[i])) {
+        if (matchFigure(normalized, figures[i], rotateable)) {
             return i;
         }
     }

@@ -12,7 +12,6 @@ const safeFormatNumber = (value, defaultValue = 0, decimalPlaces = 0) => {
 
 
 const StatsModal = ({ isOpen, onClose, statsData }) => {
-    console.log('📊 [StatsModal] Received statsData prop:', statsData);
     if (!isOpen) return null;
 
     // Default stats if no data is provided
@@ -31,11 +30,6 @@ const StatsModal = ({ isOpen, onClose, statsData }) => {
         rating: 1000
     };
     
-    // Log when using default stats
-    if (!statsData) {
-        console.log('📊 [StatsModal] Using default statistics (no data provided)');
-    }
-
     return (
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>

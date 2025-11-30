@@ -90,9 +90,9 @@ class SocketManager {
         }
     }
 
-    createRoom(color) {
-        this.socket.emit('create_room', { color });
-    }
+    createRoom(color, rotateable = false) {
+            this.socket.emit('create_room', { color, rotateable });
+        }
 
     joinRoom(roomId, color) {
         this.socket.emit('join_room', { roomId, color });

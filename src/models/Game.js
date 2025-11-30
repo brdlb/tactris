@@ -58,7 +58,7 @@ function generateNewFigure(excludeTypes = []) {
 }
 
 class Game {
-    constructor(id) {
+    constructor(id, rotateable = false) {
         this.id = id;
         this.gridWidth = 10;
         this.gridHeight = 10;
@@ -71,6 +71,7 @@ class Game {
         this.linesCleared = 0; // Track total lines cleared
         this.figuresPlaced = 0; // Track total figures placed
         this.moves = []; // Track game moves for session data
+        this.rotateable = rotateable; // Whether players can draw figures with any rotation
     }
 
     addPlayer(playerId, color = 'red', authenticatedUserId = null) {
@@ -94,13 +95,14 @@ class Game {
     }
 
     getState() {
-        return {
-            id: this.id,
-            grid: this.grid,
-            players: Object.fromEntries(this.players),
-            gameOver: this.gameOver
-        };
-    }
+            return {
+                id: this.id,
+                grid: this.grid,
+                players: Object.fromEntries(this.players),
+                gameOver: this.gameOver,
+                rotateable: this.rotateable
+            };
+        }
 
     removePlayer(playerId) {
         if (this.players.has(playerId)) {
@@ -276,9 +278,9 @@ class Game {
     }
 
     checkMatch(pixels, figures) {
-            // Use the shared utility function
-            return require('../utils/figureUtils').checkMatch(pixels, figures);
-        }
+                // Use the shared utility function with rotateable option
+                return require('../utils/figureUtils').checkMatch(pixels, figures, this.rotateable);
+            }
 
     checkLines() {
         // Check if a row is completely filled
