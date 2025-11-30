@@ -3,7 +3,6 @@ import { FIGURES } from '../../../constants/figures';
 import FigureRenderer from './FigureRenderer';
 
 const FiguresPanel = ({ score, figures, playerColor }) => {
-    console.log('[DEBUG FiguresPanel]', { figures, type: typeof figures, isArray: Array.isArray(figures), hasLength: figures?.length });
 
     return (
         <div className="figures-panel">

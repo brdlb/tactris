@@ -116,8 +116,8 @@ body {
 }
 
 /* ============================================
-   Game Content Layout
-   ============================================ */
+    Game Content Layout
+    ============================================ */
 .game-content {
     display: flex;
     flex-direction: row;
@@ -129,8 +129,8 @@ body {
 }
 
 /* ============================================
-   Sidebar (Score + Figures)
-   ============================================ */
+    Sidebar (Score + Figures)
+    ============================================ */
 .game-sidebar {
     display: flex;
     flex-direction: column;
@@ -437,35 +437,6 @@ body {
     transition: background-color 0.3s ease, transform 0.2s ease;
     font-family: 'VirtualDJ', Arial, sans-serif;
     margin-left: 10px;
-}
-
-/* Settings button */
-.settings-btn {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    width: 48px;
-    height: 48px;
-    border-radius: 8px;
-    background: var(--bg-secondary);
-    border: 2px solid var(--border-color);
-    color: var(--text-primary);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.settings-btn:hover {
-    transform: scale(1.1);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.settings-btn svg {
-    transition: transform 0.3s ease;
 }
 
 /* Modal overlay */

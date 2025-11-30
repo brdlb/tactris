@@ -1,15 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import SocketManager from '../../network/SocketManager';
-
-const FIGURES = {
-    I: [[0, 0], [1, 0], [2, 0], [3, 0]],
-    O: [[0, 0], [1, 0], [0, 1], [1, 1]],
-    T: [[0, 0], [1, 0], [2, 0], [1, 1]],
-    S: [[1, 0], [2, 0], [0, 1], [1, 1]],
-    Z: [[0, 0], [1, 0], [1, 1], [2, 1]],
-    J: [[1, 0], [1, 1], [1, 2], [0, 2]],
-    L: [[0, 0], [0, 1], [0, 2], [1, 2]]
-};
+import { FIGURES } from '../../../constants/figures.js';
+import { normalizePixels, rotateShape } from '../../../utils/figureUtils.js';
 
 export const useDrawingInteraction = (gridRef, roomIdRef, gameOver, myFigures) => {
     const selectedPixels = useRef([]);
@@ -21,9 +13,7 @@ export const useDrawingInteraction = (gridRef, roomIdRef, gameOver, myFigures) =
         if (pixels.length === 0) return true;
 
         // Normalize pixels to (0,0)
-        const minX = Math.min(...pixels.map(p => p.x));
-        const minY = Math.min(...pixels.map(p => p.y));
-        const normalized = pixels.map(p => ({ x: p.x - minX, y: p.y - minY }));
+        const normalized = normalizePixels(pixels);
 
         for (const type of allowedTypes) {
             const figure = FIGURES[type];
@@ -40,12 +30,7 @@ export const useDrawingInteraction = (gridRef, roomIdRef, gameOver, myFigures) =
                 if (isSubset) return true;
 
                 // Rotate shape 90 degrees
-                // (x, y) -> (-y, x)
-                // Then normalize again to keep it positive
-                const rotated = currentShape.map(([x, y]) => [-y, x]);
-                const rMinX = Math.min(...rotated.map(p => p[0]));
-                const rMinY = Math.min(...rotated.map(p => p[1]));
-                currentShape = rotated.map(([x, y]) => [x - rMinX, y - rMinY]);
+                currentShape = rotateShape(currentShape);
             }
         }
         return false;
