@@ -58,13 +58,13 @@ const SettingsModal = ({ isOpen, onClose, theme, onToggleTheme, onHueChange, onS
                                     className="hue-slider"
                                     style={{
                                         background: `linear-gradient(to right,
-                                            hsl(0, 70%, 85%),
-                                            hsl(60, 70%, 85%),
-                                            hsl(120, 70%, 85%),
-                                            hsl(180, 70%, 85%),
-                                            hsl(240, 70%, 85%),
-                                            hsl(300, 70%, 85%),
-                                            hsl(360, 70%, 85%))`
+                                            hsl(0, 100%, 60%),
+                                            hsl(60, 100%, 60%),
+                                            hsl(120, 100%, 60%),
+                                            hsl(180, 100%, 60%),
+                                            hsl(240, 100%, 60%),
+                                            hsl(300, 100%, 60%),
+                                            hsl(0, 100%, 60%))`
                                     }}
                                 />
                             </div>
