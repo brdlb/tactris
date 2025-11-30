@@ -165,9 +165,29 @@ body {
     transition: background 0.3s ease, border-color 0.3s ease;
 }
 
-/* ============================================
-   Game Board - Desktop (centered with max size)
-   ============================================ */
+.game-board-wrapper {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Panel base styles */
+.panel {
+    position: absolute;
+    background: var(--bg-secondary);
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    z-index: 10;
+    transition: background 0.3s ease, border-color 0.3s ease;
+    flex-shrink: 0;
+    min-width: 100px;
+}
+
+.panel-content {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
 .game-board {
     display: grid;
     grid-template-columns: repeat(10, 8vmin);
@@ -273,67 +293,130 @@ body {
         border: 1px solid #999;
     }
 
-    .grid-cell {
-        /* Ensure minimum touch target size */
-        min-width: 32px;
-        min-height: 32px;
+    /* Panels positioned on right/left sides in landscape */
+    .panel-top-right {
+        top: 0;
+        right: 0;
+        transform: translateX(calc(100% + 20px));
     }
 
-    /* Prevent zoom on input focus */
-    input,
-    select,
-    textarea {
-        font-size: 16px;
+    .panel-bottom-right {
+        bottom: 0;
+        right: 0;
+        transform: translateX(calc(100% + 20px));
+    }
+
+    .panel-bottom-left {
+        bottom: 0;
+        left: 0;
+        transform: translateX(calc(-100% - 20px));
     }
 }
 
-/* ============================================
-   Landscape Orientation (Desktop & Tablet)
-   ============================================ */
-@media (orientation: landscape) and (hover: hover) {
+/* Portrait: Height > Width */
+@media (orientation: portrait) {
     .game-content {
         flex-direction: row;
         align-items: flex-start;
     }
 
     .figures-panel {
-        margin-right: 0;
-        margin-bottom: 8px;
-        padding: 8px;
+        margin-bottom: 20px;
+    }
+
+    /* Panels positioned on top/bottom in portrait */
+    .panel-top-right {
+        top: 0;
+        right: 0;
+        transform: translateY(calc(-100% - 20px));
+    }
+
+    .panel-bottom-right {
+        bottom: 0;
+        right: 0;
+        transform: translateY(calc(100% + 20px));
+    }
+
+    .panel-bottom-left {
+        bottom: 0;
+        left: 0;
+        transform: translateY(calc(100% + 20px));
     }
 }
 
-/* ============================================
-   Large Screens - Extra centering
-   ============================================ */
-@media (min-width: 1400px) {
-    .game-board {
-        /* Ensure board stays centered on very large screens */
-        max-width: 650px;
-        max-height: 650px;
-    }
+/* Game Over Overlay */
+.game-over-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 20px;
+    border-radius: 10px;
+    z-index: 1000;
+    text-align: center;
 }
 
-/* ============================================
-   Room Controls
-   ============================================ */
+.restart-btn {
+    margin-top: 15px;
+    padding: 10px 20px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    background-color: var(--player-color, #4CAF50); /* Use player color with fallback to green */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    font-family: 'VirtualDJ', Arial, sans-serif;
+}
+
+.restart-btn:hover,
+.create-room-btn:hover,
+.join-btn:hover {
+    filter: brightness(0.9);
+    transform: scale(1.05);
+}
+
+.restart-btn:active,
+.create-room-btn:active,
+.join-btn:active {
+    filter: brightness(1.1);
+    transform: scale(0.95);
+}
+
 .room-controls {
     margin-bottom: 20px;
     text-align: center;
 }
 
 .create-room-btn {
-    padding: 15px 30px;
-    font-size: 1.2rem;
-    cursor: pointer;
-    font-family: 'VirtualDJ', Arial, sans-serif;
+    padding: 10px 20px;
+    font-size: 1.1rem;
     font-weight: bold;
+    background-color: var(--player-color, #4CAF50); /* Use player color with fallback to green */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    font-family: 'VirtualDJ', Arial, sans-serif;
+    margin-right: 10px;
 }
 
 .join-btn {
-    margin-left: 10px;
-    font-family: 'VirtualDJ', Arial, sans-serif;
+    padding: 8px 15px;
+    font-size: 1rem;
     font-weight: bold;
+    background-color: var(--player-color, #4CAF50); /* Use player color with fallback to green */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    font-family: 'VirtualDJ', Arial, sans-serif;
+    margin-left: 10px;
 }
 
 /* Settings button */
@@ -397,8 +480,11 @@ body {
     padding: 0;
     min-width: 320px;
     max-width: 90%;
+    max-height: 80vh;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
     animation: slideUp 0.3s ease;
+    display: flex;
+    flex-direction: column;
 }
 
 @keyframes slideUp {
@@ -420,6 +506,7 @@ body {
     justify-content: space-between;
     padding: 20px;
     border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
 }
 
 .modal-header h2 {
@@ -451,6 +538,8 @@ body {
 /* Modal body */
 .modal-body {
     padding: 20px;
+    overflow-y: auto;
+    flex-grow: 1;
 }
 
 /* Setting item */
@@ -460,6 +549,37 @@ body {
     justify-content: space-between;
     padding: 12px 0;
     font-size: 1.1rem;
+}
+
+.stats-btn {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+    text-align: center;
+}
+
+.stats-btn:hover {
+    background: var(--border-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.stats-btn-centered {
+    width: 100%;
+    margin: 10px 0;
+    justify-content: center;
+}
+
+.centered-stats {
+    display: flex;
+    justify-content: center;
+    padding: 10px 0;
 }
 
 /* Theme switch */
@@ -514,6 +634,96 @@ body {
     transform: translateX(28px);
 }
 
+/* Hue Control */
+.hue-control {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.hue-slider-container {
+    position: relative;
+    flex: 1;
+    margin-left: 16px;
+}
+
+.hue-slider {
+    width: 200px;
+    height: 8px;
+    border-radius: 4px;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+    border: 1px solid var(--border-color);
+    transition: box-shadow 0.2s ease;
+}
+
+.hue-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid var(--border-color);
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+}
+
+.hue-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.1);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+.hue-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid var(--border-color);
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+}
+
+.hue-slider::-moz-range-thumb:hover {
+    transform: scale(1.1);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+.hue-value {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-weight: bold;
+    min-width: 40px;
+    text-align: center;
+}
+
+/* Mobile responsiveness for hue control */
+@media (max-width: 768px) {
+    .hue-slider {
+        width: 150px;
+    }
+    
+    .hue-control {
+        align-items: flex-end;
+    }
+    
+    .setting-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .hue-slider-container {
+        margin-left: 0;
+        width: 100%;
+    }
+}
+
 /* Mobile layout: Full width/height of the smaller dimension */
 @media (max-width: 768px),
 (max-height: 600px) {
@@ -527,5 +737,40 @@ body {
     .grid-cell {
         width: auto;
         height: auto;
+    }
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px;
+    background: var(--bg-secondary);
+    text-align: center;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+}
+
+.stat-value {
+    font-size: 1.4rem;
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
+/* Mobile responsiveness for stats grid */
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: repeat(1, 1fr);
     }
 }

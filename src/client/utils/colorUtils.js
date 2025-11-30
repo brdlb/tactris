@@ -11,6 +11,14 @@ export function generateHue() {
 }
 
 /**
+ * Set user's hue in localStorage
+ * @param {number} hue - Hue value (0-360)
+ */
+export function setUserHue(hue) {
+    localStorage.setItem(STORAGE_KEY, hue.toString());
+}
+
+/**
  * Convert HSV to RGB
  * @param {number} h - Hue (0-360)
  * @param {number} s - Saturation (0-100)
