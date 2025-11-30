@@ -17,9 +17,6 @@ class GameStatisticsRepository {
     const {
       user_id,
       total_games,
-      wins,
-      losses,
-      draws,
       total_score,
       total_lines_cleared,
       total_duration,
@@ -30,26 +27,25 @@ class GameStatisticsRepository {
       average_score,
       average_lines_cleared,
       average_lines_per_game,
-      average_duration,
-      games_played_today
+      average_duration
     } = statsData;
 
     const query = `
       INSERT INTO game_statistics (
-        user_id, total_games, wins, losses, draws, total_score,
+        user_id, total_games, total_score,
         total_lines_cleared, total_duration, total_figures_placed, total_play_time_seconds,
         best_score, best_lines_cleared,
-        average_score, average_lines_cleared, average_lines_per_game, average_duration, games_played_today
+        average_score, average_lines_cleared, average_lines_per_game, average_duration
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *;
     `;
 
     const values = [
-      user_id, total_games, wins, losses, draws, total_score,
+      user_id, total_games, total_score,
       total_lines_cleared, total_duration, total_figures_placed, total_play_time_seconds,
       best_score, best_lines_cleared,
-      average_score, average_lines_cleared, average_lines_per_game, average_duration, games_played_today
+      average_score, average_lines_cleared, average_lines_per_game, average_duration
     ];
 
     try {
@@ -85,10 +81,10 @@ class GameStatisticsRepository {
    */
   async update(userId, updates) {
     const allowedFields = [
-      'total_games', 'wins', 'losses', 'draws', 'total_score',
+      'total_games', 'total_score',
       'total_lines_cleared', 'total_duration', 'total_figures_placed', 'total_play_time_seconds',
       'best_score', 'best_lines_cleared',
-      'average_score', 'average_lines_cleared', 'average_lines_per_game', 'average_duration', 'games_played_today'
+      'average_score', 'average_lines_cleared', 'average_lines_per_game', 'average_duration'
     ];
     
     const updateFields = [];
@@ -141,9 +137,6 @@ class GameStatisticsRepository {
       currentStats = await this.create({
         user_id: userId,
         total_games: 1,
-        wins: 0, // Wins not applicable in this game mode
-        losses: 0, // Losses not applicable in this game mode
-        draws: 0, // Draws not applicable in this game mode
         total_score: gameSession.score,
         total_lines_cleared: gameSession.lines_cleared,
         total_figures_placed: gameSession.figures_placed || 0,
@@ -153,17 +146,13 @@ class GameStatisticsRepository {
         average_score: gameSession.score,
         average_lines_cleared: gameSession.lines_cleared,
         average_lines_per_game: gameSession.lines_cleared, // For single game
-        average_duration: gameSession.duration_seconds,
-        games_played_today: 1
+        average_duration: gameSession.duration_seconds
       });
     }
 
     // Calculate new statistics based on the game session
     const gameResult = gameSession.game_result;
     const newTotalGames = parseInt(currentStats.total_games) + 1;
-    const newWins = gameResult === 'win' ? parseInt(currentStats.wins) + 1 : parseInt(currentStats.wins);
-    const newLosses = gameResult === 'loss' ? parseInt(currentStats.losses) + 1 : parseInt(currentStats.losses);
-    const newDraws = gameResult === 'draw' ? parseInt(currentStats.draws) + 1 : parseInt(currentStats.draws);
     const newTotalScore = parseInt(currentStats.total_score) + gameSession.score;
     const newTotalLinesCleared = parseInt(currentStats.total_lines_cleared) + gameSession.lines_cleared;
     const newTotalDuration = parseInt(currentStats.total_duration) + gameSession.duration_seconds;
@@ -180,9 +169,6 @@ class GameStatisticsRepository {
     // Update the statistics record
     const updatedStats = await this.update(userId, {
       total_games: newTotalGames,
-      wins: newWins,
-      losses: newLosses,
-      draws: newDraws,
       total_score: newTotalScore,
       total_lines_cleared: newTotalLinesCleared,
       total_duration: newTotalDuration,
@@ -193,22 +179,21 @@ class GameStatisticsRepository {
       average_score: newAverageScore,
       average_lines_cleared: newAverageLinesCleared,
       average_lines_per_game: newTotalLinesCleared / newTotalGames,
-      average_duration: newAverageDuration,
-      games_played_today: parseInt(currentStats.games_played_today) + 1
+      average_duration: newAverageDuration
     });
 
     return updatedStats;
   }
 
   /**
-   * Increments the games played today counter for a user
-   * @param {string} userId - User ID to increment games played today for
+   * Updates the updated_at timestamp for a user's statistics
+   * @param {string} userId - User ID to update
    * @returns {Promise<Object>} The updated statistics
    */
-  async incrementGamesPlayedToday(userId) {
+  async updateTimestamp(userId) {
     const query = `
-      UPDATE game_statistics 
-      SET games_played_today = games_played_today + 1, updated_at = NOW()
+      UPDATE game_statistics
+      SET updated_at = NOW()
       WHERE user_id = $1
       RETURNING *;
     `;
@@ -226,13 +211,13 @@ class GameStatisticsRepository {
   }
 
   /**
-   * Resets the games played today counter for all users
+   * Updates the updated_at timestamp for all users' statistics
    * @returns {Promise<number>} Number of records updated
    */
-  async resetGamesPlayedToday() {
+  async updateAllTimestamps() {
     const query = `
-      UPDATE game_statistics 
-      SET games_played_today = 0, updated_at = NOW();
+      UPDATE game_statistics
+      SET updated_at = NOW();
     `;
 
     try {
@@ -331,17 +316,17 @@ class GameStatisticsRepository {
         // If no stats exist, create a new record
         const createStatsQuery = `
           INSERT INTO game_statistics (
-            user_id, total_games, wins, losses, draws, total_score,
+            user_id, total_games, total_score,
             total_lines_cleared, total_duration, total_figures_placed, total_play_time_seconds,
             best_score, best_lines_cleared,
-            average_score, average_lines_cleared, average_lines_per_game, average_duration, games_played_today
+            average_score, average_lines_cleared, average_lines_per_game, average_duration
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
           RETURNING *;
         `;
         
         const initialStatsValues = [
-          userId, 1, 0, 0, 0, gameSession.score, gameSession.lines_cleared, gameSession.duration_seconds, gameSession.figures_placed || 0, gameSession.duration_seconds, gameSession.score, gameSession.lines_cleared, gameSession.score, gameSession.lines_cleared, gameSession.lines_cleared, gameSession.duration_seconds, 1
+          userId, 1, gameSession.score, gameSession.lines_cleared, gameSession.duration_seconds, gameSession.figures_placed || 0, gameSession.duration_seconds, gameSession.score, gameSession.lines_cleared, gameSession.score, gameSession.lines_cleared, gameSession.lines_cleared, gameSession.duration_seconds
         ];
         
         const createResult = await client.query(createStatsQuery, initialStatsValues);
@@ -353,9 +338,6 @@ class GameStatisticsRepository {
       // Calculate new statistics based on the game session
       const gameResult = gameSession.game_result;
       const newTotalGames = parseInt(currentStats.total_games) + 1;
-      const newWins = parseInt(currentStats.wins); // Wins not applicable in this game mode
-      const newLosses = parseInt(currentStats.losses); // Losses not applicable in this game mode
-      const newDraws = parseInt(currentStats.draws); // Draws not applicable in this game mode;
       const newTotalScore = parseInt(currentStats.total_score) + gameSession.score;
       const newTotalLinesCleared = parseInt(currentStats.total_lines_cleared) + gameSession.lines_cleared;
       const newTotalDuration = parseInt(currentStats.total_duration) + gameSession.duration_seconds;
@@ -372,19 +354,19 @@ class GameStatisticsRepository {
       // Update the statistics record
       const updateStatsQuery = `
         UPDATE game_statistics
-        SET total_games = $2, wins = $3, losses = $4, draws = $5, total_score = $6,
-            total_lines_cleared = $7, total_figures_placed = $8, total_play_time_seconds = $9,
-            best_score = $10, best_lines_cleared = $11,
-            average_score = $12, average_lines_cleared = $13, average_lines_per_game = $14, average_duration = $15, games_played_today = $16, updated_at = NOW()
+        SET total_games = $2, total_score = $3,
+            total_lines_cleared = $4, total_figures_placed = $5, total_play_time_seconds = $6,
+            best_score = $7, best_lines_cleared = $8,
+            average_score = $9, average_lines_cleared = $10, average_lines_per_game = $11, average_duration = $12, updated_at = NOW()
         WHERE user_id = $1
         RETURNING *;
       `;
       
       const statsValues = [
-        userId, newTotalGames, newWins, newLosses, newDraws, newTotalScore,
+        userId, newTotalGames, newTotalScore,
         newTotalLinesCleared, parseInt(currentStats.total_figures_placed) + (gameSession.figures_placed || 0), parseInt(currentStats.total_play_time_seconds) + (gameSession.duration_seconds || 0),
         newBestScore, newBestLinesCleared,
-        newAverageScore, newAverageLinesCleared, newTotalLinesCleared / newTotalGames, newAverageDuration, parseInt(currentStats.games_played_today) + 1
+        newAverageScore, newAverageLinesCleared, newTotalLinesCleared / newTotalGames, newAverageDuration
       ];
       
       const updateStatsResult = await client.query(updateStatsQuery, statsValues);

@@ -27,7 +27,6 @@ class GameStatistics {
     this.id = statsData.id;
     this.user_id = statsData.user_id;
     this.total_games = statsData.total_games || 0;
-    this.total_wins = statsData.total_wins || 0;
     this.total_score = statsData.total_score || 0;
     this.best_score = statsData.best_score || 0;
     this.total_lines_cleared = statsData.total_lines_cleared || 0;
@@ -211,7 +210,6 @@ class GameStatistics {
     const aggregated = new GameStatistics({
       ...statsArray[0],
       total_games: 0,
-      total_wins: 0,
       total_score: 0,
       best_score: 0,
       total_lines_cleared: 0,
@@ -317,7 +315,6 @@ class GameStatistics {
       id: this.id,
       user_id: this.user_id,
       total_games: this.total_games,
-      total_wins: this.total_wins,
       total_score: this.total_score,
       best_score: this.best_score,
       total_lines_cleared: this.total_lines_cleared,

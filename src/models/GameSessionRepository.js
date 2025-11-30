@@ -176,9 +176,6 @@ class GameSessionRepository {
     const query = `
       SELECT
         COUNT(*) as total_games,
-        SUM(CASE WHEN game_result = 'win' THEN 1 ELSE 0 END) as wins,
-        SUM(CASE WHEN game_result = 'loss' THEN 1 ELSE 0 END) as losses,
-        SUM(CASE WHEN game_result = 'draw' THEN 1 ELSE 0 END) as draws,
         AVG(score) as average_score,
         AVG(duration_seconds) as average_duration,
         AVG(lines_cleared) as average_lines_cleared,
@@ -288,16 +285,16 @@ class GameSessionRepository {
         // If no stats exist, create a new record
         const createStatsQuery = `
           INSERT INTO game_statistics (
-            user_id, total_games, wins, losses, draws, total_score,
+            user_id, total_games, total_score,
             total_lines_cleared, total_duration, best_score, best_lines_cleared,
-            average_score, average_lines_cleared, average_duration, games_played_today
+            average_score, average_lines_cleared, average_duration
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
           RETURNING *;
         `;
         
         const initialStatsValues = [
-          playerId, 1, gameSessionData.game_result === 'win' ? 1 : 0, gameSessionData.game_result === 'loss' ? 1 : 0, gameSessionData.game_result === 'draw' ? 1 : 0, gameSessionData.score, gameSessionData.lines_cleared, gameSessionData.duration_seconds, gameSessionData.score, gameSessionData.lines_cleared, gameSessionData.score, gameSessionData.lines_cleared, gameSessionData.duration_seconds, 1
+          playerId, 1, gameSessionData.score, gameSessionData.lines_cleared, gameSessionData.duration_seconds, gameSessionData.score, gameSessionData.lines_cleared, gameSessionData.score, gameSessionData.lines_cleared, gameSessionData.duration_seconds
         ];
         
         const createResult = await client.query(createStatsQuery, initialStatsValues);
@@ -309,9 +306,6 @@ class GameSessionRepository {
       // Calculate new statistics based on the game session
       const gameResult = gameSessionData.game_result;
       const newTotalGames = parseInt(currentStats.total_games) + 1;
-      const newWins = gameResult === 'win' ? parseInt(currentStats.wins) + 1 : parseInt(currentStats.wins);
-      const newLosses = gameResult === 'loss' ? parseInt(currentStats.losses) + 1 : parseInt(currentStats.losses);
-      const newDraws = gameResult === 'draw' ? parseInt(currentStats.draws) + 1 : parseInt(currentStats.draws);
       const newTotalScore = parseInt(currentStats.total_score) + gameSessionData.score;
       const newTotalLinesCleared = parseInt(currentStats.total_lines_cleared) + gameSessionData.lines_cleared;
       const newTotalDuration = parseInt(currentStats.total_duration) + gameSessionData.duration_seconds;
@@ -328,17 +322,17 @@ class GameSessionRepository {
       // Update the statistics record
       const updateStatsQuery = `
         UPDATE game_statistics
-        SET total_games = $2, wins = $3, losses = $4, draws = $5, total_score = $6,
-            total_lines_cleared = $7, total_duration = $8, best_score = $9, best_lines_cleared = $10,
-            average_score = $11, average_lines_cleared = $12, average_duration = $13, games_played_today = $14, updated_at = NOW()
+        SET total_games = $2, total_score = $3,
+            total_lines_cleared = $4, total_duration = $5, best_score = $6, best_lines_cleared = $7,
+            average_score = $8, average_lines_cleared = $9, average_duration = $10, updated_at = NOW()
         WHERE user_id = $1
         RETURNING *;
       `;
       
       const statsValues = [
-        playerId, newTotalGames, newWins, newLosses, newDraws, newTotalScore,
+        playerId, newTotalGames, newTotalScore,
         newTotalLinesCleared, newTotalDuration, newBestScore, newBestLinesCleared,
-        newAverageScore, newAverageLinesCleared, newAverageDuration, parseInt(currentStats.games_played_today) + 1
+        newAverageScore, newAverageLinesCleared, newAverageDuration
       ];
       
       const updateStatsResult = await client.query(updateStatsQuery, statsValues);

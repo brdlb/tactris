@@ -73,8 +73,7 @@ app.get('/api/user/stats/public', async (req, res) => {
       return res.status(200).json({
         user_id: user_id,
         total_games: 0,
-        total_wins: 0,
-        win_rate: 0,
+        total_score: 0,
         total_score: 0,
         average_score: 0,
         best_score: 0,
@@ -88,15 +87,15 @@ app.get('/api/user/stats/public', async (req, res) => {
       });
     }
 
-    // Calculate win rate
-    const winRate = stats.total_games > 0 ? (stats.wins / stats.total_games) * 100 : 0;
+    // Calculate average score
+    const avgScore = stats.total_games > 0 ? stats.total_score / stats.total_games : 0;
 
     // Return formatted statistics
     const responseData = {
       user_id: user_id,
       total_games: stats.total_games,
-      total_wins: stats.wins,
-      win_rate: winRate,
+      total_score: stats.total_score,
+      average_score: avgScore,
       total_score: stats.total_score,
       average_score: stats.average_score || 0,
       best_score: stats.best_score,

@@ -54,20 +54,17 @@ class GameSessionService {
         // If no stats exist, create a new record
         const createStatsQuery = `
           INSERT INTO game_statistics (
-            user_id, total_games, wins, losses, draws, total_score,
+            user_id, total_games, total_score,
             total_lines_cleared, total_duration, total_figures_placed, total_play_time_seconds,
             best_score, best_lines_cleared,
-            average_score, average_lines_cleared, average_lines_per_game, average_duration, games_played_today
+            average_score, average_lines_cleared, average_lines_per_game, average_duration
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
           RETURNING *;
         `;
         
         const initialStatsValues = [
             userId, 1, // total_games starts at 1 since this is the first game
-            0,  // wins - not applicable in this game mode
-            0, // losses - not applicable in this game mode
-            0, // draws - not applicable in this game mode
             gameSessionData.score, // total_score
             gameSessionData.lines_cleared, // total_lines_cleared
             gameSessionData.figures_placed || 0, // total_figures_placed
@@ -77,8 +74,7 @@ class GameSessionService {
             gameSessionData.score, // average_score (for single game)
             gameSessionData.lines_cleared, // average_lines_cleared (for single game)
             gameSessionData.lines_cleared, // average_lines_per_game (for single game)
-            gameSessionData.duration_seconds, // average_duration (for single game)
-            1 // games_played_today
+            gameSessionData.duration_seconds // average_duration (for single game)
         ];
         
         const createResult = await client.query(createStatsQuery, initialStatsValues);
@@ -90,9 +86,6 @@ class GameSessionService {
       // Calculate new statistics based on the game session
       const gameResult = gameSessionData.game_result;
       const newTotalGames = parseInt(currentStats.total_games) + 1;
-      const newWins = parseInt(currentStats.wins); // Wins not applicable in this game mode
-      const newLosses = parseInt(currentStats.losses); // Losses not applicable in this game mode
-      const newDraws = parseInt(currentStats.draws); // Draws not applicable in this game mode;
       const newTotalScore = parseInt(currentStats.total_score) + gameSessionData.score;
       const newTotalLinesCleared = parseInt(currentStats.total_lines_cleared) + gameSessionData.lines_cleared;
       const newTotalDuration = parseInt(currentStats.total_duration) + gameSessionData.duration_seconds;
@@ -109,19 +102,19 @@ class GameSessionService {
       // Update the statistics record
       const updateStatsQuery = `
         UPDATE game_statistics
-        SET total_games = $2, wins = $3, losses = $4, draws = $5, total_score = $6,
-            total_lines_cleared = $7, total_figures_placed = $8, total_play_time_seconds = $9,
-            best_score = $10, best_lines_cleared = $11,
-            average_score = $12, average_lines_cleared = $13, average_lines_per_game = $14, average_duration = $15, games_played_today = $16, updated_at = NOW()
+        SET total_games = $2, total_score = $3,
+            total_lines_cleared = $4, total_figures_placed = $5, total_play_time_seconds = $6,
+            best_score = $7, best_lines_cleared = $8,
+            average_score = $9, average_lines_cleared = $10, average_lines_per_game = $11, average_duration = $12, updated_at = NOW()
         WHERE user_id = $1
         RETURNING *;
       `;
       
       const statsValues = [
-        userId, newTotalGames, newWins, newLosses, newDraws, newTotalScore,
+        userId, newTotalGames, newTotalScore,
         newTotalLinesCleared, currentStats.total_figures_placed + (gameSessionData.figures_placed || 0), currentStats.total_play_time_seconds + (gameSessionData.duration_seconds || 0),
         newBestScore, newBestLinesCleared,
-        newAverageScore, newAverageLinesCleared, newTotalLinesCleared / newTotalGames, newAverageDuration, parseInt(currentStats.games_played_today) + 1
+        newAverageScore, newAverageLinesCleared, newTotalLinesCleared / newTotalGames, newAverageDuration
       ];
       
       const updateStatsResult = await client.query(updateStatsQuery, statsValues);
@@ -174,20 +167,17 @@ class GameSessionService {
           // If no stats exist, create a new record
           const createStatsQuery = `
             INSERT INTO game_statistics (
-              user_id, total_games, wins, losses, draws, total_score,
+              user_id, total_games, total_score,
               total_lines_cleared, total_duration, total_figures_placed, total_play_time_seconds,
               best_score, best_lines_cleared,
-              average_score, average_lines_cleared, average_lines_per_game, average_duration, games_played_today
+              average_score, average_lines_cleared, average_lines_per_game, average_duration
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             RETURNING *;
           `;
           
           const initialStatsValues = [
               userId, 1, // total_games starts at 1 since this is the first game
-              0,  // wins - not applicable in this game mode
-              0, // losses - not applicable in this game mode
-              0, // draws - not applicable in this game mode
               gameSessionData.score, // total_score
               gameSessionData.lines_cleared, // total_lines_cleared
               gameSessionData.figures_placed || 0, // total_figures_placed
@@ -197,8 +187,7 @@ class GameSessionService {
               gameSessionData.score, // average_score (for single game)
               gameSessionData.lines_cleared, // average_lines_cleared (for single game)
               gameSessionData.lines_cleared, // average_lines_per_game (for single game)
-              gameSessionData.duration_seconds, // average_duration (for single game)
-              1 // games_played_today
+              gameSessionData.duration_seconds // average_duration (for single game)
           ];
           
           const createResult = await client.query(createStatsQuery, initialStatsValues);
@@ -210,9 +199,6 @@ class GameSessionService {
         // Calculate new statistics based on the game session
         const gameResult = gameSessionData.game_result;
         const newTotalGames = parseInt(currentStats.total_games) + 1;
-        const newWins = parseInt(currentStats.wins); // Wins not applicable in this game mode
-        const newLosses = parseInt(currentStats.losses); // Losses not applicable in this game mode
-        const newDraws = parseInt(currentStats.draws); // Draws not applicable in this game mode;
         const newTotalScore = parseInt(currentStats.total_score) + gameSessionData.score;
         const newTotalLinesCleared = parseInt(currentStats.total_lines_cleared) + gameSessionData.lines_cleared;
         const newTotalDuration = parseInt(currentStats.total_duration) + gameSessionData.duration_seconds;
@@ -229,19 +215,19 @@ class GameSessionService {
         // Update the statistics record
         const updateStatsQuery = `
           UPDATE game_statistics
-          SET total_games = $2, wins = $3, losses = $4, draws = $5, total_score = $6,
-              total_lines_cleared = $7, total_figures_placed = $8, total_play_time_seconds = $9,
-              best_score = $10, best_lines_cleared = $11,
-              average_score = $12, average_lines_cleared = $13, average_lines_per_game = $14, average_duration = $15, games_played_today = $16, updated_at = NOW()
+          SET total_games = $2, total_score = $3,
+              total_lines_cleared = $4, total_figures_placed = $5, total_play_time_seconds = $6,
+              best_score = $7, best_lines_cleared = $8,
+              average_score = $9, average_lines_cleared = $10, average_lines_per_game = $11, average_duration = $12, updated_at = NOW()
           WHERE user_id = $1
           RETURNING *;
         `;
         
         const statsValues = [
-          userId, newTotalGames, newWins, newLosses, newDraws, newTotalScore,
+          userId, newTotalGames, newTotalScore,
           newTotalLinesCleared, currentStats.total_figures_placed + (gameSessionData.figures_placed || 0), currentStats.total_play_time_seconds + (gameSessionData.duration_seconds || 0),
           newBestScore, newBestLinesCleared,
-          newAverageScore, newAverageLinesCleared, newTotalLinesCleared / newTotalGames, newAverageDuration, parseInt(currentStats.games_played_today) + 1
+          newAverageScore, newAverageLinesCleared, newTotalLinesCleared / newTotalGames, newAverageDuration
         ];
         
         const updateStatsResult = await client.query(updateStatsQuery, statsValues);
