@@ -3,13 +3,14 @@ import { FIGURES } from '../../../constants/figures';
 import FigureRenderer from './FigureRenderer';
 
 const FiguresPanel = ({ score, figures, playerColor }) => {
+    console.log('[DEBUG FiguresPanel]', { figures, type: typeof figures, isArray: Array.isArray(figures), hasLength: figures?.length });
 
     return (
         <div className="figures-panel">
             <div style={{ marginBottom: '10px', fontSize: '1.2em', fontWeight: 'bold' }}>
                 {score}
             </div>
-            {figures.length > 0 && (
+            {figures?.length > 0 && (
                 <div style={{ display: 'flex' }}>
                     {figures.map((figure, i) => (
                         <div key={i} style={{ marginRight: '10px' }}>
