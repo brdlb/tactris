@@ -33,14 +33,7 @@ const GameGrid = ({
                     ))
                 )}
             </div>
-            <div style={{
-                fontSize: '0.75rem',
-                marginTop: '4px',
-                color: 'var(--text-secondary)',
-                alignSelf: 'flex-end'
-            }}>
-                #{roomId}
-            </div>
+
         </div>
     );
 };

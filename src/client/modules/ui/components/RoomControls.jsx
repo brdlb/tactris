@@ -5,7 +5,7 @@ const RoomControls = ({ rooms, onCreateRoom, onJoinRoom }) => {
     return (
         <div className="room-controls">
             <button
-                onClick={onCreateRoom}
+                onClick={() => onCreateRoom()}
                 className="create-room-btn"
             >
                 Create Room
