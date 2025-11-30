@@ -4,8 +4,6 @@ import { useDrawingInteraction } from '../hooks/useDrawingInteraction';
 import { useTheme } from '../hooks/useTheme';
 import { getUserColor } from '../../../utils/colorUtils.js';
 import RoomManager from './RoomManager';
-import ScoreBoard from './ScoreBoard';
-import FiguresPanel from './FiguresPanel';
 import GameOverOverlay from './GameOverOverlay';
 import SettingsModal from './SettingsModal';
 
@@ -68,10 +66,6 @@ const GameBoardMain = () => {
 
     return (
         <div className="game-container">
-            {/* Settings Button */}
-            <button className="settings-button" onClick={handleSettingsToggle}>
-                ⚙️
-            </button>
 
             {/* Settings Modal */}
             <SettingsModal
@@ -96,12 +90,6 @@ const GameBoardMain = () => {
 
 
             <div className="game-content">
-                {roomId && (
-                    <div className="game-sidebar">
-                        <ScoreBoard score={score} />
-                        <FiguresPanel myFigures={myFigures} score={score} playerColor={playerColor} />
-                    </div>
-                )}
 
                 <div
                   key={previewKey}
