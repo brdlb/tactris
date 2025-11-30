@@ -188,7 +188,9 @@ class GameSessionRepository {
 
     try {
       const result = await this.db.query(query, values);
-      return result.rows[0];
+      const stats = result.rows[0];
+      console.log(`⏰ [GameSessionRepository] getPlayerStats: average_duration=${stats.average_duration}, total_games=${stats.total_games}`);
+      return stats;
     } catch (error) {
       throw new Error(`Error getting user stats: ${error.message}`);
     }
@@ -309,6 +311,7 @@ class GameSessionRepository {
       const newTotalScore = parseInt(currentStats.total_score) + gameSessionData.score;
       const newTotalLinesCleared = parseInt(currentStats.total_lines_cleared) + gameSessionData.lines_cleared;
       const newTotalDuration = parseInt(currentStats.total_duration) + gameSessionData.duration_seconds;
+      console.log(`⏰ [GameSessionRepository] Updating statistics: total_duration ${currentStats.total_duration} + ${gameSessionData.duration_seconds} = ${newTotalDuration}`);
       
       // Update best scores if needed
       const newBestScore = Math.max(parseInt(currentStats.best_score), gameSessionData.score);

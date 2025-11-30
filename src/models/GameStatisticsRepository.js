@@ -37,7 +37,7 @@ class GameStatisticsRepository {
         best_score, best_lines_cleared,
         average_score, average_lines_cleared, average_lines_per_game, average_duration
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *;
     `;
 
@@ -156,6 +156,7 @@ class GameStatisticsRepository {
     const newTotalScore = parseInt(currentStats.total_score) + gameSession.score;
     const newTotalLinesCleared = parseInt(currentStats.total_lines_cleared) + gameSession.lines_cleared;
     const newTotalDuration = parseInt(currentStats.total_duration) + gameSession.duration_seconds;
+    console.log(`⏰ [GameStatisticsRepository] Updating statistics: total_duration ${currentStats.total_duration} + ${gameSession.duration_seconds} = ${newTotalDuration}`);
     
     // Update best scores if needed
     const newBestScore = Math.max(parseInt(currentStats.best_score), gameSession.score);
@@ -167,13 +168,16 @@ class GameStatisticsRepository {
     const newAverageDuration = Math.min(newTotalDuration / newTotalGames, 999999.99);
 
     // Update the statistics record
+    const newTotalPlayTime = parseInt(currentStats.total_play_time_seconds) + (gameSession.duration_seconds || 0);
+    console.log(`⏰ [GameStatisticsRepository] Updating total_play_time_seconds: ${currentStats.total_play_time_seconds} + ${gameSession.duration_seconds || 0} = ${newTotalPlayTime}`);
+    
     const updatedStats = await this.update(userId, {
       total_games: newTotalGames,
       total_score: newTotalScore,
       total_lines_cleared: newTotalLinesCleared,
       total_duration: newTotalDuration,
       total_figures_placed: parseInt(currentStats.total_figures_placed) + (gameSession.figures_placed || 0),
-      total_play_time_seconds: parseInt(currentStats.total_play_time_seconds) + (gameSession.duration_seconds || 0),
+      total_play_time_seconds: newTotalPlayTime,
       best_score: newBestScore,
       best_lines_cleared: newBestLinesCleared,
       average_score: newAverageScore,
@@ -321,7 +325,7 @@ class GameStatisticsRepository {
             best_score, best_lines_cleared,
             average_score, average_lines_cleared, average_lines_per_game, average_duration
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
           RETURNING *;
         `;
         
@@ -355,16 +359,16 @@ class GameStatisticsRepository {
       const updateStatsQuery = `
         UPDATE game_statistics
         SET total_games = $2, total_score = $3,
-            total_lines_cleared = $4, total_figures_placed = $5, total_play_time_seconds = $6,
-            best_score = $7, best_lines_cleared = $8,
-            average_score = $9, average_lines_cleared = $10, average_lines_per_game = $11, average_duration = $12, updated_at = NOW()
-        WHERE user_id = $1
-        RETURNING *;
-      `;
+            total_lines_cleared = $4, total_duration = $5, total_figures_placed = $6, total_play_time_seconds = $7,
+            best_score = $8, best_lines_cleared = $9,
+            average_score = $10, average_lines_cleared = $11, average_lines_per_game = $12, average_duration = $13, updated_at = NOW()
+      WHERE user_id = $1
+      RETURNING *;
+    `;
       
       const statsValues = [
         userId, newTotalGames, newTotalScore,
-        newTotalLinesCleared, parseInt(currentStats.total_figures_placed) + (gameSession.figures_placed || 0), parseInt(currentStats.total_play_time_seconds) + (gameSession.duration_seconds || 0),
+        newTotalLinesCleared, newTotalDuration, parseInt(currentStats.total_figures_placed) + (gameSession.figures_placed || 0), parseInt(currentStats.total_play_time_seconds) + (gameSession.duration_seconds || 0),
         newBestScore, newBestLinesCleared,
         newAverageScore, newAverageLinesCleared, newTotalLinesCleared / newTotalGames, newAverageDuration
       ];

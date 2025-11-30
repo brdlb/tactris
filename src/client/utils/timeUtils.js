@@ -9,6 +9,7 @@ export const secondsToDhms = (seconds) => {
   }
 
   // Convert to integer to handle decimal seconds
+  console.log(`⏰ [timeUtils] Converting ${seconds} seconds to dhms format`);
   seconds = Math.floor(seconds);
 
   const days = Math.floor(seconds / (24 * 3600));
@@ -24,5 +25,7 @@ export const secondsToDhms = (seconds) => {
   const formattedMinutes = String(minutes).padStart(2, '0');
   const formattedSeconds = String(seconds).padStart(2, '0');
 
-  return `${formattedDays}:${formattedHours}:${formattedMinutes}:${formattedSeconds}`;
+  const result = `${formattedDays}:${formattedHours}:${formattedMinutes}:${formattedSeconds}`;
+  console.log(`⏰ [timeUtils] Converted ${Math.floor(seconds)} seconds to ${result}`);
+  return result;
 };

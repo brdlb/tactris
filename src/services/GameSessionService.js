@@ -89,6 +89,7 @@ class GameSessionService {
       const newTotalScore = parseInt(currentStats.total_score) + gameSessionData.score;
       const newTotalLinesCleared = parseInt(currentStats.total_lines_cleared) + gameSessionData.lines_cleared;
       const newTotalDuration = parseInt(currentStats.total_duration) + gameSessionData.duration_seconds;
+      console.log(`⏰ [GameSessionService] Updating statistics: total_duration ${currentStats.total_duration} + ${gameSessionData.duration_seconds} = ${newTotalDuration}`);
       
       // Update best scores if needed
       const newBestScore = Math.max(parseInt(currentStats.best_score), gameSessionData.score);
@@ -110,9 +111,12 @@ class GameSessionService {
         RETURNING *;
       `;
       
+      const newTotalPlayTime = currentStats.total_play_time_seconds + (gameSessionData.duration_seconds || 0);
+      console.log(`⏰ [GameSessionService] Updating total_play_time_seconds: ${currentStats.total_play_time_seconds} + ${gameSessionData.duration_seconds || 0} = ${newTotalPlayTime}`);
+      
       const statsValues = [
         userId, newTotalGames, newTotalScore,
-        newTotalLinesCleared, currentStats.total_figures_placed + (gameSessionData.figures_placed || 0), currentStats.total_play_time_seconds + (gameSessionData.duration_seconds || 0),
+        newTotalLinesCleared, currentStats.total_figures_placed + (gameSessionData.figures_placed || 0), newTotalPlayTime,
         newBestScore, newBestLinesCleared,
         newAverageScore, newAverageLinesCleared, newTotalLinesCleared / newTotalGames, newAverageDuration
       ];
@@ -136,8 +140,11 @@ class GameSessionService {
    */
   async completeGameSessionWithRepositoryMethods(sessionId, sessionUpdates, userId, gameSessionData) {
     // Use the repository methods that already handle transactions internally
+    console.log(`⏰ [GameSessionService] completeGameSessionWithRepositoryMethods: starting session update with duration ${gameSessionData.duration_seconds}`);
     const updatedSession = await this.gameSessionRepository.update(sessionId, sessionUpdates);
+    console.log(`⏰ [GameSessionService] completeGameSessionWithRepositoryMethods: session updated, now updating statistics`);
     const updatedStatistics = await this.gameStatisticsRepository.updateFromGameSessionWithTransaction(userId, gameSessionData);
+    console.log(`⏰ [GameSessionService] completeGameSessionWithRepositoryMethods: statistics updated, total_play_time_seconds now ${updatedStatistics.total_play_time_seconds}`);
     
     return {
       session: updatedSession,

@@ -260,7 +260,7 @@ io.on('connection', (socket) => {
            grid_height: gameInstance.gridHeight,
            initial_grid: JSON.stringify(gameInstance.getInitialGrid()),
            final_grid: JSON.stringify(gameInstance.grid),
-           duration_seconds: gameInstance.getDuration ? gameInstance.getDuration() : 0,
+           duration_seconds: gameInstance.getPlayerDuration ? gameInstance.getPlayerDuration(playerId) : 0,
            lines_cleared: gameInstance.getLinesCleared ? gameInstance.getLinesCleared() : 0,
            figures_placed: gameInstance.getFiguresPlaced ? gameInstance.getFiguresPlaced() : 0,
            score: gameInstance.getScore ? gameInstance.getScore(playerId) : 0,
@@ -339,7 +339,7 @@ io.on('connection', (socket) => {
          grid_height: gameInstance.gridHeight,
          initial_grid: JSON.stringify(gameInstance.getInitialGrid()),
          final_grid: JSON.stringify(gameInstance.grid),
-         duration_seconds: gameInstance.getDuration ? gameInstance.getDuration() : 0,
+         duration_seconds: gameInstance.getPlayerDuration ? gameInstance.getPlayerDuration(playerId) : 0,
          lines_cleared: gameInstance.getLinesCleared ? gameInstance.getLinesCleared() : 0,
          figures_placed: gameInstance.getFiguresPlaced ? gameInstance.getFiguresPlaced() : 0,
          score: gameInstance.getScore ? gameInstance.getScore(playerId) : 0,
@@ -575,11 +575,14 @@ io.on('connection', (socket) => {
      const roomsToNotify = [];
      
      for (const [roomId, game] of games.entries()) {
-       if (game.removePlayer(socket.id)) {
+       if (game.players.has(socket.id)) {
          roomsToNotify.push(roomId);
          
-         // Update the game session and statistics for the leaving player
+         // Update the game session and statistics for the leaving player BEFORE removing them
          await completePlayerSessionOnLeave(roomId, socket.id);
+         
+         // Now remove the player from the game
+         game.removePlayer(socket.id);
          
          // If the game was in progress and a player disconnected, we might want to update the game session
          if (!game.gameOver && game.players.size > 0) {

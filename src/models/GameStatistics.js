@@ -76,9 +76,12 @@ class GameStatistics {
    */
   calculateAverageDuration() {
     if (this.total_games === 0) {
+      console.log(`⏰ [GameStatistics] calculateAverageDuration: no games played, returning 0`);
       return 0;
     }
-    return Math.round(this.total_duration / this.total_games);
+    const avg = Math.round(this.total_duration / this.total_games);
+    console.log(`⏰ [GameStatistics] calculateAverageDuration: total_duration=${this.total_duration}, total_games=${this.total_games}, average=${avg}`);
+    return avg;
   }
 
   /**
@@ -136,8 +139,10 @@ class GameStatistics {
       this.total_figures_placed = parseInt(this.total_figures_placed) + gameSession.figures_placed;
 
       // Update duration statistics
+      console.log(`⏰ [GameStatistics] Updating total duration: ${this.total_duration} + ${gameSession.duration} = ${parseInt(this.total_duration) + gameSession.duration}`);
       this.total_duration = parseInt(this.total_duration) + gameSession.duration;
       if (this.best_duration === 0 || (gameSession.duration > 0 && gameSession.duration < this.best_duration)) {
+          console.log(`⏰ [GameStatistics] Updating best duration: ${gameSession.duration} (was ${this.best_duration})`);
           this.best_duration = gameSession.duration;
       }
 

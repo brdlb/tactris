@@ -12,23 +12,25 @@ const safeFormatNumber = (value, defaultValue = 0, decimalPlaces = 0) => {
 
 
 const StatsModal = ({ isOpen, onClose, statsData }) => {
-    if (!isOpen) return null;
+     if (!isOpen) return null;
 
-    // Default stats if no data is provided
-    const stats = statsData || {
-        user_id: null,
-        total_games: 0,
-        total_score: 0,
-        average_score: 0,
-        best_score: 0,
-        total_lines_cleared: 0,
-        average_lines_cleared: 0,
-        best_lines_cleared: 0,
-        total_figures_placed: 0,
-        total_play_time_seconds: 0,
-        average_lines_per_game: 0,
-        rating: 1000
-    };
+     // Default stats if no data is provided
+     const stats = statsData || {
+         user_id: null,
+         total_games: 0,
+         total_score: 0,
+         average_score: 0,
+         best_score: 0,
+         total_lines_cleared: 0,
+         average_lines_cleared: 0,
+         best_lines_cleared: 0,
+         total_figures_placed: 0,
+         total_play_time_seconds: 0,
+         average_lines_per_game: 0,
+         rating: 1000
+     };
+     
+     console.log(`⏰ [StatsModal] Rendering with total play time: ${stats.total_play_time_seconds} seconds`);
     
     return (
         <div className="modal-overlay" onClick={onClose}>

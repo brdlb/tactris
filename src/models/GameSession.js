@@ -65,9 +65,13 @@ class GameSession {
    */
   calculateDuration() {
     if (!this.end_time) {
+      console.log(`⏰ [GameSession] Duration calculation: end_time is null, returning 0`);
       return 0;
     }
-    return Math.floor((this.end_time - this.start_time) / 1000);
+    
+    const duration = Math.floor((this.end_time - this.start_time) / 1000);
+    console.log(`⏰ [GameSession] Duration calculated: ${duration} seconds (start: ${this.start_time}, end: ${this.end_time})`);
+    return duration;
   }
 
   /**
@@ -161,7 +165,9 @@ class GameSession {
    */
   updateWithEndData(endGameData) {
     this.end_time = endGameData.end_time ? new Date(endGameData.end_time) : new Date();
+    console.log(`⏰ [GameSession] Updating with end data, setting end_time to: ${this.end_time}`);
     this.duration = this.calculateDuration();
+    console.log(`⏰ [GameSession] Updated duration to: ${this.duration} seconds`);
     this.score = endGameData.score || this.score;
     this.lines_cleared = endGameData.lines_cleared || this.lines_cleared;
     this.figures_placed = endGameData.figures_placed || this.figures_placed;

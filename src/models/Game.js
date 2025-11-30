@@ -66,6 +66,7 @@ class Game {
         this.initialGrid = Array(this.gridHeight).fill(null).map(() => Array(this.gridWidth).fill(null)); // Initial empty grid
         this.players = new Map();
         this.authenticatedUserIds = {}; // Map to store authenticated user IDs for each socket ID
+        this.playerJoinTimes = {}; // Track when each player joined the game
         this.gameOver = false;
         this.startTime = Date.now(); // Track game start time for duration
         this.linesCleared = 0; // Track total lines cleared
@@ -87,6 +88,9 @@ class Game {
                 color: color
             });
             
+            // Store the join time for this player
+            this.playerJoinTimes[playerId] = Date.now();
+            
             // Store the authenticated user ID if provided
             if (authenticatedUserId && authenticatedUserId !== playerId) {
                 this.authenticatedUserIds[playerId] = authenticatedUserId;
@@ -107,6 +111,10 @@ class Game {
     removePlayer(playerId) {
         if (this.players.has(playerId)) {
             this.players.delete(playerId);
+            // Remove the player's join time as well
+            if (this.playerJoinTimes[playerId]) {
+                delete this.playerJoinTimes[playerId];
+            }
             // Clear any temporary pixels placed by this player
             this.clearTemporary(playerId);
             return true;
@@ -453,18 +461,34 @@ class Game {
         
         // Reset game tracking properties
         this.startTime = Date.now();
+        // Reset player join times to the restart time
+        for (const playerId of this.players.keys()) {
+            this.playerJoinTimes[playerId] = Date.now();
+        }
         this.linesCleared = 0;
         this.figuresPlaced = 0;
         this.moves = [];
     }
 
     /**
-     * Get the duration of the game in seconds
-     * @returns {number} Duration in seconds
-     */
-    getDuration() {
-        return Math.floor((Date.now() - this.startTime) / 1000);
-    }
+      * Get the duration of the game in seconds
+      * @returns {number} Duration in seconds
+      */
+     getDuration() {
+         return Math.floor((Date.now() - this.startTime) / 1000);
+     }
+     
+     /**
+      * Get the duration a specific player has been in the game in seconds
+      * @param {string} playerId - The player ID
+      * @returns {number} Duration in seconds
+      */
+     getPlayerDuration(playerId) {
+         if (!this.playerJoinTimes[playerId]) {
+             return 0;
+         }
+         return Math.floor((Date.now() - this.playerJoinTimes[playerId]) / 1000);
+     }
 
     /**
      * Get the total lines cleared in the game
