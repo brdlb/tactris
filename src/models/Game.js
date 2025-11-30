@@ -281,103 +281,114 @@ class Game {
         }
 
     checkLines() {
-                // Helper function to check if a row is completely filled
-                const isRowFilled = (rowIndex) => {
-                    return this.grid[rowIndex].every(cell => cell !== null);
-                };
-            
-                // Helper function to check if a column is completely filled
-                const isColFilled = (colIndex) => {
-                    for (let y = 0; y < this.gridHeight; y++) {
-                        if (this.grid[y][colIndex] === null) {
-                            return false;
-                        }
-                    }
-                    return true;
-                };
-            
-                // Helper function to shift rows to center, removing filled rows
-                const shiftRowsToCenter = (fullRowIndices) => {
-                    const centerRow = Math.floor(this.gridHeight / 2);
-                    let topRows = this.grid.slice(0, centerRow);
-                    let bottomRows = this.grid.slice(centerRow, this.gridHeight);
-            
-                    // Filter out full rows from top and unshift empty rows
-                    topRows = topRows.filter((_, index) => !fullRowIndices.includes(index));
-                    while (topRows.length < centerRow) {
-                        topRows.unshift(Array(this.gridWidth).fill(null));
-                    }
-            
-                    // Filter out full rows from bottom and push empty rows
-                    bottomRows = bottomRows.filter((_, index) => !fullRowIndices.includes(index + centerRow));
-                    while (bottomRows.length < (this.gridHeight - centerRow)) {
-                        bottomRows.push(Array(this.gridWidth).fill(null));
-                    }
-            
-                    return [...topRows, ...bottomRows];
-                };
-            
-                // Helper function to shift columns to center, removing filled columns
-                const shiftColsToCenter = (fullColIndices) => {
-                    const centerCol = Math.floor(this.gridWidth / 2);
-                    for (let y = 0; y < this.gridHeight; y++) {
-                        let row = this.grid[y];
-                        let leftHalf = row.slice(0, centerCol);
-                        let rightHalf = row.slice(centerCol, this.gridWidth);
-            
-                        // Filter out full cols from left and unshift nulls
-                        leftHalf = leftHalf.filter((_, index) => !fullColIndices.includes(index));
-                        while (leftHalf.length < centerCol) {
-                            leftHalf.unshift(null);
-                        }
-            
-                        // Filter out full cols from right and push nulls
-                        rightHalf = rightHalf.filter((_, index) => !fullColIndices.includes(index + centerCol));
-                        while (rightHalf.length < (this.gridWidth - centerCol)) {
-                            rightHalf.push(null);
-                        }
-            
-                        this.grid[y] = [...leftHalf, ...rightHalf];
-                    }
-                };
-            
-                const fullRowIndices = [];
-                const fullColIndices = [];
-            
-                // 1. Identify full rows
-                for (let y = 0; y < this.gridHeight; y++) {
-                    if (isRowFilled(y)) {
-                        fullRowIndices.push(y);
-                    }
+        // Check if a row is completely filled
+        const isRowFilled = (rowIndex) => {
+            return this.grid[rowIndex].every(cell => cell !== null);
+        };
+
+        // Check if a column is completely filled
+        const isColFilled = (colIndex) => {
+            for (let y = 0; y < this.gridHeight; y++) {
+                if (this.grid[y][colIndex] === null) {
+                    return false;
                 }
-            
-                // 2. Identify full cols
-                for (let x = 0; x < this.gridWidth; x++) {
-                    if (isColFilled(x)) {
-                        fullColIndices.push(x);
-                    }
-                }
-            
-                if (fullRowIndices.length === 0 && fullColIndices.length === 0) {
-                    return 0; // Return 0 instead of undefined
-                }
-            
-                // 3. Process Rows (Shift to Center)
-                if (fullRowIndices.length > 0) {
-                    this.grid = shiftRowsToCenter(fullRowIndices);
-                }
-            
-                // 4. Process Columns (Shift to Center)
-                if (fullColIndices.length > 0) {
-                    shiftColsToCenter(fullColIndices);
-                }
-            
-                const totalLinesCleared = fullRowIndices.length + fullColIndices.length;
-                if (totalLinesCleared > 0) {
-                    this.incrementLinesCleared(totalLinesCleared);
-                }
-                return totalLinesCleared;
             }
+            return true;
+        };
+
+        // Identify filled rows and columns
+        const fullRowIndices = [];
+        const fullColIndices = [];
+        
+        for (let y = 0; y < this.gridHeight; y++) {
+            if (isRowFilled(y)) {
+                fullRowIndices.push(y);
+            }
+        }
+        
+        for (let x = 0; x < this.gridWidth; x++) {
+            if (isColFilled(x)) {
+                fullColIndices.push(x);
+            }
+        }
+
+        // Return early if no lines are filled
+        if (fullRowIndices.length === 0 && fullColIndices.length === 0) {
+            return 0;
+        }
+
+        // Process filled rows by shifting remaining rows toward center
+        if (fullRowIndices.length > 0) {
+            this.clearAndShiftRows(fullRowIndices);
+        }
+
+        // Process filled columns by shifting remaining columns toward center
+        if (fullColIndices.length > 0) {
+            this.clearAndShiftColumns(fullColIndices);
+        }
+
+        // Calculate total lines cleared and update counter
+        const totalLinesCleared = fullRowIndices.length + fullColIndices.length;
+        if (totalLinesCleared > 0) {
+            this.incrementLinesCleared(totalLinesCleared);
+        }
+        
+        return totalLinesCleared;
+    }
+
+    /**
+     * Clear filled rows and shift remaining rows toward center
+     * @param {number[]} fullRowIndices - Indices of filled rows to remove
+     */
+    clearAndShiftRows(fullRowIndices) {
+        const centerRow = Math.floor(this.gridHeight / 2);
+        let topRows = this.grid.slice(0, centerRow);
+        let bottomRows = this.grid.slice(centerRow, this.gridHeight);
+
+        // Remove filled rows from top and bottom sections
+        topRows = topRows.filter((_, index) => !fullRowIndices.includes(index));
+        bottomRows = bottomRows.filter((_, index) => !fullRowIndices.includes(index + centerRow));
+
+        // Add empty rows to maintain grid size
+        while (topRows.length < centerRow) {
+            topRows.unshift(Array(this.gridWidth).fill(null));
+        }
+        while (bottomRows.length < (this.gridHeight - centerRow)) {
+            bottomRows.push(Array(this.gridWidth).fill(null));
+        }
+
+        // Update grid with shifted rows
+        this.grid = [...topRows, ...bottomRows];
+    }
+
+    /**
+     * Clear filled columns and shift remaining columns toward center
+     * @param {number[]} fullColIndices - Indices of filled columns to remove
+     */
+    clearAndShiftColumns(fullColIndices) {
+        const centerCol = Math.floor(this.gridWidth / 2);
+        
+        for (let y = 0; y < this.gridHeight; y++) {
+            let row = this.grid[y];
+            let leftHalf = row.slice(0, centerCol);
+            let rightHalf = row.slice(centerCol, this.gridWidth);
+
+            // Remove filled columns from left and right sections
+            leftHalf = leftHalf.filter((_, index) => !fullColIndices.includes(index));
+            rightHalf = rightHalf.filter((_, index) => !fullColIndices.includes(index + centerCol));
+
+            // Add empty cells to maintain row size
+            while (leftHalf.length < centerCol) {
+                leftHalf.unshift(null);
+            }
+            while (rightHalf.length < (this.gridWidth - centerCol)) {
+                rightHalf.push(null);
+            }
+
+            // Update row with shifted columns
+            this.grid[y] = [...leftHalf, ...rightHalf];
+        }
+    }
 
     checkGameOver() {
         for (const player of this.players.values()) {
