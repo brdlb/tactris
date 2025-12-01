@@ -75,11 +75,9 @@ const useGameLogic = (boardRefOverride = null) => {
             
             // Add disconnect logging
             socket.on('disconnect', (reason) => {
-                console.log(`Socket disconnected: ${reason}`);
             });
             
             socket.on('reconnect', (attemptNumber) => {
-                console.log(`Socket reconnected after ${attemptNumber} attempts`);
             });
             
             const updateGameState = (state) => {
@@ -110,10 +108,10 @@ const useGameLogic = (boardRefOverride = null) => {
                                         setMyFigures(myPlayer.figures);
                                     }
                                     
-                                    // Update score if it changed
-                                    if (myPlayer.score !== undefined && myPlayer.score !== score) {
-                                        setScore(myPlayer.score);
-                                    }
+                                                                        // Update score from server always
+                                                                        if (myPlayer.score !== undefined) {
+                                                                            setScore(myPlayer.score);
+                                                                        }
                                 }
                             
                                 // Update players list to sync opponents' data (scores, figures)
@@ -127,8 +125,8 @@ const useGameLogic = (boardRefOverride = null) => {
                                     setPlayersList(updatedPlayersList);
                                 }
                                 
-                                // Update game over state if it changed
-                                if (state.gameOver !== undefined && state.gameOver !== gameOver) {
+                                // Update game over state from server always
+                                if (state.gameOver !== undefined) {
                                     setGameOver(state.gameOver);
                                 }
                                 
@@ -142,7 +140,6 @@ const useGameLogic = (boardRefOverride = null) => {
                             };
 
         socket.on('room_created', ({ roomId, state, playersList }) => {
-            console.log(`Room ${roomId} created successfully`);
             setRoomId(roomId);
             roomIdRef.current = roomId;
             pendingUpdates.current.clear(); // Clear pending updates for new room
@@ -154,7 +151,6 @@ const useGameLogic = (boardRefOverride = null) => {
         });
 
         socket.on('room_joined', ({ roomId, state, playersList }) => {
-            console.log(`Successfully joined room ${roomId}`);
             setRoomId(roomId);
             roomIdRef.current = roomId;
             pendingUpdates.current.clear(); // Clear pending updates for new room
@@ -188,7 +184,6 @@ const useGameLogic = (boardRefOverride = null) => {
 
         // Handle player events
         socket.on('player_joined', ({ player }) => {
-            console.log(`New player ${player.id} joined the room`);
             const playerWithDisplayId = {
                 ...player,
                 displayId: player.id ? `P-${player.id.slice(-6)}` : `P-${Math.floor(Math.random() * 10000)}`
@@ -197,7 +192,6 @@ const useGameLogic = (boardRefOverride = null) => {
         });
 
         socket.on('player_joined_restored', ({ player }) => {
-            console.log(`Returning player ${player.id} restored to the room`);
             const playerWithDisplayId = {
                 ...player,
                 displayId: player.id ? `P-${player.id.slice(-6)}` : `P-${Math.floor(Math.random() * 1000)}`
@@ -206,7 +200,6 @@ const useGameLogic = (boardRefOverride = null) => {
         });
 
         socket.on('player_left', ({ playerId }) => {
-            console.log(`Player ${playerId} left the room`);
             setPlayersList(prev => prev.filter(p => p.id !== playerId));
         });
 
@@ -243,7 +236,6 @@ const useGameLogic = (boardRefOverride = null) => {
         }
 
         return () => {
-            console.log('Cleaning up game logic socket listeners');
             socket.off('room_created');
             socket.off('room_joined');
             socket.off('game_update');
