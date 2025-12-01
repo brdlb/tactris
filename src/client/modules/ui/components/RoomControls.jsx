@@ -52,8 +52,8 @@ const RoomControls = ({ rooms, roomStates, onCreateRoom, onJoinRoom }) => {
                         key={`${x}-${y}`}
                         className="lobby-grid-cell"
                         style={{
-                          backgroundColor: cell ? (cell.color || 'var(--occupied-pixel-color)') : 'var(--cell-bg)',
-                          border: cell ? 'none' : '1px solid var(--border-color)'
+                          backgroundColor: cell ? (cell.state === 'drawing' ? cell.color : 'var(--occupied-pixel-color)') : 'var(--cell-bg)',
+                          border: 'none'
                         }}
                       />
                     ))
