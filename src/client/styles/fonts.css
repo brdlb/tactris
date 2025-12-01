@@ -5,19 +5,18 @@
 /* VirtualDJ Font Definitions */
 @font-face {
     font-family: 'VirtualDJ';
-    src: url('/fonts/VirtualDJ.woff2') format('woff2'),
-         url('/fonts/VirtualDJ.woff') format('woff'),
-         url('/fonts/VirtualDJ.ttf') format('truetype');
+    src: url('/fonts/VirtualDJ.woff') format('woff'),
+        url('/fonts/VirtualDJ.ttf') format('truetype');
     font-weight: normal;
     font-style: normal;
-    font-display: swap; /* Prevents invisible text during font load */
+    font-display: swap;
+    /* Prevents invisible text during font load */
 }
 
 @font-face {
     font-family: 'VirtualDJ';
-    src: url('/fonts/VirtualDJ.woff2') format('woff2'),
-         url('/fonts/VirtualDJ.woff') format('woff'),
-         url('/fonts/VirtualDJ.ttf') format('truetype');
+    src: url('/fonts/VirtualDJ.woff') format('woff'),
+        url('/fonts/VirtualDJ.ttf') format('truetype');
     font-weight: bold;
     font-style: normal;
     font-display: swap;
@@ -25,9 +24,8 @@
 
 @font-face {
     font-family: 'VirtualDJ';
-    src: url('/fonts/VirtualDJ.woff2') format('woff2'),
-         url('/fonts/VirtualDJ.woff') format('woff'),
-         url('/fonts/VirtualDJ.ttf') format('truetype');
+    src: url('/fonts/VirtualDJ.woff') format('woff'),
+        url('/fonts/VirtualDJ.ttf') format('truetype');
     font-weight: normal;
     font-style: italic;
     font-display: swap;

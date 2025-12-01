@@ -182,18 +182,18 @@ const useGameLogic = (boardRefOverride = null) => {
 
         socket.on('rooms_list', (roomList) => {
             setRooms(roomList);
+        });
 
-  socket.on('lobby_game_update', (data) => {
-    setRoomStates(prev => ({...prev, [data.roomId]: data}));
-  });
-  
-  socket.on('initial_lobby_state', (states) => {
-    const stateMap = {};
-    states.forEach(state => {
-      stateMap[state.roomId] = state;
-    });
-    setRoomStates(stateMap);
-  });
+        socket.on('lobby_game_update', (data) => {
+          setRoomStates(prev => ({...prev, [data.roomId]: data}));
+        });
+        
+        socket.on('initial_lobby_state', (states) => {
+          const stateMap = {};
+          states.forEach(state => {
+            stateMap[state.roomId] = state;
+          });
+          setRoomStates(stateMap);
         });
 
         // Handle player events
@@ -257,6 +257,8 @@ const useGameLogic = (boardRefOverride = null) => {
             socket.off('game_update');
             socket.off('game_over');
             socket.off('rooms_list');
+            socket.off('lobby_game_update');
+            socket.off('initial_lobby_state');
             socket.off('error');
             // Cleanup styles
             document.body.style.margin = '';
