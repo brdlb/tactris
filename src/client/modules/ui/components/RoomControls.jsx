@@ -1,34 +1,71 @@
 import React from 'react';
 import './GameBoard.css';
 
-const RoomControls = ({ rooms, onCreateRoom, onJoinRoom }) => {
-    return (
-        <div className="room-controls">
-            <button
-                onClick={() => onCreateRoom()}
-                className="create-room-btn"
-            >
-                Create Room
-            </button>
-            <div className="rooms-list">
-                <h3>Available Rooms:</h3>
-                {rooms.length === 0 ? (
-                    <p>No rooms available</p>
-                ) : (
-                    <ul>
-                        {rooms.map(room => (
-                            <li key={room.id}>
-                                {room.id}
-                                <button onClick={() => onJoinRoom(room.id)} className="join-btn">
-                                    Join
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </div>
-        </div>
-    );
+const RoomControls = ({ rooms, roomStates, onCreateRoom, onJoinRoom }) => {
+  const emptyGrid = Array.from({length: 10}, () => Array(10).fill(null));
+
+  return (
+    <div className="lobby-container">
+      <button
+        onClick={() => onCreateRoom()}
+        className="create-room-btn"
+      >
+        Create Room
+      </button>
+      
+      <div className="lobby-rooms-grid">
+        {rooms.length === 0 ? (
+          <p className="no-rooms-message">No rooms available</p>
+        ) : (
+          rooms.map(room => {
+            const roomState = roomStates[room.id] || { grid: emptyGrid, players: [] };
+            const grid = roomState.grid || emptyGrid;
+            const players = roomState.players || [];
+            
+            return (
+              <div key={room.id} className="lobby-room-card">
+                <div className="lobby-room-header">
+                  <h3>Room: {room.id}</h3>
+                  <div className="lobby-room-players">
+                    {players.map((player, idx) => (
+                      <div 
+                        key={idx} 
+                        className="lobby-player-indicator"
+                        style={{ backgroundColor: player.color }}
+                        title={`Player ${idx + 1}: ${player.color}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="lobby-room-grid">
+                  {grid.map((row, y) =>
+                    row.map((cell, x) => (
+                      <div
+                        key={`${x}-${y}`}
+                        className="lobby-grid-cell"
+                        style={{
+                          backgroundColor: cell ? (cell.color || 'var(--occupied-pixel-color)') : 'var(--cell-bg)',
+                          border: '1px solid var(--border-color)'
+                        }}
+                      />
+                    ))
+                  )}
+                </div>
+                
+                <button 
+                  onClick={() => onJoinRoom(room.id)} 
+                  className="join-btn"
+                >
+                  Join Room
+                </button>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
 };
 
 export default RoomControls;

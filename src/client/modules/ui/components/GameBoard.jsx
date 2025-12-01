@@ -22,6 +22,7 @@ const GameBoard = () => {
         grid,
         roomId,
         rooms,
+        roomStates,
         playersList,
         myFigures,
         score,
@@ -175,6 +176,7 @@ const GameBoard = () => {
             {!roomId && (
                 <RoomControls
                     rooms={rooms}
+                    roomStates={roomStates}
                     onCreateRoom={handleCreateRoom}
                     onJoinRoom={handleJoinRoom}
                 />

@@ -268,6 +268,17 @@ io.on('connection', (socket) => {
       });
   }
 
+  socket.join('lobby');
+  console.log(`Игрок ${shortUserIdHash(socket.userId)} присоединился к лобби`);
+
+  // Send initial lobby state to newly connected client
+  const initialLobbyState = Array.from(games.values()).map(game => ({
+    roomId: game.id,
+    grid: game.grid.map(row => row.map(cell => cell ? { ...cell } : null)),
+    players: game.getPlayersList().map(({ id, color, score }) => ({ id, color, score }))
+  }));
+  socket.emit('initial_lobby_state', initialLobbyState);
+
  // Helper function to complete game sessions for all players
    const completeGameSessions = async (roomId) => {
      const gameInstance = games.get(roomId);
@@ -502,6 +513,15 @@ io.on('connection', (socket) => {
     }
   };
 
+  const broadcastToLobby = (game, io) => {
+    const lobbyState = {
+      roomId: game.id,
+      grid: game.grid.map(row => row.map(cell => cell ? { ...cell } : null)),
+      players: game.getPlayersList().map(({ id, color, score }) => ({ id, color, score }))
+    };
+    io.to('lobby').emit('lobby_game_update', lobbyState);
+  };
+
   socket.on('create_room', async ({ color, rotateable = false }) => {
       const roomId = Math.random().toString(36).substring(7);
       const game = new Game(roomId, rotateable);
@@ -513,6 +533,8 @@ io.on('connection', (socket) => {
       games.set(roomId, game);
       game.lastActivity = Date.now();
       socket.join(roomId);
+      socket.leave('lobby');
+      console.log(`Игрок ${shortUserIdHash(socket.userId)} покинул лобби и вошел в комнату ${roomId}`);
       
       // Send players list to the room creator
       const playersList = game.getPlayersList();
@@ -521,6 +543,7 @@ io.on('connection', (socket) => {
         state: game.getState(),
         playersList
       });
+      broadcastToLobby(game, io);
   
       // Broadcast updated room list to all clients
       const roomList = Array.from(games.values()).map(g => ({ id: g.id }));
@@ -530,6 +553,8 @@ io.on('connection', (socket) => {
   socket.on('join_room', async ({ roomId, color }) => {
       if (games.has(roomId)) {
         socket.join(roomId);
+        socket.leave('lobby');
+        console.log(`Игрок ${shortUserIdHash(socket.userId)} покинул лобби и присоединился к комнате ${roomId}`);
         const game = games.get(roomId);
         game.lastActivity = Date.now();
         
@@ -676,6 +701,7 @@ io.on('connection', (socket) => {
           playersList
         });
         
+        broadcastToLobby(game, io);
         // Notify other players in the room about new player
         const newPlayerData = { id: socket.id, color, score: 0 };
         socket.to(roomId).emit('player_joined', {
@@ -702,6 +728,7 @@ io.on('connection', (socket) => {
       if (success) {
         const gameState = game.getState();
         io.to(roomId).emit('game_update', gameState);
+        // Don't broadcast to lobby on pixel placement - only on figure placement and line clearing
       } else {
         socket.emit('error', 'Invalid move');
       }
@@ -716,6 +743,7 @@ io.on('connection', (socket) => {
         if (success) {
           const gameState = game.getState();
           io.to(roomId).emit('game_update', gameState);
+          broadcastToLobby(game, io);
           if (game.checkGameOver()) {
             await completeGameSessions(roomId);
             io.to(roomId).emit('game_over');
@@ -738,6 +766,7 @@ io.on('connection', (socket) => {
         const playersList = game.getPlayersList();
         io.to(roomId).emit('game_update', gameState);
         io.to(roomId).emit('players_list_updated', { playersList });
+        // Don't broadcast to lobby on color update - only on figure placement and line clearing
       } else {
         socket.emit('error', 'Player not found in room');
       }
@@ -776,6 +805,7 @@ io.on('connection', (socket) => {
       io.to(roomId).emit('game_update', gameState);
       io.to(roomId).emit('players_list_updated', { playersList });
       io.to(roomId).emit('game_restarted');
+      broadcastToLobby(game, io);
     } else {
       socket.emit('error', 'Room not found');
     }
@@ -840,6 +870,7 @@ io.on('connection', (socket) => {
       // Send updated players list to remaining players
       const playersList = game.getPlayersList();
       io.to(roomId).emit('players_list_updated', { playersList });
+      broadcastToLobby(game, io);
     }
   };
 
@@ -847,6 +878,8 @@ io.on('connection', (socket) => {
   socket.on('leave_room', async ({ roomId }) => {
     console.log(`Player ${shortUserIdHash(socket.userId)} intentionally leaving room ${roomId}`);
     await handlePlayerLeave(roomId);
+    socket.join('lobby');
+    console.log(`Игрок ${shortUserIdHash(socket.userId)} вернулся в лобби из комнаты ${roomId}`);
     
     // Update room list for all clients
     const roomList = Array.from(games.values()).map(g => ({ id: g.id }));

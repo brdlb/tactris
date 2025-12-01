@@ -10,6 +10,7 @@ const useGameLogic = (boardRefOverride = null) => {
     const [roomId, setRoomId] = useState(null);
     const roomIdRef = useRef(null);
     const [rooms, setRooms] = useState([]);
+  const [roomStates, setRoomStates] = useState({});
     const [myFigures, setMyFigures] = useState([]);
     const [score, setScore] = useState(0);
     const [playersList, setPlayersList] = useState([]); // List of players in current room
@@ -181,6 +182,18 @@ const useGameLogic = (boardRefOverride = null) => {
 
         socket.on('rooms_list', (roomList) => {
             setRooms(roomList);
+
+  socket.on('lobby_game_update', (data) => {
+    setRoomStates(prev => ({...prev, [data.roomId]: data}));
+  });
+  
+  socket.on('initial_lobby_state', (states) => {
+    const stateMap = {};
+    states.forEach(state => {
+      stateMap[state.roomId] = state;
+    });
+    setRoomStates(stateMap);
+  });
         });
 
         // Handle player events
@@ -556,6 +569,7 @@ const useGameLogic = (boardRefOverride = null) => {
     return {
             grid,
             roomId,
+  roomStates,
             rooms,
             playersList,
             myFigures,
