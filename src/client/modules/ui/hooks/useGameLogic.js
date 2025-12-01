@@ -250,8 +250,36 @@ const useGameLogic = (boardRefOverride = null) => {
             document.body.style.overflow = '';
             document.body.style.backgroundColor = '';
         };
+
     }, []);
 
+    // Обработчик истории браузера для перехода назад в лобби
+    useEffect(() => {
+      const handlePopstate = () => {
+        const params = new URLSearchParams(window.location.search);
+        const urlRoomId = params.get('room');
+        const currentRoomId = roomIdRef.current;
+
+        if (urlRoomId !== currentRoomId) {
+          // Выходим из текущей комнаты если есть
+          if (currentRoomId) {
+            SocketManager.leaveRoom(currentRoomId);
+            setRoomId(null);
+            roomIdRef.current = null;
+            localStorage.removeItem('currentRoomId');
+          }
+          // Входим в новую комнату если указана
+          if (urlRoomId) {
+            SocketManager.joinRoom(urlRoomId, userColor.current);
+          }
+        }
+      };
+
+      window.addEventListener('popstate', handlePopstate);
+      return () => {
+        window.removeEventListener('popstate', handlePopstate);
+      };
+    }, []);
     const updateBoardMetrics = useCallback((forceUpdate = false) => {
         if (!boardRef.current) return;
         

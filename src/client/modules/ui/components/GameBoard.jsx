@@ -9,6 +9,7 @@ import GameGrid from './GameGrid';
 import Panel from './Panel';
 import FigureRenderer from './FigureRenderer';
 import PlayerPanels from './PlayerPanels';
+import { getUserColor } from '../../../utils/colorUtils';
 import './GameBoard.css';
 
 const GameBoard = () => {
@@ -129,7 +130,7 @@ const GameBoard = () => {
             document.documentElement.style.setProperty('--player-color', currentPlayerColor);
         } else {
             // Reset to default when no player color is available
-            document.documentElement.style.setProperty('--player-color', '#4CAF50');
+            document.documentElement.style.setProperty('--player-color', getUserColor());
         }
     }, [currentPlayerColor]);
 
