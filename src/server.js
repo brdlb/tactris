@@ -233,6 +233,26 @@ setInterval(() => {
     }
   }
 }, 60000);
+
+const INACTIVITY_TIMEOUT_MS = 12 * 60 * 60 * 1000; // 12 часов
+
+setInterval(() => {
+  const now = Date.now();
+  const inactiveRooms = [];
+  for (const [roomId, game] of games.entries()) {
+    if (game.lastActivity && (now - game.lastActivity > INACTIVITY_TIMEOUT_MS)) {
+      inactiveRooms.push(roomId);
+    }
+  }
+  inactiveRooms.forEach(roomId => {
+    console.log(`Удалена неактивная комната ${roomId} (более 12 часов без заходов)`);
+    games.delete(roomId);
+  });
+  if (inactiveRooms.length > 0) {
+    const roomList = Array.from(games.values()).map(g => ({ id: g.id }));
+    io.emit('rooms_list', roomList);
+  }
+}, 300000); // каждые 5 минут
 io.on('connection', (socket) => {
   // Send the anonymous token and user_id to the client if they are an anonymous user
   if (socket.anonymousToken && socket.isAnonymous) {
@@ -491,6 +511,7 @@ io.on('connection', (socket) => {
       await createGameSession(game, socket.id, false);
       
       games.set(roomId, game);
+      game.lastActivity = Date.now();
       socket.join(roomId);
       
       // Send players list to the room creator
@@ -510,6 +531,7 @@ io.on('connection', (socket) => {
       if (games.has(roomId)) {
         socket.join(roomId);
         const game = games.get(roomId);
+        game.lastActivity = Date.now();
         
         // Log the join event
         console.log(`Player ${shortUserIdHash(socket.userId)} joining room ${roomId}`);
