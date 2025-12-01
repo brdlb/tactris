@@ -34,13 +34,15 @@ class SocketManager {
             this.socket.on('connect', () => {
                 console.log('✅ Соединение с сервером установлено');
                 
-                // Автоматический возврат в комнату при любом connect, если roomId сохранен
-                console.log(localStorage.getItem('currentRoomId'));
-                const roomId = localStorage.getItem('currentRoomId');
+                // Автоматический вход в комнату из URL при любом connect
+                const urlParams = new URLSearchParams(window.location.search);
+                const roomId = urlParams.get('room');
                 if (roomId) {
-                    console.log('[Auto-join] Возвращаюсь в сохраненную комнату:', roomId);
+                    console.log('[Auto-join] Вход в комнату из URL:', roomId);
                     const color = getUserColor();
                     this.joinRoom(roomId, color);
+                } else {
+                    console.log('[Auto-join] URL без комнаты — лобби');
                 }
             });
             
