@@ -150,7 +150,8 @@ const useGameLogic = (boardRefOverride = null) => {
             window.history.pushState({}, '', `?room=${roomId}`);
         });
 
-        socket.on('room_joined', ({ roomId, state, playersList }) => {
+        socket.on('room_joined', ({ roomId, state, playersList, restored }) => {
+            console.log('room_joined в useGameLogic, restored:', !!restored);
             setRoomId(roomId);
             roomIdRef.current = roomId;
             pendingUpdates.current.clear(); // Clear pending updates for new room
@@ -211,6 +212,7 @@ const useGameLogic = (boardRefOverride = null) => {
         });
 
         socket.on('error', (message) => {
+            console.error('Socket error от сервера:', message);
             if (message === 'Invalid move') return;
             alert(message);
             if (message === 'Room not found') {
@@ -220,6 +222,7 @@ const useGameLogic = (boardRefOverride = null) => {
         });
 
         socket.on('restored', () => {
+            console.log('Получено "restored" событие в useGameLogic');
             setIsRestored(true);
             pendingUpdates.current.clear();
             // Additional restoration logic would go here if needed

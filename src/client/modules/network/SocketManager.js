@@ -30,6 +30,32 @@ class SocketManager {
             this.setupRoomEventListeners();
             this.setupRestoreHandlers();
             
+            // Connection status handlers
+            this.socket.on('connect', () => {
+                console.log('✅ Соединение с сервером установлено');
+                
+                // Автоматический возврат в комнату при любом connect, если roomId сохранен
+                console.log(localStorage.getItem('currentRoomId'));
+                const roomId = localStorage.getItem('currentRoomId');
+                if (roomId) {
+                    console.log('[Auto-join] Возвращаюсь в сохраненную комнату:', roomId);
+                    const color = getUserColor();
+                    this.joinRoom(roomId, color);
+                }
+            });
+            
+            this.socket.on('disconnect', (reason) => {
+                console.log('❌ Соединение с сервером потеряно. Причина:', reason);
+            });
+            
+            this.socket.on('connect_error', (err) => {
+                console.error('❌ Ошибка подключения к серверу:', err.message || err);
+            });
+            
+            this.socket.on('reconnect_error', (err) => {
+                console.error('❌ Ошибка реконнекта:', err.message || err);
+            });
+            
             // Listen for the server to send back the anonymous token and user_id
             this.socket.on('anonymous_token', (data) => {
                 if (data.token) {
@@ -69,7 +95,9 @@ class SocketManager {
 
     setupRestoreHandlers() {
         this.socket.on('room_joined', (data) => {
+            console.log(`Получен room_joined от сервера: restored=${!!data.restored}`);
             if (data.restored) {
+                console.log('Emit "restored" событие');
                 this.emit('restored', {});
             }
         });
@@ -81,6 +109,7 @@ class SocketManager {
         });
 
         this.socket.on('reconnect', () => {
+            console.log('🔄 Успешный реконнект. Пытаюсь вернуться в комнату:', localStorage.getItem('currentRoomId'));
             const roomId = localStorage.getItem('currentRoomId');
             if (roomId) {
                 const color = getUserColor();
@@ -118,6 +147,7 @@ class SocketManager {
         }
 
     joinRoom(roomId, color) {
+        console.log(`[Reconnect] Отправляю join_room для комнаты ${roomId}`);
         localStorage.setItem('currentRoomId', roomId);
         this.socket.emit('join_room', { roomId, color });
     }
