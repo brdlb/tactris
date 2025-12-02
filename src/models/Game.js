@@ -246,7 +246,18 @@ class Game {
                 rotateable: this.rotateable
             };
         }
-    
+
+        isGridEmpty() {
+        for (let y = 0; y < this.gridHeight; y++) {
+            for (let x = 0; x < this.gridWidth; x++) {
+                if (this.grid[y][x] !== null) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
         getPlayersList() {
         return Array.from(this.players.values()).map(player => ({
             id: player.id,
