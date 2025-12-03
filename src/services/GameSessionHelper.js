@@ -99,6 +99,7 @@ class GameSessionHelper {
     for (const [playerId, sessionId] of Object.entries(gameInstance.playerSessions)) {
       try {
         // Get the authenticated user ID for this player (if available)
+console.log(`[DEBUG-completeAllPlayerSessions] playerId=${playerId.slice(-8)}, gameInstance.authenticatedUserIds exists: ${!!gameInstance.authenticatedUserIds}, has[playerId]: ${!!(gameInstance.authenticatedUserIds && gameInstance.authenticatedUserIds[playerId])}, value: ${gameInstance.authenticatedUserIds?.[playerId] || 'UNDEFINED'}`);
         const authenticatedUserId = gameInstance.authenticatedUserIds ?
           gameInstance.authenticatedUserIds[playerId] : playerId;
         

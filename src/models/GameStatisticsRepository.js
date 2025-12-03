@@ -310,6 +310,7 @@ class GameStatisticsRepository {
    * @returns {Promise<Object>} The updated statistics
    */
   async updateFromGameSessionWithTransaction(userId, gameSession) {
+console.log(`[DEBUG-GSR] updateFromGameSessionWithTransaction called with userId='${userId}' (type: ${typeof userId})`);
     return await TransactionManager.executeWithRetry(this.db, async (client) => {
       // Get the current statistics for the user with row locking to prevent concurrent updates
       const lockQuery = 'SELECT * FROM game_statistics WHERE user_id = $1 FOR UPDATE;';

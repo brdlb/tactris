@@ -143,8 +143,14 @@ class GameSessionService {
     console.log(`⏰ [GameSessionService] completeGameSessionWithRepositoryMethods: starting session update with duration ${gameSessionData.duration_seconds}`);
     const updatedSession = await this.gameSessionRepository.update(sessionId, sessionUpdates);
     console.log(`⏰ [GameSessionService] completeGameSessionWithRepositoryMethods: session updated, now updating statistics`);
-    const updatedStatistics = await this.gameStatisticsRepository.updateFromGameSessionWithTransaction(userId, gameSessionData);
-    console.log(`⏰ [GameSessionService] completeGameSessionWithRepositoryMethods: statistics updated, total_play_time_seconds now ${updatedStatistics.total_play_time_seconds}`);
+    console.log(`[DEBUG-GSS] completeGameSessionWithRepositoryMethods: about to call updateFromGameSessionWithTransaction, userId='${userId}' (type: ${typeof userId})`);
+    let updatedStatistics = null;
+    if (userId && typeof userId === 'string' && userId.match(/^[0-9a-fA-F-]{36}$/)) {
+      updatedStatistics = await this.gameStatisticsRepository.updateFromGameSessionWithTransaction(userId, gameSessionData);
+      console.log(`⏰ [GameSessionService] completeGameSessionWithRepositoryMethods: statistics updated, total_play_time_seconds now ${updatedStatistics.total_play_time_seconds}`);
+    } else {
+      console.log(`[SKIP-STATS] Skipping stats update for invalid userId: ${userId} (type: ${typeof userId})`);
+    }
     
     return {
       session: updatedSession,
