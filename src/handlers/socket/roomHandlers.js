@@ -91,6 +91,7 @@ function createRoomHandlers(gameRoomManager, gameSessionHelper, repositoryManage
       // Send updated players list to remaining players
       const playersList = game.getPlayersList();
       io.to(roomId).emit('players_list_updated', { playersList });
+      console.log(`[PLAYER-LEAVE] Broadcasting lobby_game_update for ${roomId}, players left: ${game.players.size}`);
       LobbyService.broadcastGameUpdate(game, io);
     }
   }
@@ -309,13 +310,15 @@ function createRoomHandlers(gameRoomManager, gameSessionHelper, repositoryManage
    * Handle leave_room event
    */
   async function handleLeaveRoom(socket, { roomId }) {
-    console.log(`Player ${shortUserIdHash(socket.userId)} intentionally leaving room ${roomId}`);
-    await handlePlayerLeave(socket, roomId);
-    socket.join('lobby');
-    console.log(`Игрок ${shortUserIdHash(socket.userId)} вернулся в лобби из комнаты ${roomId}`);
-    
-    // Update room list for all clients
-    LobbyService.broadcastRoomsList(io, gameRoomManager.getAllRooms());
+      console.log(`[LEAVE-ROOM] ${shortUserIdHash(socket.userId)} starting leave ${roomId}, current socket.rooms:`, Array.from(socket.rooms));
+      await handlePlayerLeave(socket, roomId);
+      console.log(`[LEAVE-ROOM] After handlePlayerLeave, socket.rooms:`, Array.from(socket.rooms));
+      socket.join('lobby');
+      console.log(`[LEAVE-ROOM] ${shortUserIdHash(socket.userId)} joined lobby, final socket.rooms:`, Array.from(socket.rooms));
+      console.log(`[LEAVE-ROOM] Broadcasting rooms_list after join`);
+      
+      // Update room list for all clients
+      LobbyService.broadcastRoomsList(io, gameRoomManager.getAllRooms());
   }
 
   /**

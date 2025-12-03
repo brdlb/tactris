@@ -181,10 +181,12 @@ const useGameLogic = (boardRefOverride = null) => {
         });
 
         socket.on('rooms_list', (roomList) => {
+            console.log(`[CLIENT] rooms_list received: ${roomList.length} rooms:`, roomList.map(r => r.id));
             setRooms(roomList);
         });
 
         socket.on('lobby_game_update', (data) => {
+          console.log(`[CLIENT LOBBY_UPDATE] room ${data.roomId}, players count: ${data.players ? data.players.length : 0}, players ids:`, data.players?.map(p => p.id.slice(-4)));
           setRoomStates(prev => ({...prev, [data.roomId]: data}));
         });
         
@@ -242,6 +244,7 @@ const useGameLogic = (boardRefOverride = null) => {
         });
 
         // Request initial list
+        console.log('[CLIENT] Requesting initial get_rooms');
         SocketManager.getRooms();
 
         // Check for room in URL

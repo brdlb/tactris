@@ -9,6 +9,7 @@ class LobbyService {
    * @param {Object} io - Socket.IO server instance
    */
   static broadcastGameUpdate(game, io) {
+    console.log(`[LOBBY-SERVICE] broadcastGameUpdate room ${game.id}, players count: ${game.getPlayersList().length}, to lobby`);
     const lobbyState = {
       roomId: game.id,
       grid: game.grid.map(row => row.map(cell => cell ? { ...cell } : null)),
