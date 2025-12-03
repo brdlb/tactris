@@ -183,9 +183,16 @@ class GameSessionHelper {
     try {
       const sessionId = gameInstance.playerSessions[playerId];
       
+      console.log(`[DIAG] About to fetch authenticatedUserId. gameInstance.authenticatedUserIds exists: ${!!gameInstance.authenticatedUserIds}, is object: ${typeof gameInstance.authenticatedUserIds === 'object'}, playerId.slice(-6): ${playerId.slice(-6)}`);
+      
       // Get the authenticated user ID for this player (if available)
-      const authenticatedUserId = gameInstance.authenticatedUserIds ?
-        gameInstance.authenticatedUserIds[playerId] : playerId;
+      let authenticatedUserId = playerId; // safe fallback
+      if (gameInstance.authenticatedUserIds && typeof gameInstance.authenticatedUserIds === 'object') {
+        authenticatedUserId = gameInstance.authenticatedUserIds[playerId] || playerId;
+        console.log(`[DIAG] authenticatedUserId resolved to: ${typeof authenticatedUserId} ${shortUserIdHash(authenticatedUserId)}`);
+      } else {
+        console.warn(`[DIAG] gameInstance.authenticatedUserIds invalid type: ${typeof gameInstance.authenticatedUserIds}`);
+      }
       
       // Prepare game session data for statistics calculation
       const gameSessionData = {
@@ -253,7 +260,8 @@ class GameSessionHelper {
       console.log(`[DIAGNOSTIC] Session after completePlayerSessionOnLeave (gameOver=${!!gameInstance.gameOver}): game_result='${afterLeaveSession?.game_result || 'null'}', paused_at='${afterLeaveSession?.paused_at || 'null'}'`);
       
     } catch (error) {
-      console.error(`Error updating game session and statistics for player ${shortUserIdHash(authenticatedUserId)} who left room ${roomId}:`, error);
+      console.error(`[DIAG] Inner error details in completePlayerSessionOnLeave - playerId.slice(-6): ${playerId.slice(-6)}, room: ${roomId}:`, error);
+      console.error(`Error updating game session and statistics for player ${shortUserIdHash(playerId)} who left room ${roomId}`);
     }
   }
 
