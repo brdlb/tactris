@@ -4,13 +4,18 @@ import { getUserColor } from '../../../utils/colorUtils';
 import { FIGURES } from '../../../constants/figures';
 import { checkMatch } from '../../../utils/figureUtils';
 
+const MIN_PIXELS_FOR_FIGURE = 4;
+
+const generateDisplayId = (playerId) =>
+    playerId ? `P-${playerId.slice(-6)}` : `P-${Math.floor(Math.random() * 10000)}`;
+
 const useGameLogic = (boardRefOverride = null) => {
     const [grid, setGrid] = useState(() => Array(10).fill(null).map(() => Array(10).fill(null)));
-            const gridRef = useRef(grid);
+    const gridRef = useRef(grid);
     const [roomId, setRoomId] = useState(null);
     const roomIdRef = useRef(null);
     const [rooms, setRooms] = useState([]);
-  const [roomStates, setRoomStates] = useState({});
+    const [roomStates, setRoomStates] = useState({});
     const [myFigures, setMyFigures] = useState([]);
     const [score, setScore] = useState(0);
     const [playersList, setPlayersList] = useState([]); // List of players in current room
@@ -29,36 +34,36 @@ const useGameLogic = (boardRefOverride = null) => {
     const lastPointerCell = useRef(null);
     const pointerCaptureTarget = useRef(null);
     const pendingUpdates = useRef(new Set()); // Track recently updated pixels to avoid redundant server updates
-        const isResizing = useRef(false); // Track resize state to force metric recalculation
-        const roomRotateableRef = useRef(false); // Store the rotateable setting for this room
-    
-        // Helper to create a new grid with a pixel update
-            const updateGridPixel = (grid, x, y, value) => {
-                const newGrid = [...grid];
-                newGrid[y] = [...grid[y]];
-                newGrid[y][x] = value;
-                return newGrid;
-            };
-        
-            // Helper to remove first pixel from queue and clear it from grid
-            const removeFirstPixelFromQueue = () => {
-                if (selectedPixels.current.length === 0) return;
-        
-                const removedPixel = selectedPixels.current.shift();
-                let newGrid = gridRef.current;
-        
-                newGrid = updateGridPixel(newGrid, removedPixel.x, removedPixel.y, null);
-        
-                // Track this pixel as recently updated by current user (removal)
-                pendingUpdates.current.add(`${removedPixel.x}-${removedPixel.y}`);
-        
-                gridRef.current = newGrid;
-                setGrid(newGrid);
-        
-                if (roomIdRef.current) {
-                    SocketManager.placePixel(roomIdRef.current, 0, removedPixel);
-                }
-            };
+    const isResizing = useRef(false); // Track resize state to force metric recalculation
+    const roomRotateableRef = useRef(false); // Store the rotateable setting for this room
+
+    // Helper to create a new grid with a pixel update
+    const updateGridPixel = (grid, x, y, value) => {
+        const newGrid = [...grid];
+        newGrid[y] = [...grid[y]];
+        newGrid[y][x] = value;
+        return newGrid;
+    };
+
+    // Helper to remove first pixel from queue and clear it from grid
+    const removeFirstPixelFromQueue = () => {
+        if (selectedPixels.current.length === 0) return;
+
+        const removedPixel = selectedPixels.current.shift();
+        let newGrid = gridRef.current;
+
+        newGrid = updateGridPixel(newGrid, removedPixel.x, removedPixel.y, null);
+
+        // Track this pixel as recently updated by current user (removal)
+        pendingUpdates.current.add(`${removedPixel.x}-${removedPixel.y}`);
+
+        gridRef.current = newGrid;
+        setGrid(newGrid);
+
+        if (roomIdRef.current) {
+            SocketManager.placePixel(roomIdRef.current, 0, removedPixel);
+        }
+    };
 
     // Apply theme to document
     useEffect(() => {
@@ -67,78 +72,71 @@ const useGameLogic = (boardRefOverride = null) => {
     }, [theme]);
 
     useEffect(() => {
-            // Reset body styles for full screen layout
-            document.body.style.margin = '0';
-            document.body.style.overflow = 'hidden';
-            document.body.style.backgroundColor = '#f0f0f0';
-    
-            const socket = SocketManager.connect();
-            
-            // Add disconnect logging
-            socket.on('disconnect', (reason) => {
-            });
-            
-            socket.on('reconnect', (attemptNumber) => {
-            });
-            
-            const updateGameState = (state) => {
-                                const currentGrid = gridRef.current;
-                                const newGrid = state.grid;
-                                const pendingUpdatesSet = pendingUpdates.current;
-                    
-                                // Create a new grid that preserves recent local changes
-                                const processedGrid = newGrid.map((row, y) =>
-                                    row.map((cell, x) => {
-                                        const pixelKey = `${x}-${y}`;
-                                        const currentCell = currentGrid[y]?.[x];
-                            
-                                        // Skip updating if this pixel was recently modified locally
-                                        return pendingUpdatesSet.has(pixelKey) ? currentCell : cell;
-                                    })
-                                );
-                            
-                                setGrid(processedGrid);
-                                gridRef.current = processedGrid;
-                            
-                                // Update player-specific data
-                                const myPlayer = state.players && state.players[socket.id];
-                                if (myPlayer) {
-                                    // Update figures if they changed
-                                    if (myPlayer.figures) {
-                                        // Always update figures when they're received from server
-                                        setMyFigures(myPlayer.figures);
-                                    }
-                                    
-                                                                        // Update score from server always
-                                                                        if (myPlayer.score !== undefined) {
-                                                                            setScore(myPlayer.score);
-                                                                        }
-                                }
-                            
-                                // Update players list to sync opponents' data (scores, figures)
-                                if (state.players) {
-                                    const updatedPlayersList = Object.values(state.players).map(player => ({
-                                        id: player.id,
-                                        color: player.color,
-                                        score: player.score,
-                                        figures: player.figures
-                                    }));
-                                    setPlayersList(updatedPlayersList);
-                                }
-                                
-                                // Update game over state from server always
-                                if (state.gameOver !== undefined) {
-                                    setGameOver(state.gameOver);
-                                }
-                                
-                                // Update rotateable setting if it changed (for client-side validation)
-                                if (state.rotateable !== undefined) {
-                                    roomRotateableRef.current = state.rotateable;
-                                }
-                            
-                                // Clean up old pending updates (keep only recent ones)
-                                pendingUpdatesSet.clear();
-                            };
+        // Reset body styles for full screen layout
+        document.body.style.margin = '0';
+        document.body.style.overflow = 'hidden';
+        document.body.style.backgroundColor = '#f0f0f0';
+
+        const socket = SocketManager.connect();
+
+        const updateGameState = (state) => {
+            const currentGrid = gridRef.current;
+            const newGrid = state.grid;
+            const pendingUpdatesSet = pendingUpdates.current;
+
+            // Create a new grid that preserves recent local changes
+            const processedGrid = newGrid.map((row, y) =>
+                row.map((cell, x) => {
+                    const pixelKey = `${x}-${y}`;
+                    const currentCell = currentGrid[y]?.[x];
+
+                    // Skip updating if this pixel was recently modified locally
+                    return pendingUpdatesSet.has(pixelKey) ? currentCell : cell;
+                })
+            );
+
+            setGrid(processedGrid);
+            gridRef.current = processedGrid;
+
+            // Update player-specific data
+            const myPlayer = state.players && state.players[socket.id];
+            if (myPlayer) {
+                // Update figures if they changed
+                if (myPlayer.figures) {
+                    // Always update figures when they're received from server
+                    setMyFigures(myPlayer.figures);
+                }
+
+                // Update score from server always
+                if (myPlayer.score !== undefined) {
+                    setScore(myPlayer.score);
+                }
+            }
+
+            // Update players list to sync opponents' data (scores, figures)
+            if (state.players) {
+                const updatedPlayersList = Object.values(state.players).map(player => ({
+                    id: player.id,
+                    color: player.color,
+                    score: player.score,
+                    figures: player.figures
+                }));
+                setPlayersList(updatedPlayersList);
+            }
+
+            // Update game over state from server always
+            if (state.gameOver !== undefined) {
+                setGameOver(state.gameOver);
+            }
+
+            // Update rotateable setting if it changed (for client-side validation)
+            if (state.rotateable !== undefined) {
+                roomRotateableRef.current = state.rotateable;
+            }
+
+            // Clean up old pending updates (keep only recent ones)
+            pendingUpdatesSet.clear();
+        };
 
         socket.on('room_created', ({ roomId, state, playersList }) => {
             setRoomId(roomId);
@@ -152,14 +150,14 @@ const useGameLogic = (boardRefOverride = null) => {
         });
 
         socket.on('room_joined', ({ roomId, state, playersList, restored }) => {
-            console.log('room_joined в useGameLogic, restored:', !!restored);
+            console.log('room_joined in useGameLogic, restored:', !!restored);
             setRoomId(roomId);
             roomIdRef.current = roomId;
             pendingUpdates.current.clear(); // Clear pending updates for new room
             updateGameState(state);
             if (playersList) setPlayersList(playersList.map(player => ({
                 ...player,
-                displayId: player.id ? `P-${player.id.slice(-6)}` : `P-${Math.floor(Math.random() * 10000)}` // Use short hash of id or random number
+                displayId: generateDisplayId(player.id)
             })));
             selectedPixels.current = [];
             setGameOver(false);
@@ -186,23 +184,23 @@ const useGameLogic = (boardRefOverride = null) => {
         });
 
         socket.on('lobby_game_update', (data) => {
-          console.log(`[CLIENT LOBBY_UPDATE] room ${data.roomId}, players count: ${data.players ? data.players.length : 0}, players ids:`, data.players?.map(p => p.id.slice(-4)));
-          setRoomStates(prev => ({...prev, [data.roomId]: data}));
+            console.log(`[CLIENT LOBBY_UPDATE] room ${data.roomId}, players count: ${data.players ? data.players.length : 0}, players ids:`, data.players?.map(p => p.id.slice(-4)));
+            setRoomStates(prev => ({ ...prev, [data.roomId]: data }));
         });
-        
+
         socket.on('initial_lobby_state', (states) => {
-          const stateMap = {};
-          states.forEach(state => {
-            stateMap[state.roomId] = state;
-          });
-          setRoomStates(stateMap);
+            const stateMap = {};
+            states.forEach(state => {
+                stateMap[state.roomId] = state;
+            });
+            setRoomStates(stateMap);
         });
 
         // Handle player events
         socket.on('player_joined', ({ player }) => {
             const playerWithDisplayId = {
                 ...player,
-                displayId: player.id ? `P-${player.id.slice(-6)}` : `P-${Math.floor(Math.random() * 10000)}`
+                displayId: generateDisplayId(player.id)
             };
             setPlayersList(prev => [...prev, playerWithDisplayId]);
         });
@@ -210,7 +208,7 @@ const useGameLogic = (boardRefOverride = null) => {
         socket.on('player_joined_restored', ({ player }) => {
             const playerWithDisplayId = {
                 ...player,
-                displayId: player.id ? `P-${player.id.slice(-6)}` : `P-${Math.floor(Math.random() * 1000)}`
+                displayId: generateDisplayId(player.id)
             };
             setPlayersList(prev => [...prev, playerWithDisplayId]);
         });
@@ -222,12 +220,12 @@ const useGameLogic = (boardRefOverride = null) => {
         socket.on('players_list_updated', ({ playersList }) => {
             setPlayersList(playersList.map(player => ({
                 ...player,
-                displayId: player.id ? `P-${player.id.slice(-6)}` : `P-${Math.floor(Math.random() * 1000)}`
+                displayId: generateDisplayId(player.id)
             })));
         });
 
         socket.on('error', (message) => {
-            console.error('Socket error от сервера:', message);
+            console.error('Socket error from server:', message);
             if (message === 'Invalid move') return;
             alert(message);
             if (message === 'Room not found') {
@@ -237,7 +235,7 @@ const useGameLogic = (boardRefOverride = null) => {
         });
 
         socket.on('restored', () => {
-            console.log('Получено "restored" событие в useGameLogic');
+            console.log('Received "restored" event in useGameLogic');
             setIsRestored(true);
             pendingUpdates.current.clear();
             // Additional restoration logic would go here if needed
@@ -271,47 +269,47 @@ const useGameLogic = (boardRefOverride = null) => {
 
     }, []);
 
-    // Обработчик истории браузера для перехода назад в лобби
+    // Browser history handler to navigate back to lobby
     useEffect(() => {
-      const handlePopstate = () => {
-        const params = new URLSearchParams(window.location.search);
-        const urlRoomId = params.get('room');
-        const currentRoomId = roomIdRef.current;
+        const handlePopstate = () => {
+            const params = new URLSearchParams(window.location.search);
+            const urlRoomId = params.get('room');
+            const currentRoomId = roomIdRef.current;
 
-        if (urlRoomId !== currentRoomId) {
-          // Выходим из текущей комнаты если есть
-          if (currentRoomId) {
-            SocketManager.leaveRoom(currentRoomId);
-            setRoomId(null);
-            roomIdRef.current = null;
-            localStorage.removeItem('currentRoomId');
-          }
-          // Входим в новую комнату если указана
-          if (urlRoomId) {
-            SocketManager.joinRoom(urlRoomId, userColor.current);
-          }
-        }
-      };
+            if (urlRoomId !== currentRoomId) {
+                // Leave current room if exists
+                if (currentRoomId) {
+                    SocketManager.leaveRoom(currentRoomId);
+                    setRoomId(null);
+                    roomIdRef.current = null;
+                    localStorage.removeItem('currentRoomId');
+                }
+                // Join new room if specified
+                if (urlRoomId) {
+                    SocketManager.joinRoom(urlRoomId, userColor.current);
+                }
+            }
+        };
 
-      window.addEventListener('popstate', handlePopstate);
-      return () => {
-        window.removeEventListener('popstate', handlePopstate);
-      };
+        window.addEventListener('popstate', handlePopstate);
+        return () => {
+            window.removeEventListener('popstate', handlePopstate);
+        };
     }, []);
     const updateBoardMetrics = useCallback((forceUpdate = false) => {
         if (!boardRef.current) return;
-        
+
         const rect = boardRef.current.getBoundingClientRect();
         const columns = gridRef.current[0]?.length || 1;
         const rows = gridRef.current.length || 1;
         const now = Date.now();
-        
+
         // Only update if forced, or if metrics are missing, or if resizing flag is set
-        const shouldUpdate = forceUpdate || 
-                           !boardMetrics.current.rect || 
-                           isResizing.current ||
-                           now - boardMetrics.current.lastUpdate > 100; // Update if older than 100ms
-        
+        const shouldUpdate = forceUpdate ||
+            !boardMetrics.current.rect ||
+            isResizing.current ||
+            now - boardMetrics.current.lastUpdate > 100; // Update if older than 100ms
+
         if (shouldUpdate) {
             boardMetrics.current = {
                 rect,
@@ -364,7 +362,7 @@ const useGameLogic = (boardRefOverride = null) => {
             // Set resizing flag and force update
             isResizing.current = true;
             updateBoardMetrics(true);
-            
+
             // Clear resizing flag after a short delay to allow for smooth transitions
             clearTimeout(handleResize.timeoutId);
             handleResize.timeoutId = setTimeout(() => {
@@ -398,12 +396,12 @@ const useGameLogic = (boardRefOverride = null) => {
     }, [boardRef, updateBoardMetrics]);
 
     const finalizeDrawing = useCallback(() => {
-        if (selectedPixels.current.length >= 4 && roomIdRef.current && !gameOver) {
+        if (selectedPixels.current.length >= MIN_PIXELS_FOR_FIGURE && roomIdRef.current && !gameOver) {
             // Check if the selected pixels match any of the available figures
-                                    const matchedFigureIndex = checkMatch(selectedPixels.current, myFigures, roomRotateableRef.current);
-                                    if (matchedFigureIndex !== -1) {
-                                        SocketManager.placeFigure(roomIdRef.current, selectedPixels.current);
-                                    }
+            const matchedFigureIndex = checkMatch(selectedPixels.current, myFigures, roomRotateableRef.current);
+            if (matchedFigureIndex !== -1) {
+                SocketManager.placeFigure(roomIdRef.current, selectedPixels.current);
+            }
         }
 
         isDrawing.current = false;
@@ -442,8 +440,8 @@ const useGameLogic = (boardRefOverride = null) => {
     }, [finalizeDrawing]);
 
     const handleCreateRoom = (rotateable = false) => {
-            SocketManager.createRoom(userColor.current, rotateable);
-        };
+        SocketManager.createRoom(userColor.current, rotateable);
+    };
 
     const handleJoinRoom = (id) => {
         SocketManager.joinRoom(id, userColor.current);
@@ -465,7 +463,7 @@ const useGameLogic = (boardRefOverride = null) => {
             SocketManager.restartGame(roomIdRef.current);
         }
     };
-    
+
     const handleLeaveRoom = () => {
         if (roomIdRef.current) {
             SocketManager.leaveRoom(roomIdRef.current);
@@ -477,41 +475,42 @@ const useGameLogic = (boardRefOverride = null) => {
     };
 
     const handleInteraction = (x, y) => {
-            const activeRoomId = roomIdRef.current;
-            if (!activeRoomId || gameOver) return;
-    
-            // Check if pixel is already selected to avoid duplicates
-            if (selectedPixels.current.some(p => p.x === x && p.y === y)) return;
-    
-            const newPixel = { x, y };
-            selectedPixels.current.push(newPixel);
-    
-            // Update grid with the new pixel
-            let newGrid = gridRef.current;
-            newGrid = updateGridPixel(newGrid, x, y, {
-                playerId: SocketManager.getSocket().id,
-                color: userColor.current,
-                state: 'drawing'
-            });
-            
-            SocketManager.placePixel(activeRoomId, 1, newPixel);
-    
-            // Track this pixel as recently updated by current user
-            pendingUpdates.current.add(`${x}-${y}`);
-    
-            // If we have 4 or more pixels, check if they match any figure
-                        if (selectedPixels.current.length >= 4) {
-                                                    const matchedFigureIndex = checkMatch(selectedPixels.current, myFigures, roomRotateableRef.current);
-                                        
-                                                    // If doesn't match any figure, remove the first pixel
-                                                    if (matchedFigureIndex === -1) {
-                                                        removeFirstPixelFromQueue();
-                                                    }
-                                                }
-    
-            gridRef.current = newGrid;
-            setGrid(newGrid);
-        };
+        const activeRoomId = roomIdRef.current;
+        if (!activeRoomId || gameOver) return;
+
+        // Check if pixel is already selected to avoid duplicates
+        if (selectedPixels.current.some(p => p.x === x && p.y === y)) return;
+
+        const newPixel = { x, y };
+        selectedPixels.current.push(newPixel);
+
+        // Update grid with the new pixel
+        let newGrid = gridRef.current;
+        newGrid = updateGridPixel(newGrid, x, y, {
+            playerId: SocketManager.getSocket().id,
+            color: userColor.current,
+            state: 'drawing'
+        });
+
+        SocketManager.placePixel(activeRoomId, 1, newPixel);
+
+        // Track this pixel as recently updated by current user
+        pendingUpdates.current.add(`${x}-${y}`);
+
+
+        // If we have MIN_PIXELS_FOR_FIGURE or more pixels, check if they match any figure
+        if (selectedPixels.current.length >= MIN_PIXELS_FOR_FIGURE) {
+            const matchedFigureIndex = checkMatch(selectedPixels.current, myFigures, roomRotateableRef.current);
+
+            // If doesn't match any figure, remove the first pixel
+            if (matchedFigureIndex === -1) {
+                removeFirstPixelFromQueue();
+            }
+        }
+
+        gridRef.current = newGrid;
+        setGrid(newGrid);
+    };
 
     const handlePointerDown = useCallback((event) => {
         if (gameOver || !roomIdRef.current) return;
@@ -572,27 +571,27 @@ const useGameLogic = (boardRefOverride = null) => {
     }, [finalizeDrawing]);
 
     return {
-            grid,
-            roomId,
-  roomStates,
-            rooms,
-            playersList,
-            myFigures,
-            score,
-            gameOver,
-            isRestored,
-            theme,
-            toggleTheme,
-            handleCreateRoom,
-                    handleJoinRoom,
-            handlePointerDown,
-            handlePointerMove,
-            handlePointerUp,
-            handlePointerCancel,
-            handleHueChange,
-            handleRestart,
-            handleLeaveRoom
-        };
+        grid,
+        roomId,
+        roomStates,
+        rooms,
+        playersList,
+        myFigures,
+        score,
+        gameOver,
+        isRestored,
+        theme,
+        toggleTheme,
+        handleCreateRoom,
+        handleJoinRoom,
+        handlePointerDown,
+        handlePointerMove,
+        handlePointerUp,
+        handlePointerCancel,
+        handleHueChange,
+        handleRestart,
+        handleLeaveRoom
+    };
 };
 
 export default useGameLogic;

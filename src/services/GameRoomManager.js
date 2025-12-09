@@ -100,13 +100,13 @@ class GameRoomManager {
   getRecentDisconnect(userId) {
     const data = this.recentlyDisconnected.get(userId);
     if (!data) return null;
-    
+
     // Check if expired
     if (Date.now() - data.timestamp > RESTORE_TIMEOUT_MS) {
       this.recentlyDisconnected.delete(userId);
       return null;
     }
-    
+
     return data;
   }
 
@@ -125,14 +125,14 @@ class GameRoomManager {
   cleanupDisconnected() {
     const now = Date.now();
     let removed = 0;
-    
+
     for (const [userId, data] of this.recentlyDisconnected.entries()) {
       if (now - data.timestamp > RESTORE_TIMEOUT_MS) {
         this.recentlyDisconnected.delete(userId);
         removed++;
       }
     }
-    
+
     return removed;
   }
 
@@ -144,21 +144,21 @@ class GameRoomManager {
   cleanupInactiveRooms(onRoomDeleted = null) {
     const now = Date.now();
     const inactiveRooms = [];
-    
+
     for (const [roomId, game] of this.games.entries()) {
       if (game.lastActivity && (now - game.lastActivity > INACTIVITY_TIMEOUT_MS)) {
         inactiveRooms.push(roomId);
       }
     }
-    
+
     inactiveRooms.forEach(roomId => {
-      console.log(`Удалена неактивная комната ${roomId} (более 12 часов без заходов)`);
+      console.log(`Deleted inactive room ${roomId} (no activity for over 12 hours)`);
       this.games.delete(roomId);
       if (onRoomDeleted) {
         onRoomDeleted(roomId);
       }
     });
-    
+
     return inactiveRooms;
   }
 
@@ -183,7 +183,7 @@ class GameRoomManager {
       try {
         await callback();
       } catch (error) {
-        console.error(`Ошибка при отложенном удалении комнаты ${roomId}:`, error);
+        console.error(`Error during delayed room deletion ${roomId}:`, error);
       }
     }, timeoutMs);
 

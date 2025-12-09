@@ -58,8 +58,8 @@ function createRoomHandlers(gameRoomManager, gameSessionHelper, repositoryManage
         // If room is empty, schedule deletion based on grid state
         const gridEmpty = typeof game.isGridEmpty === 'function' ? game.isGridEmpty() : true;
         const timeoutMs = gameRoomManager.getDeletionTimeoutMs(game);
-        const timeoutLabel = gridEmpty ? '1 минуту' : '1 час';
-        console.log(`Комната ${roomId} пуста, запланировано удаление через ${timeoutLabel}`);
+        const timeoutLabel = gridEmpty ? '1 minute' : '1 hour';
+        console.log(`Room ${roomId} is empty, scheduled for deletion in ${timeoutLabel}`);
 
         gameRoomManager.scheduleRoomDeletion(roomId, timeoutMs, async () => {
           if (game.playerSessions) {
@@ -79,15 +79,15 @@ function createRoomHandlers(gameRoomManager, gameSessionHelper, repositoryManage
           }
           gameRoomManager.deleteRoom(roomId);
           LobbyService.broadcastRoomsList(io, gameRoomManager.getAllRooms());
-          console.log(`Комната ${roomId} удалена по таймауту (${gridEmpty ? 'пустое поле' : 'есть фигуры'})`);
+          console.log(`Room ${roomId} deleted due to timeout (${gridEmpty ? 'empty grid' : 'has figures'})`);
         });
       }
-      
+
       // Notify other players in the room about player leaving
       socket.to(roomId).emit('player_left', {
         playerId: socket.id
       });
-      
+
       // Send updated players list to remaining players
       const playersList = game.getPlayersList();
       io.to(roomId).emit('players_list_updated', { playersList });
@@ -103,15 +103,15 @@ function createRoomHandlers(gameRoomManager, gameSessionHelper, repositoryManage
     const roomId = Math.random().toString(36).substring(7);
     const game = new Game(roomId, rotateable);
     game.addPlayer(socket.id, color, socket.userId); // Add creator as player with their color and authenticated user ID
-    
+
     // Create a game session record in the database for the creator
     await gameSessionHelper.createGameSession(game, socket.id, socket.userId, false);
-    
+
     gameRoomManager.createRoom(roomId, game);
     socket.join(roomId);
     socket.leave('lobby');
-    console.log(`Игрок ${shortUserIdHash(socket.userId)} покинул лобби и вошел в комнату ${roomId}`);
-    
+    console.log(`Player ${shortUserIdHash(socket.userId)} left lobby and joined room ${roomId}`);
+
     // Send players list to the room creator
     const playersList = game.getPlayersList();
     socket.emit('room_created', {
@@ -132,14 +132,14 @@ function createRoomHandlers(gameRoomManager, gameSessionHelper, repositoryManage
     if (gameRoomManager.hasRoom(roomId)) {
       socket.join(roomId);
       socket.leave('lobby');
-      console.log(`Игрок ${shortUserIdHash(socket.userId)} покинул лобби и присоединился к комнате ${roomId}`);
+      console.log(`Player ${shortUserIdHash(socket.userId)} left lobby and connected to room ${roomId}`);
       const game = gameRoomManager.getRoom(roomId);
       gameRoomManager.cancelRoomDeletion(roomId);
       gameRoomManager.updateRoomActivity(roomId);
-      
+
       // Log the join event
       console.log(`Player ${shortUserIdHash(socket.userId)} joining room ${roomId}`);
-      
+
       // Check for duplicate userId in the game to prevent multiple connections
       if (game.hasActiveUserId(socket.userId)) {
         socket.emit('error', 'User already connected to this room');
@@ -147,7 +147,7 @@ function createRoomHandlers(gameRoomManager, gameSessionHelper, repositoryManage
         console.log(`Player ${shortUserIdHash(socket.userId)} already in room ${roomId}, connection rejected`);
         return;
       }
-      
+
       console.log(`Attempting to join room ${roomId} for player ${shortUserIdHash(socket.userId)}`);
 
       // Check memory first for quick reconnect (Memory-First Restore)
@@ -155,20 +155,20 @@ function createRoomHandlers(gameRoomManager, gameSessionHelper, repositoryManage
       if (recentData) {
         console.log(`Memory restore candidate found for ${shortUserIdHash(socket.userId)} in room ${roomId}, expected ${recentData.roomId}`);
         if (recentData.roomId === roomId &&
-            gameRoomManager.hasRoom(roomId)) {
+          gameRoomManager.hasRoom(roomId)) {
           const gameForRestore = gameRoomManager.getRoom(roomId);
           if (!gameForRestore.gameOver) {
             console.log(`Memory-restoring player ${shortUserIdHash(socket.userId)} to room ${roomId}`);
             gameForRestore.addPlayer(socket.id, color, socket.userId, recentData.snapshot);
             gameRoomManager.removeRecentDisconnect(socket.userId);
-            
+
             // Associate restored session with new socket ID if session exists
             if (gameForRestore.playerSessions) {
               // Find the session ID by searching through playerSessions for the userId
               // We need to find the old socket ID or session
               // For now, we'll create a new session or restore from paused
             }
-            
+
             const playersList = gameForRestore.getPlayersList();
             socket.emit('room_joined', {
               roomId,
@@ -198,20 +198,20 @@ function createRoomHandlers(gameRoomManager, gameSessionHelper, repositoryManage
         const restoreState = recentPaused.player_state || {};
         console.log(`[DEBUG] Restore state loaded directly (jsonb): keys=${Object.keys(restoreState).join(', ') || 'none'}`);
         game.addPlayer(socket.id, color, socket.userId, restoreState);
-        
+
         // Associate restored session with new socket ID
         if (!game.playerSessions) {
           game.playerSessions = {};
         }
         game.playerSessions[socket.id] = recentPaused.id;
         console.log(`[DIAGNOSTIC] Associated restored session ${recentPaused.id} with new socket ${socket.id.slice(-6)}`);
-        
+
         // Update the session to mark it as restored (not paused anymore)
         await repositoryManager.gameSessions.update(recentPaused.id, {
           ending_reason: null,
           paused_at: null
         });
-        
+
         // Send current players list to the joining user with restore flag
         const playersList = game.getPlayersList();
         socket.emit('room_joined', {
@@ -220,41 +220,41 @@ function createRoomHandlers(gameRoomManager, gameSessionHelper, repositoryManage
           playersList,
           restored: true
         });
-        
+
         // Notify other players in the room about player joined restored
         const newPlayerData = { id: socket.id, color, score: restoreState.score };
         socket.to(roomId).emit('player_joined_restored', {
           playerId: socket.id,
           player: newPlayerData
         });
-        
+
         console.log(`Returning player ${shortUserIdHash(socket.userId)} restored to room ${roomId}`);
         return; // Exit early after restoration
       }
-      
+
       // Check if player has an existing session in this room that is paused
       const existingSession = await repositoryManager.gameSessions.findByPlayerAndRoom(socket.userId, roomId);
       if (existingSession && existingSession.game_result === 'paused') {
         // Player has a paused session, restore it
         try {
-          const restoreState = existingSession.player_state ? 
-            (typeof existingSession.player_state === 'string' ? JSON.parse(existingSession.player_state) : existingSession.player_state) 
+          const restoreState = existingSession.player_state ?
+            (typeof existingSession.player_state === 'string' ? JSON.parse(existingSession.player_state) : existingSession.player_state)
             : {};
           game.addPlayer(socket.id, color, socket.userId, restoreState);
-          
+
           // Associate restored session with new socket ID
           if (!game.playerSessions) {
             game.playerSessions = {};
           }
           game.playerSessions[socket.id] = existingSession.id;
           console.log(`[DIAGNOSTIC] Associated existing paused session ${existingSession.id} with new socket ${socket.id.slice(-6)}`);
-          
+
           // Update the session to mark it as restored (not paused anymore)
           await repositoryManager.gameSessions.update(existingSession.id, {
             ending_reason: null,
             paused_at: null
           });
-          
+
           // Send current players list to the joining user with restore flag
           const playersList = game.getPlayersList();
           socket.emit('room_joined', {
@@ -263,26 +263,26 @@ function createRoomHandlers(gameRoomManager, gameSessionHelper, repositoryManage
             playersList,
             restored: true
           });
-          
+
           // Notify other players in the room about player joined restored
           const newPlayerData = { id: socket.id, color, score: restoreState.score };
           socket.to(roomId).emit('player_joined_restored', {
             playerId: socket.id,
             player: newPlayerData
           });
-          
+
           console.log(`Returning player ${shortUserIdHash(socket.userId)} restored paused session in room ${roomId}`);
           return; // Exit early after restoration
         } catch (error) {
           console.error(`Error restoring paused session for player ${shortUserIdHash(socket.userId)} in room ${roomId}:`, error);
         }
       }
-      
+
       game.addPlayer(socket.id, color, socket.userId); // Add joiner as player with their color and authenticated user ID
-      
+
       // Create a game session record in the database for the joining player
       await gameSessionHelper.createGameSession(game, socket.id, socket.userId, true);
-      
+
       // Send current players list to the joining user
       const playersList = game.getPlayersList();
       socket.emit('room_joined', {
@@ -290,7 +290,7 @@ function createRoomHandlers(gameRoomManager, gameSessionHelper, repositoryManage
         state: game.getState(),
         playersList
       });
-      
+
       LobbyService.broadcastGameUpdate(game, io);
       // Notify other players in the room about new player
       const newPlayerData = { id: socket.id, color, score: 0 };
@@ -298,7 +298,7 @@ function createRoomHandlers(gameRoomManager, gameSessionHelper, repositoryManage
         playerId: socket.id,
         player: newPlayerData
       });
-      
+
       console.log(`New player ${shortUserIdHash(socket.userId)} joined room ${roomId}`);
     } else {
       socket.emit('error', 'Room not found');
@@ -310,15 +310,15 @@ function createRoomHandlers(gameRoomManager, gameSessionHelper, repositoryManage
    * Handle leave_room event
    */
   async function handleLeaveRoom(socket, { roomId }) {
-      console.log(`[LEAVE-ROOM] ${shortUserIdHash(socket.userId)} starting leave ${roomId}, current socket.rooms:`, Array.from(socket.rooms));
-      await handlePlayerLeave(socket, roomId);
-      console.log(`[LEAVE-ROOM] After handlePlayerLeave, socket.rooms:`, Array.from(socket.rooms));
-      socket.join('lobby');
-      console.log(`[LEAVE-ROOM] ${shortUserIdHash(socket.userId)} joined lobby, final socket.rooms:`, Array.from(socket.rooms));
-      console.log(`[LEAVE-ROOM] Broadcasting rooms_list after join`);
-      
-      // Update room list for all clients
-      LobbyService.broadcastRoomsList(io, gameRoomManager.getAllRooms());
+    console.log(`[LEAVE-ROOM] ${shortUserIdHash(socket.userId)} starting leave ${roomId}, current socket.rooms:`, Array.from(socket.rooms));
+    await handlePlayerLeave(socket, roomId);
+    console.log(`[LEAVE-ROOM] After handlePlayerLeave, socket.rooms:`, Array.from(socket.rooms));
+    socket.join('lobby');
+    console.log(`[LEAVE-ROOM] ${shortUserIdHash(socket.userId)} joined lobby, final socket.rooms:`, Array.from(socket.rooms));
+    console.log(`[LEAVE-ROOM] Broadcasting rooms_list after join`);
+
+    // Update room list for all clients
+    LobbyService.broadcastRoomsList(io, gameRoomManager.getAllRooms());
   }
 
   /**

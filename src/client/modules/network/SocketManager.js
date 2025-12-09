@@ -12,7 +12,7 @@ class SocketManager {
             const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
             const host = window.location.hostname;
             const serverUrl = `${protocol}//${host}`;
-            
+
             // Get the anonymous token from localStorage if it exists
             const anonymousToken = localStorage.getItem('anonymousToken');
 
@@ -25,39 +25,39 @@ class SocketManager {
                     anonymousToken: anonymousToken || undefined
                 }
             });
-            
+
             // Set up room event listeners
             this.setupRoomEventListeners();
             this.setupRestoreHandlers();
-            
+
             // Connection status handlers
             this.socket.on('connect', () => {
-                console.log('✅ Соединение с сервером установлено');
-                
-                // Автоматический вход в комнату из URL при любом connect
+                console.log('✅ Connection to server established');
+
+                // Automatic room join from URL on any connect
                 const urlParams = new URLSearchParams(window.location.search);
                 const roomId = urlParams.get('room');
                 if (roomId) {
-                    console.log('[Auto-join] Вход в комнату из URL:', roomId);
+                    console.log('[Auto-join] Joining room from URL:', roomId);
                     const color = getUserColor();
                     this.joinRoom(roomId, color);
                 } else {
-                    console.log('[Auto-join] URL без комнаты — лобби');
+                    console.log('[Auto-join] No room in URL — lobby');
                 }
             });
-            
+
             this.socket.on('disconnect', (reason) => {
-                console.log('❌ Соединение с сервером потеряно. Причина:', reason);
+                console.log('❌ Connection to server lost. Reason:', reason);
             });
-            
+
             this.socket.on('connect_error', (err) => {
                 console.error('❌ Ошибка подключения к серверу:', err.message || err);
             });
-            
+
             this.socket.on('reconnect_error', (err) => {
                 console.error('❌ Ошибка реконнекта:', err.message || err);
             });
-            
+
             // Listen for the server to send back the anonymous token and user_id
             this.socket.on('anonymous_token', (data) => {
                 if (data.token) {
@@ -78,28 +78,28 @@ class SocketManager {
     }
 
     setupRoomEventListeners() {
-            // Map server events to client events
-            const eventMappings = {
-                'room_created': 'roomCreated',
-                'room_joined': 'roomJoined',
-                'player_joined': 'playerJoined',
-                'player_left': 'playerLeft',
-                'players_list_updated': 'playersListUpdated'
-            };
-    
-            // Set up event listeners based on the mapping
-            Object.entries(eventMappings).forEach(([serverEvent, clientEvent]) => {
-                this.socket.on(serverEvent, (data) => {
-                    this.emit(clientEvent, data);
-                });
+        // Map server events to client events
+        const eventMappings = {
+            'room_created': 'roomCreated',
+            'room_joined': 'roomJoined',
+            'player_joined': 'playerJoined',
+            'player_left': 'playerLeft',
+            'players_list_updated': 'playersListUpdated'
+        };
+
+        // Set up event listeners based on the mapping
+        Object.entries(eventMappings).forEach(([serverEvent, clientEvent]) => {
+            this.socket.on(serverEvent, (data) => {
+                this.emit(clientEvent, data);
             });
-        }
+        });
+    }
 
     setupRestoreHandlers() {
         this.socket.on('room_joined', (data) => {
-            console.log(`Получен room_joined от сервера: restored=${!!data.restored}`);
+            console.log(`Received room_joined from server: restored=${!!data.restored}`);
             if (data.restored) {
-                console.log('Emit "restored" событие');
+                console.log('Emit "restored" event');
                 this.emit('restored', {});
             }
         });
@@ -111,7 +111,7 @@ class SocketManager {
         });
 
         this.socket.on('reconnect', () => {
-            console.log('🔄 Успешный реконнект. Пытаюсь вернуться в комнату:', localStorage.getItem('currentRoomId'));
+            console.log('🔄 Successful reconnect. Attempting to rejoin room:', localStorage.getItem('currentRoomId'));
             const roomId = localStorage.getItem('currentRoomId');
             if (roomId) {
                 const color = getUserColor();
@@ -145,11 +145,11 @@ class SocketManager {
     }
 
     createRoom(color, rotateable = false) {
-            this.socket.emit('create_room', { color, rotateable });
-        }
+        this.socket.emit('create_room', { color, rotateable });
+    }
 
     joinRoom(roomId, color) {
-        console.log(`[Reconnect] Отправляю join_room для комнаты ${roomId}`);
+        console.log(`[Reconnect] Sending join_room for room ${roomId}`);
         localStorage.setItem('currentRoomId', roomId);
         this.socket.emit('join_room', { roomId, color });
     }
@@ -173,7 +173,7 @@ class SocketManager {
     restartGame(roomId) {
         this.socket.emit('restart_game', { roomId });
     }
-    
+
     leaveRoom(roomId) {
         this.socket.emit('leave_room', { roomId });
     }

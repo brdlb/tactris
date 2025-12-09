@@ -34,25 +34,25 @@ function generateNewFigure(excludeTypes = []) {
         // If all types are excluded, fallback to any random type
         availableTypes.push(...Object.keys(FIGURE_ROTATIONS));
     }
-    
+
     // 2. Pick random type
     const randomType = availableTypes[Math.floor(Math.random() * availableTypes.length)];
-    
+
     // 3. Get rotation count for that type
     const rotationCount = FIGURE_ROTATIONS[randomType];
-    
+
     // 4. Pick random rotation (0 to count-1)
     const randomRotation = Math.floor(Math.random() * rotationCount);
-    
+
     // 5. Apply rotations
     let cells = FIGURES[randomType].map(cell => [...cell]);
     for (let i = 0; i < randomRotation; i++) {
         cells = rotateFigure(cells);
     }
-    
+
     // 6. Normalize to upper-left
     cells = normalizeFigure(cells);
-    
+
     // 7. Return {type, cells}
     return { type: randomType, cells };
 }
@@ -99,7 +99,7 @@ class Game {
                 const existingSocketId = this.userIdToSocket.get(userId);
                 this.removePlayer(existingSocketId);
             }
-            
+
             let playerData;
             if (restoreState) {
                 console.log(`Player ${socketId} state restored.`);
@@ -127,64 +127,16 @@ class Game {
                 };
             }
             this.players.set(socketId, playerData);
-            
+
             // Store the join time for this player
             this.playerJoinTimes[socketId] = Date.now();
-            
+
             // Store the authenticated user ID if provided
             if (userId && userId !== socketId) {
                 this.authenticatedUserIds[socketId] = userId;
                 // Map userId to socketId for persistent identification
                 this.userIdToSocket.set(userId, socketId);
             }
-        }
-    }
-
-    // RESTORE: Add player with restoration logic (separate method for explicit restore)
-    addPlayerRestore(socketId, color = 'red', userId = null, restoreState = null) {
-        // Check for duplicate userId in the game
-        if (userId && this.hasActiveUserId(userId)) {
-            console.log(`Player with userId ${userId} already exists in game, removing previous socket`);
-            const existingSocketId = this.userIdToSocket.get(userId);
-            this.removePlayer(existingSocketId);
-        }
-        
-        let playerData;
-        if (restoreState) {
-            console.log(`Player ${socketId} state restored.`);
-            const playerFigures = restoreState.figures.map(figure => ({
-                type: figure.type,
-                cells: figure.cells.map(cell => [...cell])
-            }));
-            playerData = {
-                id: socketId,
-                figures: playerFigures,
-                score: restoreState.score,
-                color: color
-            };
-        } else {
-            const firstFigure = generateNewFigure();
-            const playerFigures = [
-                firstFigure,
-                generateNewFigure([firstFigure.type])
-            ];
-            playerData = {
-                id: socketId,
-                figures: playerFigures,
-                score: 0,
-                color: color
-            };
-        }
-        this.players.set(socketId, playerData);
-        
-        // Store the join time for this player
-        this.playerJoinTimes[socketId] = Date.now();
-        
-        // Store the authenticated user ID if provided
-        if (userId && userId !== socketId) {
-            this.authenticatedUserIds[socketId] = userId;
-            // Map userId to socketId for persistent identification
-            this.userIdToSocket.set(userId, socketId);
         }
     }
 
@@ -199,7 +151,7 @@ class Game {
                     break;
                 }
             }
-            
+
             this.players.delete(playerId);
             // Remove the player's join time as well
             if (this.playerJoinTimes[playerId]) {
@@ -207,17 +159,17 @@ class Game {
             }
             // Clear any temporary pixels placed by this player
             this.clearTemporary(playerId);
-            
+
             // Clean up userId to socket mapping
             if (userId) {
                 this.userIdToSocket.delete(userId);
             }
-            
+
             // Clean up authenticated user ID mapping
             if (this.authenticatedUserIds[playerId]) {
                 delete this.authenticatedUserIds[playerId];
             }
-            
+
             return true;
         }
         return false;
@@ -238,16 +190,16 @@ class Game {
     }
 
     getState() {
-            return {
-                id: this.id,
-                grid: this.grid,
-                players: Object.fromEntries(this.players),
-                gameOver: this.gameOver,
-                rotateable: this.rotateable
-            };
-        }
+        return {
+            id: this.id,
+            grid: this.grid,
+            players: Object.fromEntries(this.players),
+            gameOver: this.gameOver,
+            rotateable: this.rotateable
+        };
+    }
 
-        isGridEmpty() {
+    isGridEmpty() {
         for (let y = 0; y < this.gridHeight; y++) {
             for (let x = 0; x < this.gridWidth; x++) {
                 if (this.grid[y][x] !== null) {
@@ -258,7 +210,7 @@ class Game {
         return true;
     }
 
-        getPlayersList() {
+    getPlayersList() {
         return Array.from(this.players.values()).map(player => ({
             id: player.id,
             color: player.color,
@@ -277,44 +229,44 @@ class Game {
     }
 
     placePixel(playerId, status, position) {
-      if (this.gameOver) return false;
-      const { x, y } = position;
+        if (this.gameOver) return false;
+        const { x, y } = position;
 
-      if (x < 0 || x >= 10 || y < 0 || y >= 10) {
-        return false; // Out of bounds
-      }
-
-      const player = this.players.get(playerId);
-      const playerColor = player ? player.color : 'red';
-
-      if (status === 1) {
-        // Only allow placing if empty or if it's own temporary pixel
-        const cell = this.grid[y][x];
-        if (cell === null) {
-          this.grid[y][x] = { playerId, color: playerColor, state: 'drawing' };
-        } else if (cell.playerId === playerId && cell.state === 'drawing') {
-          // Already own drawing pixel, do nothing or update
-          this.grid[y][x] = { playerId, color: playerColor, state: 'drawing' };
-        } else {
-          return false; // Occupied by solid or other player
+        if (x < 0 || x >= 10 || y < 0 || y >= 10) {
+            return false; // Out of bounds
         }
-      } else if (status === 0) {
-        // Only allow removing own temporary pixels
-        const cell = this.grid[y][x];
-        if (cell && cell.playerId === playerId && cell.state === 'drawing') {
-          this.grid[y][x] = null;
-        } else {
-          return false;
+
+        const player = this.players.get(playerId);
+        const playerColor = player ? player.color : 'red';
+
+        if (status === 1) {
+            // Only allow placing if empty or if it's own temporary pixel
+            const cell = this.grid[y][x];
+            if (cell === null) {
+                this.grid[y][x] = { playerId, color: playerColor, state: 'drawing' };
+            } else if (cell.playerId === playerId && cell.state === 'drawing') {
+                // Already own drawing pixel, do nothing or update
+                this.grid[y][x] = { playerId, color: playerColor, state: 'drawing' };
+            } else {
+                return false; // Occupied by solid or other player
+            }
+        } else if (status === 0) {
+            // Only allow removing own temporary pixels
+            const cell = this.grid[y][x];
+            if (cell && cell.playerId === playerId && cell.state === 'drawing') {
+                this.grid[y][x] = null;
+            } else {
+                return false;
+            }
         }
-      }
 
-      // Add move to game history
-      this.addMove(playerId, 'place_pixel', {
-        position: { x, y },
-        status
-      });
+        // Add move to game history
+        this.addMove(playerId, 'place_pixel', {
+            position: { x, y },
+            status
+        });
 
-      return true;
+        return true;
     }
 
     placeFigure(playerId, pixels, roomId = null, io = null) {
@@ -365,7 +317,7 @@ class Game {
             .filter((_, index) => index !== matchedFigureIndex)
             .map(fig => fig.type);
         const excludeTypes = [placedType, ...remainingTypes];
-        
+
         if (matchedFigureIndex > -1) {
             // Generate new figure excluding placed type and remaining types
             const newFigure = generateNewFigure(excludeTypes);
@@ -413,7 +365,7 @@ class Game {
                 }
             }
         }
-        
+
         // Send update to all players if roomId and io are provided
         if (roomId && io) {
             const gameState = this.getState();
@@ -422,9 +374,9 @@ class Game {
     }
 
     checkMatch(pixels, figures) {
-                // Use the shared utility function with rotateable option
-                return require('../utils/figureUtils').checkMatch(pixels, figures, this.rotateable);
-            }
+        // Use the shared utility function with rotateable option
+        return require('../utils/figureUtils').checkMatch(pixels, figures, this.rotateable);
+    }
 
     checkLines() {
         // Check if a row is completely filled
@@ -445,13 +397,13 @@ class Game {
         // Identify filled rows and columns
         const fullRowIndices = [];
         const fullColIndices = [];
-        
+
         for (let y = 0; y < this.gridHeight; y++) {
             if (isRowFilled(y)) {
                 fullRowIndices.push(y);
             }
         }
-        
+
         for (let x = 0; x < this.gridWidth; x++) {
             if (isColFilled(x)) {
                 fullColIndices.push(x);
@@ -478,7 +430,7 @@ class Game {
         if (totalLinesCleared > 0) {
             this.incrementLinesCleared(totalLinesCleared);
         }
-        
+
         return totalLinesCleared;
     }
 
@@ -513,7 +465,7 @@ class Game {
      */
     clearAndShiftColumns(fullColIndices) {
         const centerCol = Math.floor(this.gridWidth / 2);
-        
+
         for (let y = 0; y < this.gridHeight; y++) {
             let row = this.grid[y];
             let leftHalf = row.slice(0, centerCol);
@@ -582,10 +534,10 @@ class Game {
     restart() {
         // Clear the grid
         this.grid = Array(10).fill(null).map(() => Array(10).fill(null));
-        
+
         // Reset game over state
         this.gameOver = false;
-        
+
         // Reset all players' scores and figures
         for (const player of this.players.values()) {
             player.score = 0;
@@ -595,7 +547,7 @@ class Game {
                 generateNewFigure([firstFigure.type])
             ];
         }
-        
+
         // Reset game tracking properties
         this.startTime = Date.now();
         // Reset player join times to the restart time
@@ -611,21 +563,21 @@ class Game {
       * Get the duration of the game in seconds
       * @returns {number} Duration in seconds
       */
-     getDuration() {
-         return Math.floor((Date.now() - this.startTime) / 1000);
-     }
-     
-     /**
-      * Get the duration a specific player has been in the game in seconds
-      * @param {string} playerId - The player ID
-      * @returns {number} Duration in seconds
-      */
-     getPlayerDuration(playerId) {
-         if (!this.playerJoinTimes[playerId]) {
-             return 0;
-         }
-         return Math.floor((Date.now() - this.playerJoinTimes[playerId]) / 1000);
-     }
+    getDuration() {
+        return Math.floor((Date.now() - this.startTime) / 1000);
+    }
+
+    /**
+     * Get the duration a specific player has been in the game in seconds
+     * @param {string} playerId - The player ID
+     * @returns {number} Duration in seconds
+     */
+    getPlayerDuration(playerId) {
+        if (!this.playerJoinTimes[playerId]) {
+            return 0;
+        }
+        return Math.floor((Date.now() - this.playerJoinTimes[playerId]) / 1000);
+    }
 
     /**
      * Get the total lines cleared in the game
@@ -678,7 +630,7 @@ class Game {
         // For multiplayer, find the highest score
         let highestScore = -1;
         let playersWithHighestScore = [];
-        
+
         for (const [id, p] of this.players) {
             if (p.score > highestScore) {
                 highestScore = p.score;

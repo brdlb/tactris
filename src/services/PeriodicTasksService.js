@@ -20,14 +20,14 @@ class PeriodicTasksService {
   startInactivityCleanup(intervalMs = 300000) {
     const intervalId = setInterval(() => {
       const deletedRooms = this.gameRoomManager.cleanupInactiveRooms((roomId) => {
-        console.log(`Удалена неактивная комната ${roomId} (более 12 часов без заходов)`);
+        console.log(`Deleted inactive room ${roomId} (no activity for over 12 hours)`);
       });
-      
+
       if (deletedRooms.length > 0) {
         LobbyService.broadcastRoomsList(this.io, this.gameRoomManager.getAllRooms());
       }
     }, intervalMs);
-    
+
     this.intervals.push(intervalId);
     return intervalId;
   }
@@ -44,7 +44,7 @@ class PeriodicTasksService {
         console.log(`Cleaned up ${removed} expired disconnect records`);
       }
     }, intervalMs);
-    
+
     this.intervals.push(intervalId);
     return intervalId;
   }
@@ -63,7 +63,7 @@ class PeriodicTasksService {
         console.error('Error during periodic cleanup:', error);
       }
     }, intervalMs);
-    
+
     this.intervals.push(intervalId);
     return intervalId;
   }

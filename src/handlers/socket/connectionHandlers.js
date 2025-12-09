@@ -21,11 +21,11 @@ function createConnectionHandlers(gameRoomManager, gameSessionHelper, repository
   function handleConnection(socket) {
     // Send the anonymous token and user_id to the client if they are an anonymous user
     if (socket.anonymousToken && socket.isAnonymous) {
-      socket.emit('anonymous_token', { 
+      socket.emit('anonymous_token', {
         token: socket.anonymousToken,
-        user_id: socket.userId 
+        user_id: socket.userId
       });
-      
+
       // Update the last seen timestamp for the user
       repositoryManager.users.updateLastSeen(socket.userId)
         .catch(err => {
@@ -34,7 +34,7 @@ function createConnectionHandlers(gameRoomManager, gameSessionHelper, repository
     }
 
     socket.join('lobby');
-    console.log(`Игрок ${shortUserIdHash(socket.userId)} присоединился к лобби`);
+    console.log(`Player ${shortUserIdHash(socket.userId)} joined lobby`);
 
     // Send initial lobby state to newly connected client
     LobbyService.sendInitialLobbyState(socket, gameRoomManager.getAllRooms());
@@ -46,7 +46,7 @@ function createConnectionHandlers(gameRoomManager, gameSessionHelper, repository
   async function handleDisconnect(socket) {
     // Find all rooms the disconnected user was part of
     const roomsToNotify = [];
-    
+
     for (const [roomId, game] of gameRoomManager.getAllRooms().entries()) {
       if (game.players.has(socket.id)) {
         roomsToNotify.push(roomId);
@@ -55,13 +55,13 @@ function createConnectionHandlers(gameRoomManager, gameSessionHelper, repository
         }
       }
     }
-    
+
     if (roomsToNotify.length > 0) {
       console.log(`Player ${shortUserIdHash(socket.userId)} disconnected from ${roomsToNotify.length} room(s)`);
     } else {
       console.log(`Player ${shortUserIdHash(socket.userId)} disconnected (was not in any rooms)`);
     }
-    
+
     // Update room list for all clients if any rooms were affected
     if (roomsToNotify.length > 0) {
       LobbyService.broadcastRoomsList(io, gameRoomManager.getAllRooms());

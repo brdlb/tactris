@@ -6,11 +6,25 @@ import StatsModal from './StatsModal';
 import RoomControls from './RoomControls';
 import FiguresPanel from './FiguresPanel';
 import GameGrid from './GameGrid';
-import Panel from './Panel';
-import FigureRenderer from './FigureRenderer';
 import PlayerPanels from './PlayerPanels';
 import { getUserColor } from '../../../utils/colorUtils';
 import './GameBoard.css';
+
+const DEFAULT_STATS = {
+    total_games: 0,
+    total_wins: 0,
+    win_rate: 0,
+    total_score: 0,
+    average_score: 0,
+    best_score: 0,
+    total_lines_cleared: 0,
+    average_lines_cleared: 0,
+    best_lines_cleared: 0,
+    total_figures_placed: 0,
+    total_play_time_seconds: 0,
+    average_lines_per_game: 0,
+    rating: 1000
+};
 
 const GameBoard = () => {
     const [showSettings, setShowSettings] = useState(false);
@@ -37,7 +51,7 @@ const GameBoard = () => {
         handlePointerCancel,
         handleHueChange,
         handleRestart
-    
+
     } = useGameLogic(boardRef);
 
     const toggleSettings = () => {
@@ -48,28 +62,14 @@ const GameBoard = () => {
         try {
             // Get the user_id from localStorage
             const userId = localStorage.getItem('userId');
-            
+
             if (!userId) {
                 console.log('📊 [GameBoard] No user_id found, using default stats');
-                setStatsData({
-                    total_games: 0,
-                    total_wins: 0,
-                    win_rate: 0,
-                    total_score: 0,
-                    average_score: 0,
-                    best_score: 0,
-                    total_lines_cleared: 0,
-                    average_lines_cleared: 0,
-                    best_lines_cleared: 0,
-                    total_figures_placed: 0,
-                    total_play_time_seconds: 0,
-                    average_lines_per_game: 0,
-                    rating: 1000
-                });
+                setStatsData(DEFAULT_STATS);
                 setShowStats(true);
                 return;
             }
-            
+
             // Make an API call to get user statistics using public endpoint
             const response = await fetch(`/api/user/stats/public?user_id=${userId}`, {
                 method: 'GET',
@@ -85,42 +85,14 @@ const GameBoard = () => {
             } else {
                 // If the API call fails, set default stats
                 console.log('📊 [GameBoard] API call failed, using default stats');
-                setStatsData({
-                    total_games: 0,
-                    total_wins: 0,
-                    win_rate: 0,
-                    total_score: 0,
-                    average_score: 0,
-                    best_score: 0,
-                    total_lines_cleared: 0,
-                    average_lines_cleared: 0,
-                    best_lines_cleared: 0,
-                    total_figures_placed: 0,
-                    total_play_time_seconds: 0,
-                    average_lines_per_game: 0,
-                    rating: 1000
-                });
+                setStatsData(DEFAULT_STATS);
             }
         } catch (error) {
             console.error('Error fetching stats:', error);
             // Set default stats in case of error
-            setStatsData({
-                total_games: 0,
-                total_wins: 0,
-                win_rate: 0,
-                total_score: 0,
-                average_score: 0,
-                best_score: 0,
-                total_lines_cleared: 0,
-                average_lines_cleared: 0,
-                best_lines_cleared: 0,
-                total_figures_placed: 0,
-                total_play_time_seconds: 0,
-                average_lines_per_game: 0,
-                rating: 1000
-            });
+            setStatsData(DEFAULT_STATS);
         }
-        
+
         setShowStats(true);
     };
 
@@ -184,28 +156,28 @@ const GameBoard = () => {
 
             {roomId && (
                 <div className="game-content">
-                    <FiguresPanel 
-                        score={score} 
+                    <FiguresPanel
+                        score={score}
                         figures={myFigures}
                         playerColor={playersList.find(p => p.id === SocketManager.getSocket()?.id)?.color}
                     />
 
                     <div className="game-board-wrapper">
-                                        <PlayerPanels
-                                            playersList={playersList}
-                                            currentSocketId={SocketManager.getSocket()?.id}
-                                        />
-                    
-                                        <GameGrid
-                                            grid={grid}
-                                            roomId={roomId}
-                                            boardRef={boardRef}
-                                            onPointerDown={handlePointerDown}
-                                            onPointerMove={handlePointerMove}
-                                            onPointerUp={handlePointerUp}
-                                            onPointerCancel={handlePointerCancel}
-                                        />
-                                    </div>
+                        <PlayerPanels
+                            playersList={playersList}
+                            currentSocketId={SocketManager.getSocket()?.id}
+                        />
+
+                        <GameGrid
+                            grid={grid}
+                            roomId={roomId}
+                            boardRef={boardRef}
+                            onPointerDown={handlePointerDown}
+                            onPointerMove={handlePointerMove}
+                            onPointerUp={handlePointerUp}
+                            onPointerCancel={handlePointerCancel}
+                        />
+                    </div>
                 </div>
             )}
         </div>
