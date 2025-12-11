@@ -721,3 +721,161 @@
         grid-template-columns: repeat(1, 1fr);
     }
 }
+
+/* Leaderboard Button */
+.leaderboard-btn {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.leaderboard-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.leaderboard-btn svg {
+    transition: transform 0.3s ease;
+}
+
+/* Leaderboard Modal */
+.leaderboard-modal {
+    min-width: 400px;
+}
+
+/* Leaderboard Tabs */
+.leaderboard-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border-color);
+    padding: 0 20px;
+    gap: 0;
+}
+
+.leaderboard-tab {
+    flex: 1;
+    padding: 12px 16px;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    font-family: 'VirtualDJ', Arial, sans-serif;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.leaderboard-tab:hover {
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+}
+
+.leaderboard-tab.active {
+    color: var(--text-primary);
+    border-bottom-color: var(--player-color, #4CAF50);
+    font-weight: bold;
+}
+
+/* Leaderboard Table */
+.leaderboard-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.leaderboard-table th,
+.leaderboard-table td {
+    padding: 12px 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.leaderboard-table th {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: normal;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.leaderboard-table td {
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.leaderboard-table .rank-cell {
+    width: 50px;
+    text-align: center;
+    font-size: 1.2rem;
+}
+
+.leaderboard-table .name-cell {
+    font-weight: 500;
+}
+
+.leaderboard-table .name-cell.clickable {
+    cursor: pointer;
+    transition: color 0.2s ease, text-decoration 0.2s ease;
+}
+
+.leaderboard-table .name-cell.clickable:hover {
+    color: var(--player-color, #4CAF50);
+    text-decoration: underline;
+}
+
+.leaderboard-table .score-cell {
+    font-weight: bold;
+    font-family: 'VirtualDJ', monospace;
+}
+
+.leaderboard-table .games-cell {
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.leaderboard-table tr.current-user {
+    background: rgba(76, 175, 80, 0.1);
+}
+
+.leaderboard-table tr.current-user td {
+    color: var(--player-color, #4CAF50);
+}
+
+/* Leaderboard States */
+.leaderboard-loading,
+.leaderboard-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+}
+
+/* Mobile responsiveness for leaderboard */
+@media (max-width: 768px) {
+    .leaderboard-modal {
+        min-width: 90%;
+        max-width: 95%;
+    }
+
+    .leaderboard-tab {
+        padding: 10px 8px;
+        font-size: 0.9rem;
+    }
+
+    .leaderboard-table th,
+    .leaderboard-table td {
+        padding: 10px 6px;
+        font-size: 0.9rem;
+    }
+}

@@ -4,6 +4,7 @@
 
 const express = require('express');
 const { shortUserIdHash } = require('../utils/socketUtils');
+const { pool } = require('../config/db');
 
 /**
  * Create public routes
@@ -12,7 +13,7 @@ const { shortUserIdHash } = require('../utils/socketUtils');
  */
 function createPublicRoutes(repositoryManager) {
   const router = express.Router();
-  
+
   /**
    * Public endpoint for user statistics
    * GET /api/user/stats/public?user_id=<user_id>
@@ -21,14 +22,14 @@ function createPublicRoutes(repositoryManager) {
     try {
       const { user_id } = req.query;
       console.log('Received request for user stats with user_id:', shortUserIdHash(user_id));
-      
+
       if (!user_id) {
         return res.status(400).json({ error: 'user_id parameter is required' });
       }
 
       // Get user statistics from the repository
       const stats = await repositoryManager.gameStatistics.findByUserId(user_id);
-      
+
       if (!stats) {
         // If no stats exist for the user, return default stats
         return res.status(200).json({
@@ -62,11 +63,61 @@ function createPublicRoutes(repositoryManager) {
         average_lines_per_game: stats.average_lines_per_game || 0,
         rating: stats.rating || 1000
       };
-      
+
       res.status(200).json(responseData);
     } catch (error) {
       console.error('Error fetching public user stats:', error);
       res.status(500).json({ error: 'Failed to fetch user statistics' });
+    }
+  });
+
+  /**
+   * Public endpoint for leaderboard data
+   * GET /api/leaderboard?period=daily|weekly|global
+   */
+  router.get('/api/leaderboard', async (req, res) => {
+    try {
+      const { period = 'global' } = req.query;
+
+      let dateFilter = '';
+      if (period === 'daily') {
+        // Use updated_at because scores are recorded when games complete
+        dateFilter = "AND gs.updated_at >= NOW() - INTERVAL '1 day'";
+      } else if (period === 'weekly') {
+        dateFilter = "AND gs.updated_at >= NOW() - INTERVAL '7 days'";
+      }
+
+      const sqlQuery = `
+        SELECT 
+          u.id as user_id,
+          COALESCE(u.display_name, u.username, 'Player ' || LEFT(u.id::text, 6)) as display_name,
+          MAX(gs.score) as best_score,
+          COUNT(gs.id) as games_played
+        FROM game_sessions gs
+        JOIN users u ON gs.player_id = u.id
+        WHERE gs.score IS NOT NULL AND gs.score > 0 ${dateFilter}
+        GROUP BY u.id, u.display_name, u.username
+        ORDER BY best_score DESC
+        LIMIT 10
+      `;
+
+      const result = await pool.query(sqlQuery);
+
+      const leaderboard = result.rows.map((row, index) => ({
+        rank: index + 1,
+        user_id: row.user_id,
+        display_name: row.display_name,
+        best_score: parseInt(row.best_score),
+        games_played: parseInt(row.games_played)
+      }));
+
+      res.status(200).json({
+        period,
+        leaderboard
+      });
+    } catch (error) {
+      console.error('Error fetching leaderboard:', error);
+      res.status(500).json({ error: 'Failed to fetch leaderboard' });
     }
   });
 

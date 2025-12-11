@@ -56,6 +56,47 @@ class GameSessionRepository {
   }
 
   /**
+   * Creates a new game session with score and result (for completed games)
+   * @param {Object} sessionData - Game session data to create
+   * @returns {Promise<Object>} The created game session
+   */
+  async createWithScore(sessionData) {
+    const {
+      player_id,
+      room_id,
+      player_color,
+      score,
+      lines_cleared,
+      figures_placed,
+      duration_seconds,
+      game_result,
+      final_grid,
+      session_data
+    } = sessionData;
+
+    const query = `
+      INSERT INTO game_sessions (
+        player_id, room_id, player_color, score, lines_cleared,
+        figures_placed, duration_seconds, game_result, final_grid, session_data
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      RETURNING *;
+    `;
+
+    const values = [
+      player_id, room_id, player_color, score, lines_cleared,
+      figures_placed, duration_seconds, game_result, final_grid, session_data
+    ];
+
+    try {
+      const result = await this.db.query(query, values);
+      return result.rows[0];
+    } catch (error) {
+      throw new Error(`Error creating game session with score: ${error.message}`);
+    }
+  }
+
+  /**
    * Finds a game session by its ID
    * @param {string} id - Game session ID to find
    * @returns {Promise<Object|null>} The found game session or null
@@ -131,9 +172,10 @@ class GameSessionRepository {
     const allowedFields = [
       'room_id', 'player_color', 'final_score', 'lines_cleared', 'total_lines_cleared',
       'figures_placed', 'game_duration_seconds', 'final_grid', 'ending_reason', 'average_time_per_figure',
-      'max_combo', 'max_single_game_score', 'paused_at', 'player_state', 'game_result'
+      'max_combo', 'max_single_game_score', 'paused_at', 'player_state', 'game_result',
+      'score', 'duration_seconds', 'session_data'  // Added missing fields
     ];
-    
+
     const updateFields = [];
     const values = [];
     let valueIndex = 2;
@@ -252,26 +294,26 @@ class GameSessionRepository {
     * @param {string} roomId - Room ID
     * @returns {Promise<Object|null>} The restore candidate session or null
     */
-   async findRestoreCandidate(playerId, roomId) {
-     const query = `
+  async findRestoreCandidate(playerId, roomId) {
+    const query = `
        SELECT * FROM game_sessions
        WHERE player_id = $1 AND room_id = $2
          AND (game_result = 'paused' OR game_result = 'abandoned')
        ORDER BY paused_at DESC NULLS LAST LIMIT 1
      `;
-     const values = [playerId, roomId];
+    const values = [playerId, roomId];
 
-     try {
-       const result = await this.db.query(query, values);
-       console.log(`[DIAGNOSTIC] findRestoreCandidate(playerId=${playerId}, roomId=${roomId}): found ${result.rows.length} rows matching 'paused' within 10min`);
-       if (result.rows.length > 0) {
-         console.log(`  First match: game_result='${result.rows[0].game_result}', paused_at='${result.rows[0].paused_at}', updated_at='${result.rows[0].updated_at}'`);
-       }
-       return result.rows[0] || null;
-     } catch (error) {
-       throw new Error(`Error finding restore candidate: ${error.message}`);
-     }
-   }
+    try {
+      const result = await this.db.query(query, values);
+      console.log(`[DIAGNOSTIC] findRestoreCandidate(playerId=${playerId}, roomId=${roomId}): found ${result.rows.length} rows matching 'paused' within 10min`);
+      if (result.rows.length > 0) {
+        console.log(`  First match: game_result='${result.rows[0].game_result}', paused_at='${result.rows[0].paused_at}', updated_at='${result.rows[0].updated_at}'`);
+      }
+      return result.rows[0] || null;
+    } catch (error) {
+      throw new Error(`Error finding restore candidate: ${error.message}`);
+    }
+  }
 
   /**
    * Completes a game session and updates user statistics atomically
@@ -293,24 +335,24 @@ class GameSessionRepository {
         WHERE id = $1
         RETURNING *;
       `;
-      
+
       const sessionValues = [
         sessionId, sessionUpdates.game_mode, sessionUpdates.grid_width, sessionUpdates.grid_height,
         sessionUpdates.initial_grid, sessionUpdates.final_grid, sessionUpdates.duration_seconds, sessionUpdates.lines_cleared,
         sessionUpdates.figures_placed, sessionUpdates.score, sessionUpdates.game_result, sessionUpdates.session_data
       ];
-      
+
       const sessionResult = await client.query(sessionUpdateQuery, sessionValues);
       if (sessionResult.rows.length === 0) {
         throw new Error('Game session not found');
       }
-      
+
       const updatedSession = sessionResult.rows[0];
-      
+
       // Get the current statistics for the player
       const statsQuery = 'SELECT * FROM game_statistics WHERE user_id = $1;';
       const statsResult = await client.query(statsQuery, [playerId]);
-      
+
       let currentStats;
       if (statsResult.rows.length === 0) {
         // If no stats exist, create a new record
@@ -323,17 +365,17 @@ class GameSessionRepository {
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
           RETURNING *;
         `;
-        
+
         const initialStatsValues = [
           playerId, 1, gameSessionData.score, gameSessionData.lines_cleared, gameSessionData.duration_seconds, gameSessionData.score, gameSessionData.lines_cleared, gameSessionData.score, gameSessionData.lines_cleared, gameSessionData.duration_seconds
         ];
-        
+
         const createResult = await client.query(createStatsQuery, initialStatsValues);
         currentStats = createResult.rows[0];
       } else {
         currentStats = statsResult.rows[0];
       }
-      
+
       // Calculate new statistics based on the game session
       const gameResult = gameSessionData.game_result;
       const newTotalGames = parseInt(currentStats.total_games) + 1;
@@ -341,16 +383,16 @@ class GameSessionRepository {
       const newTotalLinesCleared = parseInt(currentStats.total_lines_cleared) + gameSessionData.lines_cleared;
       const newTotalDuration = parseInt(currentStats.total_duration) + gameSessionData.duration_seconds;
       console.log(`⏰ [GameSessionRepository] Updating statistics: total_duration ${currentStats.total_duration} + ${gameSessionData.duration_seconds} = ${newTotalDuration}`);
-      
+
       // Update best scores if needed
       const newBestScore = Math.max(parseInt(currentStats.best_score), gameSessionData.score);
       const newBestLinesCleared = Math.max(parseInt(currentStats.best_lines_cleared), gameSessionData.lines_cleared);
-      
+
       // Calculate averages with overflow protection
       const newAverageScore = Math.min(newTotalScore / newTotalGames, 99999.99);
       const newAverageLinesCleared = Math.min(newTotalLinesCleared / newTotalGames, 99.9);
       const newAverageDuration = Math.min(newTotalDuration / newTotalGames, 9999.99);
-      
+
       // Update the statistics record
       const updateStatsQuery = `
         UPDATE game_statistics
@@ -360,15 +402,15 @@ class GameSessionRepository {
         WHERE user_id = $1
         RETURNING *;
       `;
-      
+
       const statsValues = [
         playerId, newTotalGames, newTotalScore,
         newTotalLinesCleared, newTotalDuration, newBestScore, newBestLinesCleared,
         newAverageScore, newAverageLinesCleared, newAverageDuration
       ];
-      
+
       const updateStatsResult = await client.query(updateStatsQuery, statsValues);
-      
+
       return {
         session: updatedSession,
         statistics: updateStatsResult.rows[0]

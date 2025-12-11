@@ -379,15 +379,18 @@ class Game {
     }
 
     checkLines() {
-        // Check if a row is completely filled
+        // Check if a row is completely filled (ignore drawing/temporary blocks)
         const isRowFilled = (rowIndex) => {
-            return this.grid[rowIndex].every(cell => cell !== null);
+            return this.grid[rowIndex].every(cell =>
+                cell !== null && cell.state !== 'drawing'
+            );
         };
 
-        // Check if a column is completely filled
+        // Check if a column is completely filled (ignore drawing/temporary blocks)
         const isColFilled = (colIndex) => {
             for (let y = 0; y < this.gridHeight; y++) {
-                if (this.grid[y][colIndex] === null) {
+                const cell = this.grid[y][colIndex];
+                if (cell === null || cell.state === 'drawing') {
                     return false;
                 }
             }

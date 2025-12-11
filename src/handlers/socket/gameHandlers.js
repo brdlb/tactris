@@ -40,9 +40,10 @@ function createGameHandlers(gameRoomManager, gameSessionHelper, io) {
         const gameState = game.getState();
         io.to(roomId).emit('game_update', gameState);
         LobbyService.broadcastGameUpdate(game, io);
-        
+
         if (game.checkGameOver()) {
-          await gameSessionHelper.completeAllPlayerSessions(roomId, game);
+          // Create new game session records for all players with final scores
+          await gameSessionHelper.saveGameResults(roomId, game);
           io.to(roomId).emit('game_over');
         }
       } else {
@@ -81,15 +82,10 @@ function createGameHandlers(gameRoomManager, gameSessionHelper, io) {
   async function handleRestartGame(socket, { roomId }) {
     const game = gameRoomManager.getRoom(roomId);
     if (game) {
-      // Before restarting, we should consider creating a new game session or updating the existing one
-      // For now, we'll just restart the game instance
+      // Simply restart the game - no database operations needed
+      // Each completed game creates its own record on Game Over
       game.restart();
-      
-      // Update all player game sessions to reflect the restart (mark as in progress again)
-      if (gameSessionHelper) {
-        await gameSessionHelper.resetGameSessionsOnRestart(game);
-      }
-      
+
       // Send updated game state to all players in the room
       const gameState = game.getState();
       const playersList = game.getPlayersList();
