@@ -269,6 +269,39 @@ class Game {
         return true;
     }
 
+    updateDrawing(playerId, pixels) {
+        if (this.gameOver) return false;
+
+        const player = this.players.get(playerId);
+        if (!player) return false;
+
+        // 1. Clear all old drawing pixels for this player
+        for (let y = 0; y < this.gridHeight; y++) {
+            for (let x = 0; x < this.gridWidth; x++) {
+                const cell = this.grid[y][x];
+                if (cell && cell.playerId === playerId && cell.state === 'drawing') {
+                    this.grid[y][x] = null;
+                }
+            }
+        }
+
+        // 2. Validate and place new drawing pixels
+        const validPixels = [];
+        for (const p of pixels) {
+            if (p.x < 0 || p.x >= 10 || p.y < 0 || p.y >= 10) continue;
+
+            const cell = this.grid[p.y][p.x];
+            // Only allow drawing on empty cells
+            if (cell === null) {
+                this.grid[p.y][p.x] = { playerId, color: player.color, state: 'drawing' };
+                validPixels.push(p);
+            }
+        }
+
+        this.addMove(playerId, 'update_drawing', { pixels: validPixels });
+        return true;
+    }
+
     placeFigure(playerId, pixels, roomId = null, io = null) {
         if (this.gameOver) return false;
         const player = this.players.get(playerId);

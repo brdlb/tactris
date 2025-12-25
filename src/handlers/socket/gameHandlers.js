@@ -30,6 +30,22 @@ function createGameHandlers(gameRoomManager, gameSessionHelper, io) {
   }
 
   /**
+   * Handle update_drawing event
+   */
+  function handleUpdateDrawing(socket, { roomId, pixels }) {
+    const game = gameRoomManager.getRoom(roomId);
+    if (game) {
+      const success = game.updateDrawing(socket.id, pixels);
+      if (success) {
+        const gameState = game.getState();
+        io.to(roomId).emit('game_update', gameState);
+      } else {
+        socket.emit('error', 'Invalid move');
+      }
+    }
+  }
+
+  /**
    * Handle place_figure event
    */
   async function handlePlaceFigure(socket, { roomId, pixels }) {
@@ -104,6 +120,7 @@ function createGameHandlers(gameRoomManager, gameSessionHelper, io) {
    */
   function registerHandlers(socket) {
     socket.on('place_pixel', (data) => handlePlacePixel(socket, data));
+    socket.on('update_drawing', (data) => handleUpdateDrawing(socket, data));
     socket.on('place_figure', (data) => handlePlaceFigure(socket, data));
     socket.on('update_player_color', (data) => handleUpdatePlayerColor(socket, data));
     socket.on('restart_game', (data) => handleRestartGame(socket, data));

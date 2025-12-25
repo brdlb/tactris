@@ -158,6 +158,10 @@ class SocketManager {
         this.socket.emit('place_pixel', { roomId, status, position });
     }
 
+    updateDrawing(roomId, pixels) {
+        this.socket.emit('update_drawing', { roomId, pixels });
+    }
+
     placeFigure(roomId, pixels) {
         this.socket.emit('place_figure', { roomId, pixels });
     }

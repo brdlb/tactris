@@ -33,7 +33,6 @@ const useGameLogic = (boardRefOverride = null) => {
     const activePointerId = useRef(null);
     const lastPointerCell = useRef(null);
     const pointerCaptureTarget = useRef(null);
-    const pendingUpdates = useRef(new Set()); // Track recently updated pixels to avoid redundant server updates
     const isResizing = useRef(false); // Track resize state to force metric recalculation
     const roomRotateableRef = useRef(false); // Store the rotateable setting for this room
 
@@ -50,19 +49,12 @@ const useGameLogic = (boardRefOverride = null) => {
         if (selectedPixels.current.length === 0) return;
 
         const removedPixel = selectedPixels.current.shift();
-        let newGrid = gridRef.current;
-
-        newGrid = updateGridPixel(newGrid, removedPixel.x, removedPixel.y, null);
-
-        // Track this pixel as recently updated by current user (removal)
-        pendingUpdates.current.add(`${removedPixel.x}-${removedPixel.y}`);
+        let newGrid = [...gridRef.current];
+        newGrid[removedPixel.y] = [...newGrid[removedPixel.y]];
+        newGrid[removedPixel.y][removedPixel.x] = null;
 
         gridRef.current = newGrid;
         setGrid(newGrid);
-
-        if (roomIdRef.current) {
-            SocketManager.placePixel(roomIdRef.current, 0, removedPixel);
-        }
     };
 
     // Apply theme to document
@@ -82,16 +74,28 @@ const useGameLogic = (boardRefOverride = null) => {
         const updateGameState = (state) => {
             const currentGrid = gridRef.current;
             const newGrid = state.grid;
-            const pendingUpdatesSet = pendingUpdates.current;
+            const socketId = socket.id;
 
             // Create a new grid that preserves recent local changes
             const processedGrid = newGrid.map((row, y) =>
                 row.map((cell, x) => {
-                    const pixelKey = `${x}-${y}`;
-                    const currentCell = currentGrid[y]?.[x];
+                    // Locally, we always prioritize our own current drawing
+                    const isOurDrawing = selectedPixels.current.some(p => p.x === x && p.y === y);
+                    if (isOurDrawing) {
+                        return {
+                            playerId: socketId,
+                            color: userColor.current,
+                            state: 'drawing'
+                        };
+                    }
 
-                    // Skip updating if this pixel was recently modified locally
-                    return pendingUpdatesSet.has(pixelKey) ? currentCell : cell;
+                    // If server says it's our drawing pixel but we don't have it locally, ignore it
+                    // (prevents ghost pixels from old drawings or lag)
+                    if (cell && cell.playerId === socketId && cell.state === 'drawing') {
+                        return null;
+                    }
+
+                    return cell;
                 })
             );
 
@@ -99,49 +103,43 @@ const useGameLogic = (boardRefOverride = null) => {
             gridRef.current = processedGrid;
 
             // Update player-specific data
-            const myPlayer = state.players && state.players[socket.id];
+            const myPlayer = state.players && state.players[socketId];
             if (myPlayer) {
                 // Update figures if they changed
                 if (myPlayer.figures) {
-                    // Always update figures when they're received from server
                     setMyFigures(myPlayer.figures);
                 }
 
-                // Update score from server always
+                // Update score from server
                 if (myPlayer.score !== undefined) {
                     setScore(myPlayer.score);
                 }
             }
 
-            // Update players list to sync opponents' data (scores, figures)
+            // Update players list to sync opponents' data
             if (state.players) {
                 const updatedPlayersList = Object.values(state.players).map(player => ({
                     id: player.id,
                     color: player.color,
                     score: player.score,
-                    figures: player.figures
+                    figures: player.figures,
+                    displayId: generateDisplayId(player.id)
                 }));
                 setPlayersList(updatedPlayersList);
             }
 
-            // Update game over state from server always
             if (state.gameOver !== undefined) {
                 setGameOver(state.gameOver);
             }
 
-            // Update rotateable setting if it changed (for client-side validation)
             if (state.rotateable !== undefined) {
                 roomRotateableRef.current = state.rotateable;
             }
-
-            // Clean up old pending updates (keep only recent ones)
-            pendingUpdatesSet.clear();
         };
 
         socket.on('room_created', ({ roomId, state, playersList }) => {
             setRoomId(roomId);
             roomIdRef.current = roomId;
-            pendingUpdates.current.clear(); // Clear pending updates for new room
             updateGameState(state);
             if (playersList) setPlayersList(playersList);
             selectedPixels.current = []; // Reset selection on new game
@@ -153,7 +151,6 @@ const useGameLogic = (boardRefOverride = null) => {
             console.log('room_joined in useGameLogic, restored:', !!restored);
             setRoomId(roomId);
             roomIdRef.current = roomId;
-            pendingUpdates.current.clear(); // Clear pending updates for new room
             updateGameState(state);
             if (playersList) setPlayersList(playersList.map(player => ({
                 ...player,
@@ -237,7 +234,6 @@ const useGameLogic = (boardRefOverride = null) => {
         socket.on('restored', () => {
             console.log('Received "restored" event in useGameLogic');
             setIsRestored(true);
-            pendingUpdates.current.clear();
             // Additional restoration logic would go here if needed
         });
 
@@ -401,6 +397,23 @@ const useGameLogic = (boardRefOverride = null) => {
             const matchedFigureIndex = checkMatch(selectedPixels.current, myFigures, roomRotateableRef.current);
             if (matchedFigureIndex !== -1) {
                 SocketManager.placeFigure(roomIdRef.current, selectedPixels.current);
+                // Clear locally immediately after placing figure
+                selectedPixels.current = [];
+            } else {
+                // If draw ended but no figure was matched, we can either keep it or clear it.
+                // To minimize "ghost" drawings for others, let's clear it on release if not matched.
+                // Or keep it? The user said "completely process drawing... only send update when changed".
+                // Most games of this type clear on release if no match.
+                selectedPixels.current = [];
+                if (roomIdRef.current) {
+                    SocketManager.updateDrawing(roomIdRef.current, []);
+                }
+            }
+        } else if (selectedPixels.current.length > 0) {
+            // Clear small selections too
+            selectedPixels.current = [];
+            if (roomIdRef.current) {
+                SocketManager.updateDrawing(roomIdRef.current, []);
             }
         }
 
@@ -420,9 +433,6 @@ const useGameLogic = (boardRefOverride = null) => {
         activePointerId.current = null;
         lastPointerCell.current = null;
         pointerCaptureTarget.current = null;
-
-        // Clear pending updates after drawing is finalized
-        pendingUpdates.current.clear();
     }, [gameOver, myFigures]);
 
     useEffect(() => {
@@ -478,31 +488,32 @@ const useGameLogic = (boardRefOverride = null) => {
         const activeRoomId = roomIdRef.current;
         if (!activeRoomId || gameOver) return;
 
-        // Check if pixel is already selected to avoid duplicates
-        if (selectedPixels.current.some(p => p.x === x && p.y === y)) return;
+        // Check for collisions with solid blocks locally first
+        const targetCell = gridRef.current[y]?.[x];
+        if (targetCell !== null && targetCell !== undefined) {
+            // If it's a solid block (not 'drawing' state), we can't draw here
+            if (targetCell.state !== 'drawing') return;
+            // If it's already in our selection, skip
+            if (selectedPixels.current.some(p => p.x === x && p.y === y)) return;
+        }
 
         const newPixel = { x, y };
         selectedPixels.current.push(newPixel);
 
-        // Update grid with the new pixel
-        let newGrid = gridRef.current;
-        newGrid = updateGridPixel(newGrid, x, y, {
+        // Update grid with the new pixel selection locally
+        let newGrid = [...gridRef.current];
+        newGrid[y] = [...newGrid[y]];
+        newGrid[y][x] = {
             playerId: SocketManager.getSocket().id,
             color: userColor.current,
             state: 'drawing'
-        });
-
-        SocketManager.placePixel(activeRoomId, 1, newPixel);
-
-        // Track this pixel as recently updated by current user
-        pendingUpdates.current.add(`${x}-${y}`);
-
+        };
 
         // If we have MIN_PIXELS_FOR_FIGURE or more pixels, check if they match any figure
         if (selectedPixels.current.length >= MIN_PIXELS_FOR_FIGURE) {
             const matchedFigureIndex = checkMatch(selectedPixels.current, myFigures, roomRotateableRef.current);
 
-            // If doesn't match any figure, remove the first pixel
+            // If doesn't match any figure, remove the first pixel until it does or we have fewer than MIN
             if (matchedFigureIndex === -1) {
                 removeFirstPixelFromQueue();
             }
@@ -510,6 +521,9 @@ const useGameLogic = (boardRefOverride = null) => {
 
         gridRef.current = newGrid;
         setGrid(newGrid);
+
+        // Send the updated selection to the server in one go
+        SocketManager.updateDrawing(activeRoomId, selectedPixels.current);
     };
 
     const handlePointerDown = useCallback((event) => {
