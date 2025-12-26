@@ -65,6 +65,21 @@ const useGameLogic = (boardRefOverride = null) => {
         }
     }, []);
 
+    // Helper to remove first pixel from queue and clear it from grid
+    const removeFirstPixel = useCallback(() => {
+        if (selectedPixels.current.length === 0) return;
+
+        const removedPixel = selectedPixels.current.shift();
+        let newGrid = [...gridRef.current];
+        if (newGrid[removedPixel.y]) {
+            newGrid[removedPixel.y] = [...newGrid[removedPixel.y]];
+            newGrid[removedPixel.y][removedPixel.x] = null;
+        }
+
+        gridRef.current = newGrid;
+        setGrid(newGrid);
+    }, []);
+
     // Apply theme to document
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', theme);
@@ -510,17 +525,12 @@ const useGameLogic = (boardRefOverride = null) => {
         if (selectedPixels.current.length >= MIN_PIXELS_FOR_FIGURE) {
             const matchedFigureIndex = checkMatch(selectedPixels.current, myFigures, roomRotateableRef.current);
 
-            // If doesn't match any figure, clear everything
+            // If doesn't match any figure, remove the first pixel
             if (matchedFigureIndex === -1) {
-                clearAllSelectedPixels();
-                return; // Selection cleared, nothing more to do
-            } else {
-                // If matched, we can place it immediately or wait for mouseup
-                // To support "one stroke" placement, let's place it
-                SocketManager.placeFigure(activeRoomId, selectedPixels.current);
-                selectedPixels.current = [];
-                // Grid will be updated by game_update from server
+                removeFirstPixel();
             }
+            // If matched, we don't place it immediately anymore. 
+            // We wait for finalizeDrawing (mouseup/pointerup) as requested.
         }
 
         gridRef.current = newGrid;
