@@ -44,18 +44,26 @@ const useGameLogic = (boardRefOverride = null) => {
         return newGrid;
     };
 
-    // Helper to remove first pixel from queue and clear it from grid
-    const removeFirstPixelFromQueue = () => {
+    // Helper to clear all selected pixels
+    const clearAllSelectedPixels = useCallback(() => {
         if (selectedPixels.current.length === 0) return;
 
-        const removedPixel = selectedPixels.current.shift();
         let newGrid = [...gridRef.current];
-        newGrid[removedPixel.y] = [...newGrid[removedPixel.y]];
-        newGrid[removedPixel.y][removedPixel.x] = null;
+        selectedPixels.current.forEach(p => {
+            if (newGrid[p.y]) {
+                newGrid[p.y] = [...newGrid[p.y]];
+                newGrid[p.y][p.x] = null;
+            }
+        });
 
+        selectedPixels.current = [];
         gridRef.current = newGrid;
         setGrid(newGrid);
-    };
+
+        if (roomIdRef.current) {
+            SocketManager.updateDrawing(roomIdRef.current, []);
+        }
+    }, []);
 
     // Apply theme to document
     useEffect(() => {
@@ -400,22 +408,11 @@ const useGameLogic = (boardRefOverride = null) => {
                 // Clear locally immediately after placing figure
                 selectedPixels.current = [];
             } else {
-                // If draw ended but no figure was matched, we can either keep it or clear it.
-                // To minimize "ghost" drawings for others, let's clear it on release if not matched.
-                // Or keep it? The user said "completely process drawing... only send update when changed".
-                // Most games of this type clear on release if no match.
-                selectedPixels.current = [];
-                if (roomIdRef.current) {
-                    SocketManager.updateDrawing(roomIdRef.current, []);
-                }
-            }
-        } else if (selectedPixels.current.length > 0) {
-            // Clear small selections too
-            selectedPixels.current = [];
-            if (roomIdRef.current) {
-                SocketManager.updateDrawing(roomIdRef.current, []);
+                // If draw ended but no figure was matched and we have 4+ blocks, clear it
+                clearAllSelectedPixels();
             }
         }
+        // If less than 4 blocks, we don't clear, allowing the player to continue drawing later
 
         isDrawing.current = false;
 
@@ -509,21 +506,30 @@ const useGameLogic = (boardRefOverride = null) => {
             state: 'drawing'
         };
 
-        // If we have MIN_PIXELS_FOR_FIGURE or more pixels, check if they match any figure
+        // If we have MIN_PIXELS_FOR_FIGURE pixels, check if they match any figure
         if (selectedPixels.current.length >= MIN_PIXELS_FOR_FIGURE) {
             const matchedFigureIndex = checkMatch(selectedPixels.current, myFigures, roomRotateableRef.current);
 
-            // If doesn't match any figure, remove the first pixel until it does or we have fewer than MIN
+            // If doesn't match any figure, clear everything
             if (matchedFigureIndex === -1) {
-                removeFirstPixelFromQueue();
+                clearAllSelectedPixels();
+                return; // Selection cleared, nothing more to do
+            } else {
+                // If matched, we can place it immediately or wait for mouseup
+                // To support "one stroke" placement, let's place it
+                SocketManager.placeFigure(activeRoomId, selectedPixels.current);
+                selectedPixels.current = [];
+                // Grid will be updated by game_update from server
             }
         }
 
         gridRef.current = newGrid;
         setGrid(newGrid);
 
-        // Send the updated selection to the server in one go
-        SocketManager.updateDrawing(activeRoomId, selectedPixels.current);
+        // Send the updated selection to the server
+        if (selectedPixels.current.length > 0) {
+            SocketManager.updateDrawing(activeRoomId, selectedPixels.current);
+        }
     };
 
     const handlePointerDown = useCallback((event) => {
