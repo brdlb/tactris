@@ -86,36 +86,17 @@
 }
 
 .game-board {
-    display: grid;
-    grid-template-columns: repeat(10, 8vmin);
-    gap: 1px;
+    width: 80vmin;
+    height: 80vmin;
     background-color: var(--grid-bg);
-    padding: 1px;
     border: 1px solid var(--border-dark);
     transition: background-color 0.3s ease, border-color 0.3s ease;
     touch-action: none;
+    display: block;
 }
 
-.grid-cell {
-    width: 8vmin;
-    height: 8vmin;
-    cursor: pointer;
-    transition: background-color 0.2s;
-    touch-action: none;
-    /* Prevent scrolling and zooming on touch */
-    -webkit-touch-callout: none;
-    /* Disable callout, copy/paste on iOS */
-    -webkit-user-select: none;
-    /* Disable text selection on iOS */
-    -khtml-user-select: none;
-    /* Disable text selection on Safari */
-    -moz-user-select: none;
-    /* Disable text selection on Firefox */
-    -ms-user-select: none;
-    /* Disable text selection on Internet Explorer */
-    user-select: none;
-    /* Disable text selection on modern browsers */
-}
+/* Removed .grid-cell styles as they are replaced by Canvas drawing */
+
 
 /* Mobile-specific improvements */
 @media (hover: none) and (pointer: coarse) {
@@ -677,13 +658,7 @@
     .game-board {
         width: 100vmin;
         height: 100vmin;
-        grid-template-columns: repeat(10, 1fr);
         box-sizing: border-box;
-    }
-
-    .grid-cell {
-        width: auto;
-        height: auto;
     }
 }
 
