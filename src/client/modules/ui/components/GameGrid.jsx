@@ -129,7 +129,27 @@ const GameGrid = ({
         const speed = 0.3; // Base speed
         const moveSpeed = 0.2; // Speed for position interpolation
 
-        let anyMoving = false;
+        let anyFading = false;
+        let anyShifting = false;
+
+        // Check if we are still in Phase 1 (fading)
+        animationsRef.current.forEach((anim) => {
+            if (anim.target === 0 && anim.progress > 0) {
+                anyFading = true;
+            }
+        });
+
+        // Trigger Phase 2 if Phase 1 is done
+        if (!anyFading && clearingDetails) {
+            animationsRef.current.forEach((anim, key) => {
+                if (anim.isMoving) {
+                    const [finalX, finalY] = key.split(',').map(Number);
+                    anim.tx = finalX;
+                    anim.ty = finalY;
+                    anim.isMoving = false;
+                }
+            });
+        }
 
         animationsRef.current.forEach((anim, key) => {
             let itemNeedsUpdate = false;
@@ -150,7 +170,7 @@ const GameGrid = ({
                 anim.x += xDiff * moveSpeed;
                 anim.y += yDiff * moveSpeed;
                 itemNeedsUpdate = true;
-                anyMoving = true;
+                anyShifting = true;
             } else {
                 anim.x = anim.tx;
                 anim.y = anim.ty;
@@ -167,8 +187,8 @@ const GameGrid = ({
             draw();
         }
 
-        // If we were animating a clear and now everything is stable, signal completion
-        if (clearingDetails && !needsUpdate && !anyMoving) {
+        // Signal completion only when everything is stable
+        if (clearingDetails && !needsUpdate && !anyFading && !anyShifting) {
             if (onAnimationComplete) onAnimationComplete();
         }
 
@@ -178,9 +198,10 @@ const GameGrid = ({
     useEffect(() => {
         updateStyles();
         updateDimensions();
+        draw();
         requestRef.current = requestAnimationFrame(animate);
         return () => cancelAnimationFrame(requestRef.current);
-    }, [animate, updateStyles, updateDimensions]);
+    }, [animate, updateStyles, updateDimensions, draw]);
 
     useEffect(() => {
         const rows = grid.length;
@@ -190,10 +211,9 @@ const GameGrid = ({
         const currentAnimationKeys = new Set(animationsRef.current.keys());
 
         // Helper to find which block this is after a shift
-        const getSourcePos = (targetX, targetY) => {
+        const getMove = (targetX, targetY) => {
             if (!clearingDetails || !clearingDetails.movingBlocks) return null;
-            const move = clearingDetails.movingBlocks.find(m => m.toX === targetX && m.toY === targetY);
-            return move ? { x: move.fromX, y: move.fromY } : null;
+            return clearingDetails.movingBlocks.find(m => m.toX === targetX && m.toY === targetY);
         };
 
         for (let y = 0; y < rows; y++) {
@@ -201,19 +221,31 @@ const GameGrid = ({
                 const cell = grid[y][x];
                 const key = `${x},${y}`;
                 if (cell) {
-                    const sourcePos = getSourcePos(x, y);
-                    const sourceKey = sourcePos ? `${sourcePos.x},${sourcePos.y}` : key;
+                    const move = getMove(x, y);
+                    const sourceKey = move ? `${move.fromX},${move.fromY}` : key;
 
                     if (animationsRef.current.has(sourceKey)) {
                         const anim = animationsRef.current.get(sourceKey);
                         anim.target = 1;
-                        anim.tx = x;
-                        anim.ty = y;
                         anim.color = cell.color;
                         anim.state = cell.state;
+
+                        if (move) {
+                            // Phase 1: Keep it at the source position for now
+                            anim.x = move.fromX;
+                            anim.y = move.fromY;
+                            anim.tx = move.fromX;
+                            anim.ty = move.fromY;
+                            anim.isMoving = true; // Mark for Phase 2
+                        } else {
+                            anim.tx = x;
+                            anim.ty = y;
+                        }
+
                         nextAnimations.set(key, anim);
                         currentAnimationKeys.delete(sourceKey);
                     } else {
+                        // New block (e.g. just placed or drawing)
                         nextAnimations.set(key, {
                             x, y, tx: x, ty: y,
                             progress: 0,
@@ -231,8 +263,6 @@ const GameGrid = ({
             const anim = animationsRef.current.get(oldKey);
             if (anim) {
                 anim.target = 0;
-                // Use a unique key for clearing blocks to avoid collision with blocks 
-                // that might have moved into their old positions.
                 const clearingKey = oldKey.startsWith('clearing-') ? oldKey : `clearing-${oldKey}-${Date.now()}`;
                 nextAnimations.set(clearingKey, anim);
             }
