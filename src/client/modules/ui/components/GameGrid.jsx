@@ -79,6 +79,17 @@ const GameGrid = ({
             }
         }
 
+        // Helper to interpolate between two RGB colors
+        const lerpColor = (color1, color2, t) => {
+            const parse = (s) => (s.match(/\d+/g) || [255, 255, 255]).map(Number);
+            const [r1, g1, b1] = parse(color1);
+            const [r2, g2, b2] = parse(color2);
+            const r = Math.round(r1 + (r2 - r1) * t);
+            const g = Math.round(g1 + (g2 - g1) * t);
+            const b = Math.round(b1 + (b2 - b1) * t);
+            return `rgb(${r}, ${g}, ${b})`;
+        };
+
         animationsRef.current.forEach((anim) => {
             if (anim.progress <= 0 && anim.target === 0) return;
 
@@ -88,19 +99,22 @@ const GameGrid = ({
             const ph = cellH - 1;
 
             ctx.save();
-            ctx.globalAlpha = anim.progress;
 
             if (anim.state === 'drawing') {
-                ctx.fillStyle = anim.color;
+                // Fade from white to user color for drawing state
+                ctx.fillStyle = lerpColor('rgb(255, 255, 255)', anim.color, anim.progress);
+                ctx.globalAlpha = 1; // Keep opaque for color transition effect
             } else {
                 ctx.fillStyle = occupiedColor;
+                ctx.globalAlpha = anim.progress; // Alpha for solid blocks
             }
 
             const centerX = px + cellW / 2;
             const centerY = py + cellH / 2;
 
             ctx.translate(centerX, centerY);
-            ctx.scale(anim.progress, anim.progress);
+            const currentScale = anim.target === 0 ? anim.progress : 1;
+            ctx.scale(currentScale, currentScale);
             ctx.translate(-centerX, -centerY);
 
             ctx.fillRect(px + 0.5, py + 0.5, pw, ph);
