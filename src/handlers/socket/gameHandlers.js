@@ -51,10 +51,15 @@ function createGameHandlers(gameRoomManager, gameSessionHelper, io) {
   async function handlePlaceFigure(socket, { roomId, pixels }) {
     const game = gameRoomManager.getRoom(roomId);
     if (game) {
-      const success = game.placeFigure(socket.id, pixels, roomId, io);
-      if (success) {
+      const result = game.placeFigure(socket.id, pixels, roomId, io);
+      if (result.success) {
         const gameState = game.getState();
-        io.to(roomId).emit('game_update', gameState);
+        // If lines were cleared, include details in the update for room players
+        const updatePayload = result.clearingResult
+          ? { ...gameState, clearingDetails: result.clearingResult }
+          : gameState;
+
+        io.to(roomId).emit('game_update', updatePayload);
         LobbyService.broadcastGameUpdate(game, io);
 
         if (game.checkGameOver()) {

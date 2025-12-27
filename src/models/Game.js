@@ -303,47 +303,44 @@ class Game {
     }
 
     placeFigure(playerId, pixels, roomId = null, io = null) {
-        if (this.gameOver) return false;
+        if (this.gameOver) return { success: false };
         const player = this.players.get(playerId);
         if (!player) {
             this.clearTemporary(playerId);
-            return false;
+            return { success: false };
         }
 
         // 1. Validate geometry
         const matchedFigureIndex = this.checkMatch(pixels, player.figures);
         if (matchedFigureIndex === -1) {
             this.clearTemporary(playerId, roomId, io);
-            return false;
+            return { success: false };
         }
 
         // 2. Validate placement (bounds and collision)
         for (const p of pixels) {
             if (p.x < 0 || p.x >= 10 || p.y < 0 || p.y >= 10) {
                 this.clearTemporary(playerId, roomId, io);
-                return false;
+                return { success: false };
             }
             const cell = this.grid[p.y][p.x];
             // Collision if cell is not null AND (not owned by player OR not drawing state)
             if (cell !== null) {
                 if (cell.playerId !== playerId || cell.state !== 'drawing') {
                     this.clearTemporary(playerId, roomId, io);
-                    return false;
+                    return { success: false };
                 }
             }
         }
 
         // 3. Place pixels (Solidify)
-        // First, clear any temporary pixels that might be leftover (though usually they are part of the figure)
-        // Actually, we should just overwrite the pixels in the figure with solid ones.
-        // But we should also clean up any "stray" drawing pixels if the user drew extra stuff.
         this.clearTemporary(playerId, roomId, io);
 
         for (const p of pixels) {
             this.grid[p.y][p.x] = { playerId, color: player.color }; // No 'state' means solid
         }
 
-        // 4. Replace figure at the same index (don't change order)
+        // 4. Replace figure at the same index
         const matchedFigure = player.figures[matchedFigureIndex];
         const placedType = matchedFigure.type;
         const remainingTypes = player.figures
@@ -352,41 +349,36 @@ class Game {
         const excludeTypes = [placedType, ...remainingTypes];
 
         if (matchedFigureIndex > -1) {
-            // Generate new figure excluding placed type and remaining types
             const newFigure = generateNewFigure(excludeTypes);
             player.figures[matchedFigureIndex] = newFigure;
         }
 
         // 5. Check lines
-        const linesCleared = this.checkLines();
+        const clearingResult = this.checkLines();
+        const linesCleared = clearingResult.count;
 
         // 6. Update Score
-        // +4 for placing figure
         player.score += 4;
-
-        // +10 per line
         if (linesCleared > 0) {
             player.score += 10 * linesCleared;
-            // Bonus if > 1 line
             if (linesCleared > 1) {
                 player.score += 10 * linesCleared;
             }
         }
 
-        // Increment counters for tracking game statistics
+        // Increment counters
         this.incrementFiguresPlaced();
-        if (linesCleared > 0) {
-            this.incrementLinesCleared(linesCleared);
-        }
+        // linesCleared is already incremented inside checkLines()
 
         // Add move to game history
         this.addMove(playerId, 'place_figure', {
             figure: matchedFigure.type,
             linesCleared,
-            scoreIncrease: 4 + (linesCleared > 0 ? 10 * linesCleared + (linesCleared > 1 ? 10 * linesCleared : 0) : 0)
+            scoreIncrease: 4 + (linesCleared > 0 ? 10 * linesCleared + (linesCleared > 1 ? 10 * linesCleared : 0) : 0),
+            clearingDetails: linesCleared > 0 ? clearingResult : null
         });
 
-        return true;
+        return { success: true, clearingResult: linesCleared > 0 ? clearingResult : null };
     }
 
     clearTemporary(playerId, roomId = null, io = null) {
@@ -448,26 +440,85 @@ class Game {
 
         // Return early if no lines are filled
         if (fullRowIndices.length === 0 && fullColIndices.length === 0) {
-            return 0;
+            return { count: 0 };
         }
 
-        // Process filled rows by shifting remaining rows toward center
+        // 1. Capture state before clearing
+        const beforeGrid = JSON.parse(JSON.stringify(this.grid));
+
+        // 2. Tag cells with temporary IDs to track their movement
+        for (let y = 0; y < this.gridHeight; y++) {
+            for (let x = 0; x < this.gridWidth; x++) {
+                const cell = this.grid[y][x];
+                if (cell && cell.state !== 'drawing') {
+                    cell._tempId = `${y}-${x}`;
+                }
+            }
+        }
+
+        // 3. Identify cleared blocks
+        const clearedBlocks = [];
+        for (let y = 0; y < this.gridHeight; y++) {
+            for (let x = 0; x < this.gridWidth; x++) {
+                if (fullRowIndices.includes(y) || fullColIndices.includes(x)) {
+                    const cell = this.grid[y][x];
+                    if (cell && cell.state !== 'drawing') {
+                        clearedBlocks.push({
+                            x, y,
+                            color: cell.color,
+                            playerId: cell.playerId
+                        });
+                    }
+                }
+            }
+        }
+
+        // 4. Perform shifts
         if (fullRowIndices.length > 0) {
             this.clearAndShiftRows(fullRowIndices);
         }
 
-        // Process filled columns by shifting remaining columns toward center
         if (fullColIndices.length > 0) {
             this.clearAndShiftColumns(fullColIndices);
         }
 
-        // Calculate total lines cleared and update counter
+        // 5. Calculate moving blocks and clean up tags
+        const movingBlocks = [];
+        for (let y = 0; y < this.gridHeight; y++) {
+            for (let x = 0; x < this.gridWidth; x++) {
+                const cell = this.grid[y][x];
+                if (cell && cell._tempId) {
+                    const [origY, origX] = cell._tempId.split('-').map(Number);
+                    if (origX !== x || origY !== y) {
+                        movingBlocks.push({
+                            fromX: origX, fromY: origY,
+                            toX: x, toY: y,
+                            dx: x - origX, dy: y - origY,
+                            color: cell.color,
+                            playerId: cell.playerId
+                        });
+                    }
+                    delete cell._tempId;
+                }
+            }
+        }
+
+        // 6. Capture state after shifts
+        const afterGrid = JSON.parse(JSON.stringify(this.grid));
+
+        // 7. Calculate total lines cleared and update counter
         const totalLinesCleared = fullRowIndices.length + fullColIndices.length;
         if (totalLinesCleared > 0) {
             this.incrementLinesCleared(totalLinesCleared);
         }
 
-        return totalLinesCleared;
+        return {
+            count: totalLinesCleared,
+            beforeGrid,
+            clearedBlocks,
+            movingBlocks,
+            afterGrid
+        };
     }
 
     /**

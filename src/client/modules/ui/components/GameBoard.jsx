@@ -52,7 +52,9 @@ const GameBoard = () => {
         handlePointerUp,
         handlePointerCancel,
         handleHueChange,
-        handleRestart
+        handleRestart,
+        clearingDetails,
+        setClearingDetails
 
     } = useGameLogic(boardRef);
 
@@ -191,6 +193,9 @@ const GameBoard = () => {
                             grid={grid}
                             roomId={roomId}
                             boardRef={boardRef}
+                            theme={theme}
+                            clearingDetails={clearingDetails}
+                            onAnimationComplete={() => setClearingDetails(null)}
                             onPointerDown={handlePointerDown}
                             onPointerMove={handlePointerMove}
                             onPointerUp={handlePointerUp}

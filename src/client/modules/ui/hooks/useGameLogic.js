@@ -19,6 +19,7 @@ const useGameLogic = (boardRefOverride = null) => {
     const [myFigures, setMyFigures] = useState([]);
     const [score, setScore] = useState(0);
     const [playersList, setPlayersList] = useState([]); // List of players in current room
+    const [clearingDetails, setClearingDetails] = useState(null);
 
     const [gameOver, setGameOver] = useState(false);
     const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
@@ -185,6 +186,12 @@ const useGameLogic = (boardRefOverride = null) => {
         });
 
         socket.on('game_update', (state) => {
+            if (state.clearingDetails) {
+                console.log('Line clearing details received:', state.clearingDetails);
+                setClearingDetails(state.clearingDetails);
+                // We will clear it after a short delay or in the next state update
+                // Alternatively, GameGrid can clear it through a callback
+            }
             updateGameState(state);
         });
 
@@ -620,7 +627,9 @@ const useGameLogic = (boardRefOverride = null) => {
         handlePointerCancel,
         handleHueChange,
         handleRestart,
-        handleLeaveRoom
+        handleLeaveRoom,
+        clearingDetails,
+        setClearingDetails
     };
 };
 

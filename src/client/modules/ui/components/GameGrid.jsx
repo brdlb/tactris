@@ -1,26 +1,39 @@
-import React, { useEffect, useLayoutEffect, useCallback } from 'react';
+import React, { useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import './GameBoard.css';
 
 const GameGrid = ({
     grid,
     roomId,
     boardRef,
+    theme,
+    clearingDetails,
+    onAnimationComplete,
     onPointerDown,
     onPointerMove,
     onPointerUp,
     onPointerCancel
 }) => {
+    const animationsRef = useRef(new Map()); // Key: "x,y", Value: { progress, target, color, state, x, y, tx, ty }
+    const requestRef = useRef();
+    const styleCacheRef = useRef({ cellBg: '', gridBg: '', occupiedColor: '' });
+    const dimensionsRef = useRef({ width: 0, height: 0, dpr: 1 });
 
-    const draw = useCallback(() => {
+    const updateStyles = useCallback(() => {
         const canvas = boardRef.current;
         if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
+        const computedStyle = getComputedStyle(canvas);
+        styleCacheRef.current = {
+            cellBg: computedStyle.getPropertyValue('--cell-bg').trim() || (document.documentElement.getAttribute('data-theme') === 'dark' ? '#000000' : '#ffffff'),
+            gridBg: computedStyle.getPropertyValue('--grid-bg').trim() || '#ccc',
+            occupiedColor: computedStyle.getPropertyValue('--occupied-pixel-color').trim() || (document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#000000')
+        };
+    }, [boardRef, theme]);
 
+    const updateDimensions = useCallback(() => {
+        const canvas = boardRef.current;
+        if (!canvas) return;
         const dpr = window.devicePixelRatio || 1;
         const rect = canvas.getBoundingClientRect();
-
-        // Ensure the canvas buffer size matches its displayed size * DPR for crispness
         const displayWidth = Math.floor(rect.width);
         const displayHeight = Math.floor(rect.height);
 
@@ -28,15 +41,20 @@ const GameGrid = ({
             canvas.width = Math.floor(displayWidth * dpr);
             canvas.height = Math.floor(displayHeight * dpr);
         }
+        dimensionsRef.current = { width: displayWidth, height: displayHeight, dpr };
+    }, [boardRef]);
+
+    const draw = useCallback(() => {
+        const canvas = boardRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d', { alpha: false });
+        if (!ctx) return;
+
+        const { width, height, dpr } = dimensionsRef.current;
+        const { cellBg, gridBg, occupiedColor } = styleCacheRef.current;
 
         ctx.save();
         ctx.scale(dpr, dpr);
-
-        // Get styles from CSS variables
-        const computedStyle = getComputedStyle(canvas);
-        const cellBg = computedStyle.getPropertyValue('--cell-bg').trim() || (document.documentElement.getAttribute('data-theme') === 'dark' ? '#000000' : '#ffffff');
-        const gridBg = computedStyle.getPropertyValue('--grid-bg').trim() || '#ccc';
-        const occupiedColor = computedStyle.getPropertyValue('--occupied-pixel-color').trim() || (document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#000000');
 
         const rows = grid.length;
         const cols = grid[0]?.length || 0;
@@ -46,49 +64,181 @@ const GameGrid = ({
             return;
         }
 
-        const cellW = displayWidth / cols;
-        const cellH = displayHeight / rows;
+        const cellW = width / cols;
+        const cellH = height / rows;
 
         // Clear and draw grid background
         ctx.fillStyle = gridBg;
-        ctx.fillRect(0, 0, displayWidth, displayHeight);
+        ctx.fillRect(0, 0, width, height);
 
-        // Draw cells
-        grid.forEach((row, y) => {
-            row.forEach((cell, x) => {
-                const px = x * cellW;
-                const py = y * cellH;
-                const pw = cellW - 1; // 1px gap effect
-                const ph = cellH - 1;
+        // Draw empty cells background
+        ctx.fillStyle = cellBg;
+        for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < cols; x++) {
+                ctx.fillRect(x * cellW + 0.5, y * cellH + 0.5, cellW - 1, cellH - 1);
+            }
+        }
 
-                if (cell) {
-                    if (cell.state === 'drawing') {
-                        ctx.fillStyle = cell.color;
-                    } else {
-                        ctx.fillStyle = occupiedColor;
-                    }
-                } else {
-                    ctx.fillStyle = cellBg;
-                }
+        animationsRef.current.forEach((anim) => {
+            if (anim.progress <= 0 && anim.target === 0) return;
 
-                // Add 0.5 offset to draw sharp 1px lines/gaps if needed, 
-                // but here filling rects with 1px difference works well
-                ctx.fillRect(px + 0.5, py + 0.5, pw, ph);
-            });
+            const px = anim.x * cellW;
+            const py = anim.y * cellH;
+            const pw = cellW - 1;
+            const ph = cellH - 1;
+
+            ctx.save();
+            ctx.globalAlpha = anim.progress;
+
+            if (anim.state === 'drawing') {
+                ctx.fillStyle = anim.color;
+            } else {
+                ctx.fillStyle = occupiedColor;
+            }
+
+            const centerX = px + cellW / 2;
+            const centerY = py + cellH / 2;
+
+            ctx.translate(centerX, centerY);
+            ctx.scale(anim.progress, anim.progress);
+            ctx.translate(-centerX, -centerY);
+
+            ctx.fillRect(px + 0.5, py + 0.5, pw, ph);
+            ctx.restore();
         });
 
         ctx.restore();
     }, [grid, boardRef]);
 
-    useLayoutEffect(() => {
-        draw();
-    }, [draw]);
+    const animate = useCallback(() => {
+        let needsUpdate = false;
+        const speed = 0.3; // Base speed
+        const moveSpeed = 0.2; // Speed for position interpolation
+
+        let anyMoving = false;
+
+        animationsRef.current.forEach((anim, key) => {
+            let itemNeedsUpdate = false;
+
+            // Progress interpolation
+            const pDiff = anim.target - anim.progress;
+            if (Math.abs(pDiff) > 0.001) {
+                anim.progress += pDiff * speed;
+                itemNeedsUpdate = true;
+            } else {
+                anim.progress = anim.target;
+            }
+
+            // Position interpolation
+            const xDiff = anim.tx - anim.x;
+            const yDiff = anim.ty - anim.y;
+            if (Math.abs(xDiff) > 0.001 || Math.abs(yDiff) > 0.001) {
+                anim.x += xDiff * moveSpeed;
+                anim.y += yDiff * moveSpeed;
+                itemNeedsUpdate = true;
+                anyMoving = true;
+            } else {
+                anim.x = anim.tx;
+                anim.y = anim.ty;
+            }
+
+            if (itemNeedsUpdate) {
+                needsUpdate = true;
+            } else if (anim.target === 0 && anim.progress === 0) {
+                animationsRef.current.delete(key);
+            }
+        });
+
+        if (needsUpdate || animationsRef.current.size > 0) {
+            draw();
+        }
+
+        // If we were animating a clear and now everything is stable, signal completion
+        if (clearingDetails && !needsUpdate && !anyMoving) {
+            if (onAnimationComplete) onAnimationComplete();
+        }
+
+        requestRef.current = requestAnimationFrame(animate);
+    }, [draw, clearingDetails, onAnimationComplete]);
 
     useEffect(() => {
-        const handleResize = () => draw();
+        updateStyles();
+        updateDimensions();
+        requestRef.current = requestAnimationFrame(animate);
+        return () => cancelAnimationFrame(requestRef.current);
+    }, [animate, updateStyles, updateDimensions]);
+
+    useEffect(() => {
+        const rows = grid.length;
+        const cols = grid[0]?.length || 0;
+
+        const nextAnimations = new Map();
+        const currentAnimationKeys = new Set(animationsRef.current.keys());
+
+        // Helper to find which block this is after a shift
+        const getSourcePos = (targetX, targetY) => {
+            if (!clearingDetails || !clearingDetails.movingBlocks) return null;
+            const move = clearingDetails.movingBlocks.find(m => m.toX === targetX && m.toY === targetY);
+            return move ? { x: move.fromX, y: move.fromY } : null;
+        };
+
+        for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < cols; x++) {
+                const cell = grid[y][x];
+                const key = `${x},${y}`;
+                if (cell) {
+                    const sourcePos = getSourcePos(x, y);
+                    const sourceKey = sourcePos ? `${sourcePos.x},${sourcePos.y}` : key;
+
+                    if (animationsRef.current.has(sourceKey)) {
+                        const anim = animationsRef.current.get(sourceKey);
+                        anim.target = 1;
+                        anim.tx = x;
+                        anim.ty = y;
+                        anim.color = cell.color;
+                        anim.state = cell.state;
+                        nextAnimations.set(key, anim);
+                        currentAnimationKeys.delete(sourceKey);
+                    } else {
+                        nextAnimations.set(key, {
+                            x, y, tx: x, ty: y,
+                            progress: 0,
+                            target: 1,
+                            color: cell.color,
+                            state: cell.state
+                        });
+                    }
+                }
+            }
+        }
+
+        // Handle remaining blocks (fading out)
+        currentAnimationKeys.forEach(oldKey => {
+            const anim = animationsRef.current.get(oldKey);
+            if (anim) {
+                anim.target = 0;
+                // Use a unique key for clearing blocks to avoid collision with blocks 
+                // that might have moved into their old positions.
+                const clearingKey = oldKey.startsWith('clearing-') ? oldKey : `clearing-${oldKey}-${Date.now()}`;
+                nextAnimations.set(clearingKey, anim);
+            }
+        });
+
+        animationsRef.current = nextAnimations;
+    }, [grid, clearingDetails]);
+
+    useEffect(() => {
+        const handleResize = () => {
+            updateDimensions();
+            draw();
+        };
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
-    }, [draw]);
+    }, [draw, updateDimensions]);
+
+    useEffect(() => {
+        updateStyles();
+    }, [updateStyles]);
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column' }}>
