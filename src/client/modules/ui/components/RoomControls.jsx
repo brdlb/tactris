@@ -1,5 +1,4 @@
-import React from 'react';
-import './GameBoard.css';
+import RoomPreview from './RoomPreview';
 
 const RoomControls = ({ rooms, roomStates, onCreateRoom, onJoinRoom }) => {
   const emptyGrid = Array.from({ length: 10 }, () => Array(10).fill(null));
@@ -30,7 +29,7 @@ const RoomControls = ({ rooms, roomStates, onCreateRoom, onJoinRoom }) => {
                 >
                   {players.map((player, idx) => {
                     let positionClass = '';
-                    switch(idx % 4) {
+                    switch (idx % 4) {
                       case 0: positionClass = 'lobby-player-top-left'; break;
                       case 1: positionClass = 'lobby-player-top-right'; break;
                       case 2: positionClass = 'lobby-player-bottom-right'; break;
@@ -46,18 +45,7 @@ const RoomControls = ({ rooms, roomStates, onCreateRoom, onJoinRoom }) => {
                       />
                     );
                   })}
-                  {grid.map((row, y) =>
-                    row.map((cell, x) => (
-                      <div
-                        key={`${x}-${y}`}
-                        className="lobby-grid-cell"
-                        style={{
-                          backgroundColor: cell ? (cell.state === 'drawing' ? cell.color : 'var(--occupied-pixel-color)') : 'var(--cell-bg)',
-                          border: 'none'
-                        }}
-                      />
-                    ))
-                  )}
+                  <RoomPreview grid={grid} />
                 </button>
               </div>
             );

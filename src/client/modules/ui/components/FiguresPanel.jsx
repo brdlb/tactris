@@ -13,11 +13,11 @@ const FiguresPanel = ({ score, figures, playerColor }) => {
                 <div style={{ display: 'flex' }}>
                     {figures.map((figure, i) => (
                         <div key={i} style={{ marginRight: '10px' }}>
-                            <FigureRenderer 
-                                figure={figure} 
+                            <FigureRenderer
+                                figure={figure}
                                 color={playerColor}
                                 cellSize={10}
-                                gap="1px"
+                                padding={1}
                                 margin="5px"
                             />
                         </div>

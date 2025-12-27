@@ -298,9 +298,6 @@
 }
 
 .lobby-room-grid-button {
-    display: grid;
-    grid-template-columns: repeat(10, 1fr);
-    gap: 0;
     background-color: transparent;
     padding: 0;
     border: none;
@@ -324,11 +321,8 @@
     transform: scale(0.98);
 }
 
-.lobby-grid-cell {
-    width: 100%;
-    aspect-ratio: 1;
-    transition: background-color 0.2s, opacity 0.2s;
-}
+/* Removed .lobby-grid-cell as it is replaced by Canvas */
+
 
 .create-room-btn {
     padding: 10px 20px;
