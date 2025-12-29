@@ -1,6 +1,7 @@
+import React from 'react';
 import RoomPreview from './RoomPreview';
 
-const RoomControls = ({ rooms, roomStates, onCreateRoom, onJoinRoom }) => {
+const RoomControls = ({ rooms, roomStates, onCreateRoom, onJoinRoom, skin = 'classic' }) => {
   const emptyGrid = Array.from({ length: 10 }, () => Array(10).fill(null));
 
   return (
@@ -45,7 +46,7 @@ const RoomControls = ({ rooms, roomStates, onCreateRoom, onJoinRoom }) => {
                       />
                     );
                   })}
-                  <RoomPreview grid={grid} />
+                  <RoomPreview grid={grid} skin={skin} />
                 </button>
               </div>
             );

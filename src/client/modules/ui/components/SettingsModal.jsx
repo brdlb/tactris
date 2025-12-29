@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getUserHue, setUserHue } from '../../../utils/colorUtils';
 import './GameBoard.css'; // Reusing existing styles for now
 
-const SettingsModal = ({ isOpen, onClose, theme, onToggleTheme, onHueChange, onShowStats }) => {
+const SettingsModal = ({ isOpen, onClose, theme, onToggleTheme, onHueChange, onShowStats, skin, onSkinChange }) => {
     const [hue, setHue] = useState(getUserHue());
 
     useEffect(() => {
@@ -44,6 +44,17 @@ const SettingsModal = ({ isOpen, onClose, theme, onToggleTheme, onHueChange, onS
                                 <span className="slider-icon">{theme === 'dark' ? '🌙' : '☀️'}</span>
                             </span>
                         </label>
+                    </div>
+                    <div className="setting-item">
+                        <span>Skin</span>
+                        <select
+                            value={skin}
+                            onChange={(e) => onSkinChange(e.target.value)}
+                            className="skin-select"
+                        >
+                            <option value="classic">Classic</option>
+                            <option value="neon">Neon</option>
+                        </select>
                     </div>
                     <div className="setting-item">
                         <span>Pixel Hue</span>

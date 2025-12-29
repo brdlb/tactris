@@ -119,6 +119,13 @@ const GameBoard = () => {
         }
     }, [currentPlayerColor]);
 
+    const [skin, setSkin] = useState(localStorage.getItem('gameSkin') || 'classic');
+
+    const handleSkinChange = (newSkin) => {
+        setSkin(newSkin);
+        localStorage.setItem('gameSkin', newSkin);
+    };
+
     return (
         <div className="game-container">
             {/* Leaderboard button */}
@@ -149,6 +156,8 @@ const GameBoard = () => {
                 onToggleTheme={toggleTheme}
                 onHueChange={handleHueChange}
                 onShowStats={showStatsModal}
+                skin={skin}
+                onSkinChange={handleSkinChange}
             />
 
             <StatsModal
@@ -201,6 +210,7 @@ const GameBoard = () => {
                     roomStates={roomStates}
                     onCreateRoom={handleCreateRoom}
                     onJoinRoom={handleJoinRoom}
+                    skin={skin}
                 />
             )}
 
@@ -223,6 +233,7 @@ const GameBoard = () => {
                             roomId={roomId}
                             boardRef={boardRef}
                             theme={theme}
+                            skin={skin}
                             clearingDetails={clearingDetails}
                             onAnimationComplete={() => setClearingDetails(null)}
                             onPointerDown={handlePointerDown}
