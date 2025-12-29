@@ -941,24 +941,107 @@
     }
 }
 
-.skin-select {
+/* Skin Selection */
+.skin-gallery {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    width: 100%;
+    margin-top: 8px;
+}
+
+.skin-option {
+    position: relative;
+    padding: 12px;
     background: var(--bg-secondary);
-    color: var(--text-primary);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    padding: 6px 12px;
-    font-size: 1rem;
-    font-family: inherit;
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
     cursor: pointer;
-    outline: none;
-    transition: border-color 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
 }
 
-.skin-select:focus {
+.skin-option:hover {
+    border-color: var(--text-secondary);
+    transform: translateY(-2px);
+    background: var(--bg-primary);
+}
+
+.skin-option.active {
     border-color: var(--player-color, #4CAF50);
+    background: var(--bg-primary);
+    box-shadow: 0 0 15px rgba(76, 175, 80, 0.2);
 }
 
-.skin-select option {
-    background: var(--modal-bg);
+.skin-name {
+    font-size: 0.9rem;
+    font-weight: bold;
     color: var(--text-primary);
+    text-transform: capitalize;
+}
+
+.skin-preview {
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+}
+
+.skin-preview-block {
+    width: 20px;
+    height: 20px;
+}
+
+/* Specific Preview Styles */
+.preview-classic {
+    background: #ccc;
+    border: 1px solid #999;
+}
+
+.preview-classic .skin-preview-block {
+    background: #000;
+}
+
+.preview-neon {
+    background: #111;
+    border: 1px solid #333;
+}
+
+.preview-neon .skin-preview-block {
+    background: #0ff;
+    box-shadow: 0 0 8px #0ff;
+    border-radius: 3px;
+}
+
+.preview-retro {
+    background: #9bbc0f;
+    border: 1px solid #8bac0f;
+}
+
+.preview-retro .skin-preview-block {
+    background: #0f380f;
+}
+
+.preview-glass {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border: 1px solid #333;
+}
+
+.preview-glass .skin-preview-block {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 4px;
+}
+
+@media (max-width: 400px) {
+    .skin-gallery {
+        grid-template-columns: 1fr;
+    }
 }

@@ -45,16 +45,22 @@ const SettingsModal = ({ isOpen, onClose, theme, onToggleTheme, onHueChange, onS
                             </span>
                         </label>
                     </div>
-                    <div className="setting-item">
+                    <div className="setting-item" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '12px' }}>
                         <span>Skin</span>
-                        <select
-                            value={skin}
-                            onChange={(e) => onSkinChange(e.target.value)}
-                            className="skin-select"
-                        >
-                            <option value="classic">Classic</option>
-                            <option value="neon">Neon</option>
-                        </select>
+                        <div className="skin-gallery">
+                            {['classic', 'neon', 'retro', 'glass'].map(skinKey => (
+                                <div
+                                    key={skinKey}
+                                    className={`skin-option ${skin === skinKey ? 'active' : ''}`}
+                                    onClick={() => onSkinChange(skinKey)}
+                                >
+                                    <div className={`skin-preview preview-${skinKey}`}>
+                                        <div className="skin-preview-block" />
+                                    </div>
+                                    <span className="skin-name">{skinKey}</span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                     <div className="setting-item">
                         <span>Pixel Hue</span>
