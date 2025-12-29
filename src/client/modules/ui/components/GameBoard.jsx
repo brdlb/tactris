@@ -54,7 +54,15 @@ const GameBoard = () => {
         handleHueChange,
         handleRestart,
         clearingDetails,
-        setClearingDetails
+        setClearingDetails,
+
+        isTutorialActive,
+        currentStep,
+        currentStepIndex,
+        totalSteps,
+        skipTutorial,
+        handleTutorialComplete,
+        personalColor
 
     } = useGameLogic(boardRef);
 
@@ -166,7 +174,28 @@ const GameBoard = () => {
                 </div>
             )}
 
-            {!roomId && (
+            {isTutorialActive && currentStep && (
+                <div className="tutorial-overlay">
+                    <div className="tutorial-content">
+                        <h2>{currentStep.title}</h2>
+                        <p>{currentStep.instruction}</p>
+                        <div className="tutorial-progress">
+                            Step {currentStepIndex + 1} of {totalSteps}
+                        </div>
+                        {currentStep.isFinal ? (
+                            <button className="start-game-btn" onClick={handleTutorialComplete}>
+                                Let's Play!
+                            </button>
+                        ) : (
+                            <button className="skip-tutorial-btn" onClick={skipTutorial}>
+                                Skip Tutorial
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {!roomId && !isTutorialActive && (
                 <RoomControls
                     rooms={rooms}
                     roomStates={roomStates}
@@ -175,12 +204,12 @@ const GameBoard = () => {
                 />
             )}
 
-            {roomId && (
+            {(roomId || isTutorialActive) && (
                 <div className="game-content">
                     <FiguresPanel
                         score={score}
                         figures={myFigures}
-                        playerColor={playersList.find(p => p.id === SocketManager.getSocket()?.id)?.color}
+                        playerColor={playersList.find(p => p.id === SocketManager.getSocket()?.id)?.color || personalColor || 'var(--player-color)'}
                     />
 
                     <div className="game-board-wrapper">
@@ -200,6 +229,7 @@ const GameBoard = () => {
                             onPointerMove={handlePointerMove}
                             onPointerUp={handlePointerUp}
                             onPointerCancel={handlePointerCancel}
+                            tutorialHintPixels={isTutorialActive ? currentStep?.hintPixels : null}
                         />
                     </div>
                 </div>

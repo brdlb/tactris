@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react
 import SocketManager from '../../network/SocketManager';
 import { getUserColor } from '../../../utils/colorUtils';
 import { FIGURES } from '../../../constants/figures';
-import { checkMatch } from '../../../utils/figureUtils';
+import { checkMatch, normalizePixels } from '../../../utils/figureUtils';
+import useTutorial from './useTutorial';
 
 const MIN_PIXELS_FOR_FIGURE = 4;
 
@@ -23,11 +24,56 @@ const useGameLogic = (boardRefOverride = null) => {
 
     const [gameOver, setGameOver] = useState(false);
     const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
+
+    // Tutorial state
+    const {
+        isTutorialActive,
+        currentStep,
+        currentStepIndex,
+        totalSteps,
+        nextStep,
+        skipTutorial,
+        handleTutorialComplete
+    } = useTutorial();
+
+    useEffect(() => {
+        if (!isTutorialActive) return;
+
+        // Reset grid only on the first step of the tutorial
+        if (currentStepIndex === 0) {
+            const initialGrid = currentStep?.setupGrid
+                ? currentStep.setupGrid(Array(10).fill(null).map(() => Array(10).fill(null)))
+                : Array(10).fill(null).map(() => Array(10).fill(null));
+            setGrid(initialGrid);
+            gridRef.current = initialGrid;
+        }
+
+        // Update the figures the user sees during the tutorial (show 2 figures as in real game)
+        if (currentStep && currentStep.targetFigure) {
+            const cells = currentStep.customCells || FIGURES[currentStep.targetFigure];
+            const primaryFigure = { id: currentStep.targetFigure, cells };
+
+            // Add a secondary figure to show that there are choices
+            const secondaryId = currentStep.targetFigure === 'I' ? 'O' : 'I';
+            const secondaryFigure = { id: secondaryId, cells: FIGURES[secondaryId] };
+
+            setMyFigures([primaryFigure, secondaryFigure]);
+        } else if (currentStep?.isFinal) {
+            setMyFigures([]);
+        }
+    }, [isTutorialActive, currentStepIndex]);
+
     const [isRestored, setIsRestored] = useState(false);
 
     const selectedPixels = useRef([]); // Queue of {x, y} to track order
     const isDrawing = useRef(false);
-    const userColor = useRef(getUserColor()); // Personal color for this user
+    const [personalColor, setPersonalColor] = useState(() => getUserColor());
+    const userColor = useRef(personalColor); // Personal color for this user
+
+    // Keep ref in sync with state for use in callbacks
+    useEffect(() => {
+        userColor.current = personalColor;
+    }, [personalColor]);
     const internalBoardRef = useRef(null);
     const boardRef = boardRefOverride ?? internalBoardRef;
     const boardMetrics = useRef({ rect: null, cellWidth: 0, cellHeight: 0, lastUpdate: 0 });
@@ -61,7 +107,7 @@ const useGameLogic = (boardRefOverride = null) => {
         gridRef.current = newGrid;
         setGrid(newGrid);
 
-        if (roomIdRef.current) {
+        if (roomIdRef.current && !isTutorialActive) {
             SocketManager.updateDrawing(roomIdRef.current, []);
         }
     }, []);
@@ -422,13 +468,84 @@ const useGameLogic = (boardRefOverride = null) => {
     }, [boardRef, updateBoardMetrics]);
 
     const finalizeDrawing = useCallback(() => {
-        if (selectedPixels.current.length >= MIN_PIXELS_FOR_FIGURE && roomIdRef.current && !gameOver) {
+        if (selectedPixels.current.length >= MIN_PIXELS_FOR_FIGURE && (roomIdRef.current || isTutorialActive) && !gameOver) {
             // Check if the selected pixels match any of the available figures
             const matchedFigureIndex = checkMatch(selectedPixels.current, myFigures, roomRotateableRef.current);
             if (matchedFigureIndex !== -1) {
-                SocketManager.placeFigure(roomIdRef.current, selectedPixels.current);
-                // Clear locally immediately after placing figure
-                selectedPixels.current = [];
+                if (isTutorialActive) {
+                    // Local placement for tutorial
+                    let newGrid = [...gridRef.current];
+                    selectedPixels.current.forEach(p => {
+                        newGrid[p.y] = [...newGrid[p.y]];
+                        newGrid[p.y][p.x] = {
+                            playerId: 'tutorial',
+                            color: userColor.current,
+                            state: 'solid'
+                        };
+                    });
+
+                    // Check for line clears (horizontal and vertical)
+                    let clearedHorizontal = [];
+                    let clearedVertical = [];
+
+                    // Horizontal check
+                    for (let y = 0; y < 10; y++) {
+                        if (newGrid[y].every(cell => cell !== null)) {
+                            clearedHorizontal.push(y);
+                        }
+                    }
+
+                    // Vertical check
+                    for (let x = 0; x < 10; x++) {
+                        let full = true;
+                        for (let y = 0; y < 10; y++) {
+                            if (newGrid[y][x] === null) {
+                                full = false;
+                                break;
+                            }
+                        }
+                        if (full) clearedVertical.push(x);
+                    }
+
+                    // Remove cleared lines
+                    if (clearedHorizontal.length > 0 || clearedVertical.length > 0) {
+                        setClearingDetails({
+                            horizontal: clearedHorizontal,
+                            vertical: clearedVertical,
+                            playerId: 'tutorial'
+                        });
+
+                        // Actually clear after a delay (simulating server)
+                        setTimeout(() => {
+                            let gridAfterClear = newGrid.map(row => [...row]);
+                            clearedHorizontal.forEach(y => {
+                                gridAfterClear[y] = Array(10).fill(null);
+                            });
+                            clearedVertical.forEach(x => {
+                                for (let y = 0; y < 10; y++) {
+                                    gridAfterClear[y][x] = null;
+                                }
+                            });
+                            gridRef.current = gridAfterClear;
+                            setGrid(gridAfterClear);
+                            setClearingDetails(null);
+
+                            // Advance tutorial step AFTER animation/clear
+                            nextStep();
+                        }, 500);
+                    } else {
+                        gridRef.current = newGrid;
+                        setGrid(newGrid);
+                        // Advance tutorial step immediately if no lines cleared
+                        nextStep();
+                    }
+
+                    selectedPixels.current = [];
+                } else {
+                    SocketManager.placeFigure(roomIdRef.current, selectedPixels.current);
+                    // Clear locally immediately after placing figure
+                    selectedPixels.current = [];
+                }
             } else {
                 // If draw ended but no figure was matched and we have 4+ blocks, clear it
                 clearAllSelectedPixels();
@@ -481,9 +598,10 @@ const useGameLogic = (boardRefOverride = null) => {
     };
 
     const handleHueChange = (newHue) => {
-        userColor.current = getUserColor();
+        const newColor = getUserColor();
+        setPersonalColor(newColor);
         if (roomIdRef.current) {
-            SocketManager.updatePlayerColor(roomIdRef.current, userColor.current);
+            SocketManager.updatePlayerColor(roomIdRef.current, newColor);
         }
     };
 
@@ -505,7 +623,13 @@ const useGameLogic = (boardRefOverride = null) => {
 
     const handleInteraction = (x, y) => {
         const activeRoomId = roomIdRef.current;
-        if (!activeRoomId || gameOver) return;
+        if ((!activeRoomId && !isTutorialActive) || gameOver) return;
+
+        // Tutorial restriction: only allow drawing within hint pixels
+        if (isTutorialActive && currentStep?.hintPixels) {
+            const isInsideHint = currentStep.hintPixels.some(p => p.x === x && p.y === y);
+            if (!isInsideHint) return;
+        }
 
         // Check for collisions with solid blocks locally first
         const targetCell = gridRef.current[y]?.[x];
@@ -544,13 +668,13 @@ const useGameLogic = (boardRefOverride = null) => {
         setGrid(newGrid);
 
         // Send the updated selection to the server
-        if (selectedPixels.current.length > 0) {
+        if (selectedPixels.current.length > 0 && !isTutorialActive) {
             SocketManager.updateDrawing(activeRoomId, selectedPixels.current);
         }
     };
 
     const handlePointerDown = useCallback((event) => {
-        if (gameOver || !roomIdRef.current) return;
+        if (gameOver || (!roomIdRef.current && !isTutorialActive)) return;
 
         if (activePointerId.current !== null && activePointerId.current !== event.pointerId) {
             return;
@@ -629,7 +753,16 @@ const useGameLogic = (boardRefOverride = null) => {
         handleRestart,
         handleLeaveRoom,
         clearingDetails,
-        setClearingDetails
+        setClearingDetails,
+        personalColor,
+
+        // Tutorial exports
+        isTutorialActive,
+        currentStep,
+        currentStepIndex,
+        totalSteps,
+        skipTutorial,
+        handleTutorialComplete
     };
 };
 

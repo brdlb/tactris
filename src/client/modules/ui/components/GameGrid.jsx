@@ -11,7 +11,8 @@ const GameGrid = ({
     onPointerDown,
     onPointerMove,
     onPointerUp,
-    onPointerCancel
+    onPointerCancel,
+    tutorialHintPixels
 }) => {
     const animationsRef = useRef(new Map()); // Key: "x,y", Value: { progress, target, color, state, x, y, tx, ty }
     const requestRef = useRef();
@@ -121,8 +122,21 @@ const GameGrid = ({
             ctx.restore();
         });
 
+        // Draw tutorial hints
+        if (tutorialHintPixels && tutorialHintPixels.length > 0) {
+            ctx.strokeStyle = occupiedColor;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            tutorialHintPixels.forEach(p => {
+                const px = p.x * cellW;
+                const py = p.y * cellH;
+                ctx.strokeRect(px + 2, py + 2, cellW - 4, cellH - 4);
+            });
+            ctx.setLineDash([]);
+        }
+
         ctx.restore();
-    }, [grid, boardRef]);
+    }, [grid, boardRef, tutorialHintPixels]);
 
     const animate = useCallback(() => {
         let needsUpdate = false;
