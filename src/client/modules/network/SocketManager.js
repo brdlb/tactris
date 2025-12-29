@@ -1,9 +1,9 @@
 import { io } from 'socket.io-client';
 import { getUserColor } from '../../utils/colorUtils';
+
 class SocketManager {
     constructor() {
         this.socket = null;
-        this.eventListeners = new Map();
     }
 
     connect() {
@@ -26,9 +26,7 @@ class SocketManager {
                 }
             });
 
-            // Set up room event listeners
-            this.setupRoomEventListeners();
-            this.setupRestoreHandlers();
+            this.setupSocketHandlers();
 
             // Connection status handlers
             this.socket.on('connect', () => {
@@ -77,33 +75,7 @@ class SocketManager {
         return this.socket;
     }
 
-    setupRoomEventListeners() {
-        // Map server events to client events
-        const eventMappings = {
-            'room_created': 'roomCreated',
-            'room_joined': 'roomJoined',
-            'player_joined': 'playerJoined',
-            'player_left': 'playerLeft',
-            'players_list_updated': 'playersListUpdated'
-        };
-
-        // Set up event listeners based on the mapping
-        Object.entries(eventMappings).forEach(([serverEvent, clientEvent]) => {
-            this.socket.on(serverEvent, (data) => {
-                this.emit(clientEvent, data);
-            });
-        });
-    }
-
-    setupRestoreHandlers() {
-        this.socket.on('room_joined', (data) => {
-            console.log(`Received room_joined from server: restored=${!!data.restored}`);
-            if (data.restored) {
-                console.log('Emit "restored" event');
-                this.emit('restored', {});
-            }
-        });
-
+    setupSocketHandlers() {
         this.socket.on('room_created', (data) => {
             if (data.roomId) {
                 localStorage.setItem('currentRoomId', data.roomId);
@@ -120,30 +92,6 @@ class SocketManager {
         });
     }
 
-    // Event listener management
-    on(event, callback) {
-        if (!this.eventListeners.has(event)) {
-            this.eventListeners.set(event, []);
-        }
-        this.eventListeners.get(event).push(callback);
-    }
-
-    emit(event, data) {
-        if (this.eventListeners.has(event)) {
-            this.eventListeners.get(event).forEach(callback => callback(data));
-        }
-    }
-
-    off(event, callback) {
-        if (this.eventListeners.has(event)) {
-            const listeners = this.eventListeners.get(event);
-            const index = listeners.indexOf(callback);
-            if (index > -1) {
-                listeners.splice(index, 1);
-            }
-        }
-    }
-
     createRoom(color, rotateable = false) {
         this.socket.emit('create_room', { color, rotateable });
     }
@@ -152,10 +100,6 @@ class SocketManager {
         console.log(`[Reconnect] Sending join_room for room ${roomId}`);
         localStorage.setItem('currentRoomId', roomId);
         this.socket.emit('join_room', { roomId, color });
-    }
-
-    placePixel(roomId, status, position) {
-        this.socket.emit('place_pixel', { roomId, status, position });
     }
 
     updateDrawing(roomId, pixels) {
@@ -184,3 +128,4 @@ class SocketManager {
 }
 
 export default new SocketManager();
+

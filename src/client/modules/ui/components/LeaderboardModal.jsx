@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import StatsModal from './StatsModal';
+import useUserStats from '../hooks/useUserStats';
 import './GameBoard.css';
 
 const LeaderboardModal = ({ isOpen, onClose }) => {
@@ -7,8 +8,10 @@ const LeaderboardModal = ({ isOpen, onClose }) => {
     const [leaderboardData, setLeaderboardData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [currentUserId, setCurrentUserId] = useState(null);
-    const [selectedPlayerStats, setSelectedPlayerStats] = useState(null);
     const [showPlayerStats, setShowPlayerStats] = useState(false);
+    const [selectedDisplayName, setSelectedDisplayName] = useState('');
+
+    const { statsData: selectedPlayerStats, fetchPublicStats } = useUserStats();
 
     useEffect(() => {
         const userId = localStorage.getItem('userId');
@@ -39,16 +42,9 @@ const LeaderboardModal = ({ isOpen, onClose }) => {
     };
 
     const handlePlayerClick = async (userId, displayName) => {
-        try {
-            const response = await fetch(`/api/user/stats/public?user_id=${userId}`);
-            if (response.ok) {
-                const data = await response.json();
-                setSelectedPlayerStats({ ...data, display_name: displayName });
-                setShowPlayerStats(true);
-            }
-        } catch (error) {
-            console.error('Error fetching player stats:', error);
-        }
+        setSelectedDisplayName(displayName);
+        await fetchPublicStats(userId);
+        setShowPlayerStats(true);
     };
 
     if (!isOpen) return null;
@@ -125,7 +121,7 @@ const LeaderboardModal = ({ isOpen, onClose }) => {
             <StatsModal
                 isOpen={showPlayerStats}
                 onClose={() => setShowPlayerStats(false)}
-                statsData={selectedPlayerStats}
+                statsData={selectedPlayerStats ? { ...selectedPlayerStats, display_name: selectedDisplayName } : null}
             />
         </>
     );

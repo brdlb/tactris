@@ -86,12 +86,13 @@ const useGameState = (personalColor, selectedPixelsRef, roomIdRefOverride) => {
             window.history.pushState({}, '', `?room=${roomId}`);
         };
 
-        const onRoomJoined = ({ roomId, state, playersList }) => {
+        const onRoomJoined = ({ roomId, state, playersList, restored }) => {
             setRoomId(roomId);
             roomIdRef.current = roomId;
             updateGameState(state);
             if (playersList) setPlayersList(playersList.map(p => ({ ...p, displayId: generateDisplayId(p.id) })));
             setGameOver(false);
+            if (restored) setIsRestored(true);
             window.history.pushState({}, '', `?room=${roomId}`);
         };
 
@@ -115,8 +116,6 @@ const useGameState = (personalColor, selectedPixelsRef, roomIdRefOverride) => {
             setPlayersList(playersList.map(p => ({ ...p, displayId: generateDisplayId(p.id) })));
         };
 
-        const onRestored = () => setIsRestored(true);
-
         socket.on('room_created', onRoomCreated);
         socket.on('room_joined', onRoomJoined);
         socket.on('game_update', onGameUpdate);
@@ -126,9 +125,6 @@ const useGameState = (personalColor, selectedPixelsRef, roomIdRefOverride) => {
         socket.on('player_joined_restored', onPlayerJoined);
         socket.on('player_left', onPlayerLeft);
         socket.on('players_list_updated', onPlayersListUpdated);
-
-        // 'restored' is an internal event from SocketManager
-        SocketManager.on('restored', onRestored);
 
         return () => {
             socket.off('room_created', onRoomCreated);
@@ -140,7 +136,6 @@ const useGameState = (personalColor, selectedPixelsRef, roomIdRefOverride) => {
             socket.off('player_joined_restored', onPlayerJoined);
             socket.off('player_left', onPlayerLeft);
             socket.off('players_list_updated', onPlayersListUpdated);
-            SocketManager.off('restored', onRestored);
         };
     }, [updateGameState]);
 

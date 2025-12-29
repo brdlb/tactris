@@ -1,6 +1,8 @@
-import { useRef, useCallback, useEffect, useLayoutEffect } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 import SocketManager from '../../network/SocketManager';
 import { checkMatch } from '../../../utils/figureUtils';
+import useCanvasCoords from './useCanvasCoords';
+import { checkLineClears, applyLineClears } from '../../../utils/gridUtils';
 
 const MIN_PIXELS_FOR_FIGURE = 4;
 
@@ -17,66 +19,20 @@ const useBoardInteraction = ({
     setGrid,
     setClearingDetails,
     personalColor,
-    selectedPixelsRef // Pass the ref from outside
+    selectedPixelsRef
 }) => {
     const selectedPixels = selectedPixelsRef || useRef([]);
     const isDrawing = useRef(false);
-    const boardMetrics = useRef({ rect: null, cellWidth: 0, cellHeight: 0, lastUpdate: 0 });
     const activePointerId = useRef(null);
     const lastPointerCell = useRef(null);
     const pointerCaptureTarget = useRef(null);
-    const isResizing = useRef(false);
+
+    const { getGridCoordinates } = useCanvasCoords(boardRef, gridRef);
 
     const userColorRef = useRef(personalColor);
     useEffect(() => {
         userColorRef.current = personalColor;
     }, [personalColor]);
-
-    const updateBoardMetrics = useCallback((forceUpdate = false) => {
-        if (!boardRef.current) return;
-
-        const rect = boardRef.current.getBoundingClientRect();
-        const columns = gridRef.current[0]?.length || 1;
-        const rows = gridRef.current.length || 1;
-        const now = Date.now();
-
-        const shouldUpdate = forceUpdate ||
-            !boardMetrics.current.rect ||
-            isResizing.current ||
-            now - boardMetrics.current.lastUpdate > 100;
-
-        if (shouldUpdate) {
-            boardMetrics.current = {
-                rect,
-                cellWidth: columns ? rect.width / columns : 0,
-                cellHeight: rows ? rect.height / rows : 0,
-                lastUpdate: now
-            };
-        }
-    }, [boardRef, gridRef]);
-
-    const getGridCoordinatesFromPointer = useCallback((event) => {
-        if (!boardRef.current) return null;
-
-        updateBoardMetrics(true);
-
-        const { rect, cellWidth, cellHeight } = boardMetrics.current;
-
-        if (!rect || !cellWidth || !cellHeight) return null;
-
-        const x = Math.floor((event.clientX - rect.left) / cellWidth);
-        const y = Math.floor((event.clientY - rect.top) / cellHeight);
-
-        if (Number.isNaN(x) || Number.isNaN(y)) return null;
-
-        const columns = gridRef.current[0]?.length || 1;
-        const rows = gridRef.current.length || 1;
-
-        return {
-            x: Math.min(Math.max(x, 0), columns - 1),
-            y: Math.min(Math.max(y, 0), rows - 1)
-        };
-    }, [boardRef, gridRef, updateBoardMetrics]);
 
     const removeFirstPixel = useCallback(() => {
         if (selectedPixels.current.length === 0) return;
@@ -167,23 +123,7 @@ const useBoardInteraction = ({
                         };
                     });
 
-                    let clearedHorizontal = [];
-                    let clearedVertical = [];
-
-                    for (let y = 0; y < 10; y++) {
-                        if (newGrid[y].every(cell => cell !== null)) clearedHorizontal.push(y);
-                    }
-
-                    for (let x = 0; x < 10; x++) {
-                        let full = true;
-                        for (let y = 0; y < 10; y++) {
-                            if (newGrid[y][x] === null) {
-                                full = false;
-                                break;
-                            }
-                        }
-                        if (full) clearedVertical.push(x);
-                    }
+                    const { clearedHorizontal, clearedVertical } = checkLineClears(newGrid);
 
                     if (clearedHorizontal.length > 0 || clearedVertical.length > 0) {
                         setClearingDetails({
@@ -193,11 +133,7 @@ const useBoardInteraction = ({
                         });
 
                         setTimeout(() => {
-                            let gridAfterClear = newGrid.map(row => [...row]);
-                            clearedHorizontal.forEach(y => { gridAfterClear[y] = Array(10).fill(null); });
-                            clearedVertical.forEach(x => {
-                                for (let y = 0; y < 10; y++) gridAfterClear[y][x] = null;
-                            });
+                            const gridAfterClear = applyLineClears(newGrid, clearedHorizontal, clearedVertical);
                             gridRef.current = gridAfterClear;
                             setGrid(gridAfterClear);
                             setClearingDetails(null);
@@ -241,45 +177,11 @@ const useBoardInteraction = ({
         };
     }, [finalizeDrawing]);
 
-    useLayoutEffect(() => {
-        if (!boardRef.current) return;
-        updateBoardMetrics(true);
-        const handleResizeStart = () => { isResizing.current = true; };
-        const handleResize = () => {
-            isResizing.current = true;
-            updateBoardMetrics(true);
-            clearTimeout(handleResize.timeoutId);
-            handleResize.timeoutId = setTimeout(() => {
-                isResizing.current = false;
-                updateBoardMetrics(true);
-            }, 150);
-        };
-        window.addEventListener('resize', handleResizeStart, { passive: true });
-        window.addEventListener('resize', handleResize);
-        window.addEventListener('orientationchange', handleResize);
-
-        let observer;
-        if (typeof ResizeObserver !== 'undefined') {
-            observer = new ResizeObserver(() => {
-                isResizing.current = true;
-                updateBoardMetrics(true);
-            });
-            observer.observe(boardRef.current);
-        }
-
-        return () => {
-            window.removeEventListener('resize', handleResizeStart);
-            window.removeEventListener('resize', handleResize);
-            window.removeEventListener('orientationchange', handleResize);
-            if (observer) observer.disconnect();
-        };
-    }, [boardRef, updateBoardMetrics]);
-
     const handlePointerDown = useCallback((event) => {
         if (gameOver || (!roomIdRef.current && !isTutorialActive)) return;
         if (activePointerId.current !== null && activePointerId.current !== event.pointerId) return;
 
-        const coordinates = getGridCoordinatesFromPointer(event);
+        const coordinates = getGridCoordinates(event);
         if (!coordinates) return;
 
         event.preventDefault();
@@ -293,13 +195,13 @@ const useBoardInteraction = ({
         }
 
         handleInteraction(coordinates.x, coordinates.y);
-    }, [gameOver, roomIdRef, isTutorialActive, getGridCoordinatesFromPointer, handleInteraction]);
+    }, [gameOver, roomIdRef, isTutorialActive, getGridCoordinates, handleInteraction]);
 
     const handlePointerMove = useCallback((event) => {
         if (!isDrawing.current || gameOver) return;
         if (activePointerId.current !== event.pointerId) return;
 
-        const coordinates = getGridCoordinatesFromPointer(event);
+        const coordinates = getGridCoordinates(event);
         if (!coordinates) return;
 
         if (lastPointerCell.current && lastPointerCell.current.x === coordinates.x && lastPointerCell.current.y === coordinates.y) return;
@@ -307,7 +209,7 @@ const useBoardInteraction = ({
         lastPointerCell.current = coordinates;
         event.preventDefault();
         handleInteraction(coordinates.x, coordinates.y);
-    }, [gameOver, getGridCoordinatesFromPointer, handleInteraction]);
+    }, [gameOver, getGridCoordinates, handleInteraction]);
 
     const handlePointerUp = useCallback((event) => {
         if (activePointerId.current !== event.pointerId) return;
@@ -330,3 +232,4 @@ const useBoardInteraction = ({
 };
 
 export default useBoardInteraction;
+
