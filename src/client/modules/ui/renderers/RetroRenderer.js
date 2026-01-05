@@ -14,14 +14,14 @@ export class RetroRenderer extends ClassicRenderer {
         ctx.lineWidth = 1;
         for (let y = 0; y <= rows; y++) {
             ctx.beginPath();
-            ctx.moveTo(0, y * cellH);
-            ctx.lineTo(width, y * cellH);
+            ctx.moveTo(0, Math.floor(y * cellH) + 0.5);
+            ctx.lineTo(width, Math.floor(y * cellH) + 0.5);
             ctx.stroke();
         }
         for (let x = 0; x <= cols; x++) {
             ctx.beginPath();
-            ctx.moveTo(x * cellW, 0);
-            ctx.lineTo(x * cellW, height);
+            ctx.moveTo(Math.floor(x * cellW) + 0.5, 0);
+            ctx.lineTo(Math.floor(x * cellW) + 0.5, height);
             ctx.stroke();
         }
     }
@@ -29,15 +29,15 @@ export class RetroRenderer extends ClassicRenderer {
     drawBlock(ctx, anim, cellW, cellH) {
         if (anim.progress <= 0 && anim.target === 0) return;
 
-        const px = anim.x * cellW;
-        const py = anim.y * cellH;
-        const pw = cellW - 2;
-        const ph = cellH - 2;
+        const px = Math.floor(anim.x * cellW);
+        const py = Math.floor(anim.y * cellH);
+        const pw = Math.floor(cellW) - 2;
+        const ph = Math.floor(cellH) - 2;
 
         ctx.save();
 
-        const centerX = px + cellW / 2;
-        const centerY = py + cellH / 2;
+        const centerX = px + Math.floor(cellW) / 2;
+        const centerY = py + Math.floor(cellH) / 2;
 
         ctx.translate(centerX, centerY);
         const currentScale = anim.target === 0 ? anim.progress * 0.9 : 0.9; // Retro blocks are slightly smaller

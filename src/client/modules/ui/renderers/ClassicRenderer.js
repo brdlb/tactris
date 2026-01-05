@@ -229,7 +229,7 @@ export class ClassicRenderer {
         ctx.fillStyle = this.styles.cellBg;
         for (let y = 0; y < rows; y++) {
             for (let x = 0; x < cols; x++) {
-                ctx.fillRect(x * cellW + 0.5, y * cellH + 0.5, cellW - 1, cellH - 1);
+                ctx.fillRect(Math.floor(x * cellW) + 0.5, Math.floor(y * cellH) + 0.5, Math.floor(cellW) - 1, Math.floor(cellH) - 1);
             }
         }
     }
@@ -237,10 +237,10 @@ export class ClassicRenderer {
     drawBlock(ctx, anim, cellW, cellH) {
         if (anim.progress <= 0 && anim.target === 0) return;
 
-        const px = anim.x * cellW;
-        const py = anim.y * cellH;
-        const pw = cellW - 1;
-        const ph = cellH - 1;
+        const px = Math.floor(anim.x * cellW);
+        const py = Math.floor(anim.y * cellH);
+        const pw = Math.floor(cellW) - 1;
+        const ph = Math.floor(cellH) - 1;
 
         ctx.save();
 
@@ -253,8 +253,8 @@ export class ClassicRenderer {
             ctx.globalAlpha = anim.progress; // Alpha for solid blocks
         }
 
-        const centerX = px + cellW / 2;
-        const centerY = py + cellH / 2;
+        const centerX = px + Math.floor(cellW) / 2;
+        const centerY = py + Math.floor(cellH) / 2;
 
         ctx.translate(centerX, centerY);
         const currentScale = anim.target === 0 ? anim.progress : 1;
@@ -272,9 +272,9 @@ export class ClassicRenderer {
         ctx.lineWidth = 2;
         ctx.setLineDash([5, 5]);
         hints.forEach(p => {
-            const px = p.x * cellW;
-            const py = p.y * cellH;
-            ctx.strokeRect(px + 2, py + 2, cellW - 4, cellH - 4);
+            const px = Math.floor(p.x * cellW);
+            const py = Math.floor(p.y * cellH);
+            ctx.strokeRect(px + 2, py + 2, Math.floor(cellW) - 4, Math.floor(cellH) - 4);
         });
         ctx.setLineDash([]);
     }

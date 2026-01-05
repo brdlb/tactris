@@ -23,7 +23,7 @@ const PlayerPanels = ({ playersList, currentSocketId }) => {
                                     className="player-color"
                                     style={{ backgroundColor: player.color }}
                                 ></div>
-                                <div className="player-score">{player.score || 0}</div>
+                                <div className="player-score pixel-text" style={{ fontSize: '16px', lineHeight: '1' }}>{player.score || 0}</div>
                             </div>
                             {player.figures && player.figures.length > 0 && (
                                 <div style={{ display: 'flex', marginTop: '5px' }}>

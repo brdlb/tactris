@@ -6,7 +6,7 @@ const FiguresPanel = ({ score, figures, playerColor }) => {
 
     return (
         <div className="figures-panel">
-            <div style={{ marginBottom: '10px', fontSize: '1.2em', fontWeight: 'bold' }}>
+            <div className="pixel-text" style={{ marginBottom: '10px', fontSize: '16px', lineHeight: '1', fontWeight: 'bold' }}>
                 {score}
             </div>
             {figures.length > 0 && (

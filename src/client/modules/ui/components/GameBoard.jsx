@@ -131,8 +131,8 @@ const GameBoard = () => {
 
             {gameOver && (
                 <div className="game-over-overlay">
-                    <h2>Game Over!</h2>
-                    <p>No more moves possible.</p>
+                    <h2 className="pixel-text">Game Over!</h2>
+                    <p className="pixel-text">No more moves possible.</p>
                     <button className="restart-btn" onClick={handleRestart}>
                         Restart Game
                     </button>
