@@ -73,9 +73,9 @@ function createRoomHandlers(gameRoomManager, gameSessionHelper, repositoryManage
   /**
    * Handle create_room event
    */
-  async function handleCreateRoom(socket, { color, rotateable = false }) {
+  async function handleCreateRoom(socket, { color, rotateable = false, isPrivate = false }) {
     const roomId = Math.random().toString(36).substring(7);
-    const game = new Game(roomId, rotateable);
+    const game = new Game(roomId, rotateable, isPrivate);
     game.addPlayer(socket.id, color, socket.userId);
 
     // No database operations - session state is in memory only

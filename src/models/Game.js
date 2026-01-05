@@ -58,7 +58,7 @@ function generateNewFigure(excludeTypes = []) {
 }
 
 class Game {
-    constructor(id, rotateable = false) {
+    constructor(id, rotateable = false, isPrivate = false) {
         this.id = id;
         this.gridWidth = 10;
         this.gridHeight = 10;
@@ -74,6 +74,7 @@ class Game {
         this.figuresPlaced = 0; // Track total figures placed
         this.moves = []; // Track game moves for session data
         this.rotateable = rotateable; // Whether players can draw figures with any rotation
+        this.isPrivate = isPrivate; // Whether the room is private
     }
 
     // RESTORE: Check if a userId has an active player in the game
@@ -195,7 +196,8 @@ class Game {
             grid: this.grid,
             players: Object.fromEntries(this.players),
             gameOver: this.gameOver,
-            rotateable: this.rotateable
+            rotateable: this.rotateable,
+            isPrivate: this.isPrivate
         };
     }
 

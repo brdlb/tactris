@@ -1,17 +1,41 @@
-import React from 'react';
+import React, { useState } from 'react';
 import RoomPreview from './RoomPreview';
 
 const RoomControls = ({ rooms, roomStates, onCreateRoom, onJoinRoom, skin = 'classic' }) => {
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [rotateable, setRotateable] = useState(false);
   const emptyGrid = Array.from({ length: 10 }, () => Array(10).fill(null));
 
   return (
     <div className="lobby-container">
-      <button
-        onClick={() => onCreateRoom()}
-        className="create-room-btn"
-      >
-        Create Room
-      </button>
+      <div className="create-room-controls">
+        <button
+          onClick={() => onCreateRoom(rotateable, isPrivate)}
+          className="create-room-btn"
+        >
+          Create Room
+        </button>
+
+        <div className="room-options">
+          <label className="room-option-label">
+            <input
+              type="checkbox"
+              checked={rotateable}
+              onChange={(e) => setRotateable(e.target.checked)}
+            />
+            <span>Rotateable Figures</span>
+          </label>
+
+          <label className="room-option-label">
+            <input
+              type="checkbox"
+              checked={isPrivate}
+              onChange={(e) => setIsPrivate(e.target.checked)}
+            />
+            <span>Private Room</span>
+          </label>
+        </div>
+      </div>
 
       <div className="lobby-rooms-grid">
         {rooms.length === 0 ? (

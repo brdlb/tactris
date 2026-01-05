@@ -92,8 +92,8 @@ class SocketManager {
         });
     }
 
-    createRoom(color, rotateable = false) {
-        this.socket.emit('create_room', { color, rotateable });
+    createRoom(color, rotateable = false, isPrivate = false) {
+        this.socket.emit('create_room', { color, rotateable, isPrivate });
     }
 
     joinRoom(roomId, color) {

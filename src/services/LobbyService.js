@@ -38,7 +38,9 @@ class LobbyService {
    * @param {Map} games - Map of all active games
    */
   static broadcastRoomsList(io, games) {
-    const roomList = Array.from(games.values()).map(g => ({ id: g.id }));
+    const roomList = Array.from(games.values())
+      .filter(g => !g.isPrivate)  // Filter out private rooms
+      .map(g => ({ id: g.id }));
     io.emit('rooms_list', roomList);
   }
 
@@ -48,7 +50,9 @@ class LobbyService {
    * @param {Map} games - Map of all active games
    */
   static sendRoomsList(socket, games) {
-    const roomList = Array.from(games.values()).map(g => ({ id: g.id }));
+    const roomList = Array.from(games.values())
+      .filter(g => !g.isPrivate)  // Filter out private rooms
+      .map(g => ({ id: g.id }));
     socket.emit('rooms_list', roomList);
   }
 }

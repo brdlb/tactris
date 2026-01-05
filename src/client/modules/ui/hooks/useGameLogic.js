@@ -140,7 +140,7 @@ const useGameLogic = (boardRefOverride = null) => {
         return () => window.removeEventListener('popstate', handlePopstate);
     }, [roomIdRef, setRoomId, personalColor]);
 
-    const handleCreateRoom = (rotateable = false) => SocketManager.createRoom(personalColor, rotateable);
+    const handleCreateRoom = (rotateable = false, isPrivate = false) => SocketManager.createRoom(personalColor, rotateable, isPrivate);
     const handleJoinRoom = (id) => SocketManager.joinRoom(id, personalColor);
     const handleRestart = () => roomIdRef.current && SocketManager.restartGame(roomIdRef.current);
     const handleLeaveRoom = () => {
