@@ -374,11 +374,11 @@
     align-items: center;
     gap: 15px;
     margin-bottom: 30px;
-    background: var(--bg-secondary);
+    background: transparent;
     padding: 20px;
-    border-radius: 12px;
-    border: 1px solid var(--border-color);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
 }
 
 .create-room-controls .create-room-btn {
@@ -413,6 +413,57 @@
     height: 18px;
     cursor: pointer;
     accent-color: var(--player-color, #4CAF50);
+}
+
+/* Help button */
+.help-btn {
+    position: fixed;
+    top: 20px;
+    right: 80px;
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.help-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.help-btn svg {
+    transition: transform 0.3s ease;
+}
+
+/* Help Content */
+.help-content {
+    color: var(--text-primary);
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+.help-content h3 {
+    margin-top: 20px;
+    margin-bottom: 10px;
+    font-size: 20px;
+}
+
+.help-content ul {
+    padding-left: 20px;
+    margin-bottom: 15px;
+}
+
+.help-content li {
+    margin-bottom: 5px;
 }
 
 /* Settings button */

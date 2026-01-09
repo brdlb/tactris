@@ -4,6 +4,7 @@ import SocketManager from '../../network/SocketManager';
 import SettingsModal from './SettingsModal';
 import StatsModal from './StatsModal';
 import LeaderboardModal from './LeaderboardModal';
+import HelpModal from './HelpModal';
 import RoomControls from './RoomControls';
 import FiguresPanel from './FiguresPanel';
 import GameGrid from './GameGrid';
@@ -17,6 +18,7 @@ const GameBoard = () => {
     const [showSettings, setShowSettings] = useState(false);
     const [showStats, setShowStats] = useState(false);
     const [showLeaderboard, setShowLeaderboard] = useState(false);
+    const [showHelp, setShowHelp] = useState(false);
 
     const boardRef = useRef(null);
 
@@ -96,6 +98,15 @@ const GameBoard = () => {
                 </svg>
             </button>
 
+            {/* Help button */}
+            <button className="help-btn" onClick={() => setShowHelp(true)} aria-label="Help">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+            </button>
+
             {/* Settings button */}
             <button className="settings-btn" onClick={toggleSettings} aria-label="Settings">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -104,6 +115,11 @@ const GameBoard = () => {
                     <line x1="3" y1="18" x2="21" y2="18"></line>
                 </svg>
             </button>
+
+            <HelpModal
+                isOpen={showHelp}
+                onClose={() => setShowHelp(false)}
+            />
 
             <SettingsModal
                 isOpen={showSettings}

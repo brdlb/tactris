@@ -23,7 +23,7 @@ const RoomControls = ({ rooms, roomStates, onCreateRoom, onJoinRoom, skin = 'cla
               checked={rotateable}
               onChange={(e) => setRotateable(e.target.checked)}
             />
-            <span>Rotateable Figures</span>
+            <span>rotatable</span>
           </label>
 
           <label className="room-option-label">
@@ -32,7 +32,7 @@ const RoomControls = ({ rooms, roomStates, onCreateRoom, onJoinRoom, skin = 'cla
               checked={isPrivate}
               onChange={(e) => setIsPrivate(e.target.checked)}
             />
-            <span>Private Room</span>
+            <span>private</span>
           </label>
         </div>
       </div>
