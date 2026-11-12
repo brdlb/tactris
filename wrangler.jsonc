@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tactris",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-08-21",
+  "assets": { "directory": "./dist", "not_found_handling": "single-page-application", "run_worker_first": ["/api/*", "/auth/*", "/ws/*"] },
+  "d1_databases": [{ "binding": "DB", "database_name": "tactris", "database_id": "f6bf4e94-b2d2-4623-a5b4-1e960d8142d5", "migrations_dir": "d1/migrations" }],
+  "durable_objects": { "bindings": [{ "name": "LOBBY", "class_name": "LobbyDurableObject" }, { "name": "ROOMS", "class_name": "RoomDurableObject" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["LobbyDurableObject", "RoomDurableObject"] }],
+  "routes": [{ "pattern": "tactris.brdlb.com", "custom_domain": true }],
+  "observability": { "enabled": true }
+}

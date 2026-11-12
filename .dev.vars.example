@@ -1,0 +1,3 @@
+# Local-only Cloudflare values. Keep the real .dev.vars uncommitted.
+# D1 and Durable Object bindings are configured by Wrangler; no secrets are needed
+# for anonymous-only development.

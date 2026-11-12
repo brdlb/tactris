@@ -1,3 +1,5 @@
+// Universal module format: works with both CommonJS (server) and ES modules (client via Vite)
+
 const FIGURES = {
     I: [[0, 0], [1, 0], [2, 0], [3, 0]],
     O: [[0, 0], [1, 0], [0, 1], [1, 1]],
@@ -7,6 +9,55 @@ const FIGURES = {
     J: [[1, 0], [1, 1], [1, 2], [0, 2]],
     L: [[0, 0], [0, 1], [0, 2], [1, 2]]
 };
+
+const FIGURE_ROTATIONS = {
+    I: 2, O: 1, T: 4, S: 2, Z: 2, J: 4, L: 4
+};
+
+// Rotate figure 90 degrees clockwise once
+function rotateFigure(cells) {
+    // (x, y) → (y, -x) then normalize
+    const rotated = cells.map(([x, y]) => [y, -x]);
+    return normalizeFigure(rotated);
+}
+
+// Shift cells to upper-left corner (min x=0, min y=0)
+function normalizeFigure(cells) {
+    const minX = Math.min(...cells.map(c => c[0]));
+    const minY = Math.min(...cells.map(c => c[1]));
+    return cells.map(([x, y]) => [x - minX, y - minY]);
+}
+
+// Generate new figure excluding certain types
+function generateNewFigure(excludeTypes = []) {
+    // 1. Filter available types (not in excludeTypes)
+    const availableTypes = Object.keys(FIGURE_ROTATIONS).filter(type => !excludeTypes.includes(type));
+    if (availableTypes.length === 0) {
+        // If all types are excluded, fallback to any random type
+        availableTypes.push(...Object.keys(FIGURE_ROTATIONS));
+    }
+
+    // 2. Pick random type
+    const randomType = availableTypes[Math.floor(Math.random() * availableTypes.length)];
+
+    // 3. Get rotation count for that type
+    const rotationCount = FIGURE_ROTATIONS[randomType];
+
+    // 4. Pick random rotation (0 to count-1)
+    const randomRotation = Math.floor(Math.random() * rotationCount);
+
+    // 5. Apply rotations
+    let cells = FIGURES[randomType].map(cell => [...cell]);
+    for (let i = 0; i < randomRotation; i++) {
+        cells = rotateFigure(cells);
+    }
+
+    // 6. Normalize to upper-left
+    cells = normalizeFigure(cells);
+
+    // 7. Return {type, cells}
+    return { type: randomType, cells };
+}
 
 // Rotate figure 90 degrees clockwise: (x, y) -> (-y, x), then normalize
 const rotateShape = (shape) => {
@@ -64,11 +115,29 @@ const checkMatch = (pixels, figures, rotateable = false) => {
     return -1;
 };
 
-module.exports = {
+// CommonJS export for server and Vite alias resolution
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        checkMatch,
+        normalizePixels,
+        rotateShape,
+        matchFigure,
+        FIGURES,
+        FIGURE_ROTATIONS,
+        rotateFigure,
+        normalizeFigure,
+        generateNewFigure
+    };
+}
+
+export {
     checkMatch,
     normalizePixels,
     rotateShape,
     matchFigure,
-    FIGURES
+    FIGURES,
+    FIGURE_ROTATIONS,
+    rotateFigure,
+    normalizeFigure,
+    generateNewFigure
 };
-
