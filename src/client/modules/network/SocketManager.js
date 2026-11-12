@@ -5,6 +5,7 @@ class SocketManager {
     constructor() {
         this.socket = null; this.ws = null; this.listeners = new Map(); this.endpoint = null;
         this.backoff = 500; this.retryTimer = null; this.closedByUs = false;
+        this.connectionAttempt = 0;
         this.clientId = sessionStorage.getItem('tactrisClientId') || crypto.randomUUID();
         sessionStorage.setItem('tactrisClientId', this.clientId);
     }
@@ -30,22 +31,33 @@ class SocketManager {
         const data = await response.json(); localStorage.setItem('userId', data.user_id);
     }
     async connectTo(endpoint) {
+        const attempt = ++this.connectionAttempt;
+        clearTimeout(this.retryTimer);
+        this.retryTimer = null;
+        const previous = this.ws;
+        this.ws = null;
+        previous?.close();
         this.endpoint = endpoint; this.closedByUs = false;
         try {
             await this.ensureSession();
+            if (attempt !== this.connectionAttempt) return;
             const scheme = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const ws = new WebSocket(`${scheme}//${window.location.host}${endpoint}?client_id=${encodeURIComponent(this.clientId)}`);
             this.ws = ws;
-            ws.onopen = () => { this.backoff = 500; this.dispatch('connect'); if (endpoint.startsWith('/ws/rooms/')) this.send('join_room', { roomId: endpoint.split('/').pop(), color: getUserColor() }); };
+            ws.onopen = () => { this.backoff = 500; this.dispatch('connect'); if (endpoint.startsWith('/ws/rooms/')) this.send('join_room', { roomId: endpoint.split('/').pop(), color: getUserColor() }); else this.getRooms(); };
             ws.onmessage = ({ data }) => this.handleMessage(data);
             ws.onerror = () => this.dispatch('connect_error', new Error('WebSocket connection failed'));
             ws.onclose = () => { if (this.ws !== ws) return; this.dispatch('disconnect', 'closed'); if (!this.closedByUs) this.scheduleReconnect(); };
-        } catch (error) { this.dispatch('connect_error', error); this.scheduleReconnect(); }
+        } catch (error) {
+            if (attempt !== this.connectionAttempt) return;
+            this.dispatch('connect_error', error);
+            this.scheduleReconnect();
+        }
     }
     handleMessage(data) {
         try {
             const { type, payload } = JSON.parse(data);
-            if (type === 'room_created' && payload?.roomId) { localStorage.setItem('currentRoomId', payload.roomId); this.dispatch(type, payload); this.switchToRoom(payload.roomId); return; }
+            if (type === 'room_created' && payload?.roomId) { localStorage.setItem('currentRoomId', payload.roomId); this.switchToRoom(payload.roomId); return; }
             this.dispatch(type === 'error' ? 'error' : type, type === 'error' ? (payload?.message || payload) : payload);
         } catch { this.dispatch('error', 'Invalid server message'); }
     }

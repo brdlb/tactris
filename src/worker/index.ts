@@ -108,9 +108,24 @@ export class LobbyDurableObject {
   constructor(readonly ctx: DurableObjectState, readonly env: Env) {}
   async fetch(request: Request) {
     const url = new URL(request.url);
-    if (url.pathname === '/room-update' && request.method === 'POST') { const update = await request.json<any>(); const rooms = await this.rooms(); if (update.deleted) delete rooms[update.roomId]; else rooms[update.roomId] = update; await this.ctx.storage.put('rooms', rooms); this.broadcast('rooms_list', Object.values(rooms).filter((r: any) => !r.isPrivate)); this.broadcast('lobby_game_update', update); return new Response(); }
+    if (url.pathname === '/room-update' && request.method === 'POST') {
+      const { preview, ...update } = await request.json<any>();
+      const rooms = await this.rooms();
+      const previewKey = `preview:${update.roomId}`;
+      if (update.deleted) delete rooms[update.roomId];
+      else rooms[update.roomId] = update;
+      if (update.deleted || update.isPrivate || !preview) {
+        await Promise.all([this.ctx.storage.delete(previewKey), this.ctx.storage.put('rooms', rooms)]);
+      } else {
+        await this.ctx.storage.put({ rooms, [previewKey]: preview });
+      }
+      this.broadcast('rooms_list', Object.values(rooms).filter(room => !room.isPrivate));
+      if (!update.deleted && !update.isPrivate && preview) this.broadcast('lobby_game_update', preview);
+      return new Response();
+    }
     if (request.headers.get('Upgrade') !== 'websocket') return new Response('Expected websocket', { status: 426 });
-    const pair = new WebSocketPair(), client = pair[0], server = pair[1]; this.ctx.acceptWebSocket(server); server.serializeAttachment({ userId: request.headers.get('x-user-id'), clientId: request.headers.get('x-client-id') }); server.send(frame('initial_lobby_state', Object.values(await this.rooms()).filter((r: any) => !r.isPrivate))); return wsResponse(client);
+    const previews = await this.ctx.storage.list({ prefix: 'preview:' });
+    const pair = new WebSocketPair(), client = pair[0], server = pair[1]; this.ctx.acceptWebSocket(server); server.serializeAttachment({ userId: request.headers.get('x-user-id'), clientId: request.headers.get('x-client-id') }); server.send(frame('initial_lobby_state', Array.from(previews.values()))); return wsResponse(client);
   }
   async webSocketMessage(ws: WebSocket, message: string) { try { const event = JSON.parse(message); if (event.type === 'get_rooms') ws.send(frame('rooms_list', Object.values(await this.rooms()).filter((r: any) => !r.isPrivate))); else if (event.type === 'create_room') { const roomId = crypto.randomUUID().slice(0, 8), id = this.env.ROOMS.idFromName(roomId), payload = { ...event.payload, roomId }; await this.env.ROOMS.get(id).fetch('https://room/internal/init', { method: 'POST', body: JSON.stringify(payload) }); ws.send(frame('room_created', { roomId })); } else ws.send(frame('error', { code: 'invalid_event', message: 'Unsupported lobby event' })); } catch { ws.send(frame('error', { code: 'bad_payload', message: 'Invalid JSON frame' })); } }
   async rooms() { return (await this.ctx.storage.get<Record<string, any>>('rooms')) || {}; }
@@ -155,7 +170,18 @@ export class RoomDurableObject {
   async save(game: any) { await this.ctx.storage.put('game', packGame(game)); await this.schedule(game); }
   broadcast(type: string, payload: unknown, except?: WebSocket) { for (const ws of this.ctx.getWebSockets()) if (ws !== except) ws.send(frame(type, payload)); }
   error(ws: WebSocket, code: string, message: string) { ws.send(frame('error', { code, message })); }
-  async notifyLobby(game: any, deleted = false) { await this.env.LOBBY.get(this.env.LOBBY.idFromName('singleton')).fetch('https://lobby/room-update', { method: 'POST', body: JSON.stringify({ ...roomSummary(game), deleted }) }); }
+  async notifyLobby(game: any, deleted = false) {
+    const summary = roomSummary(game);
+    const preview = deleted || summary.isPrivate ? undefined : {
+      roomId: summary.roomId,
+      grid: game.grid,
+      players: Array.from(game.players.values(), (player: any) => ({ color: player.color }))
+    };
+    await this.env.LOBBY.get(this.env.LOBBY.idFromName('singleton')).fetch('https://lobby/room-update', {
+      method: 'POST',
+      body: JSON.stringify({ ...summary, deleted, preview })
+    });
+  }
   async schedule(game: any) {
     const now = Date.now(), reconnects = Object.values(game.recentDisconnects || {}).map((x: any) => x.timestamp + RESTORE_TTL);
     // A reconnect snapshot promises ten minutes of recovery, so an otherwise

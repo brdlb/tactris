@@ -34,20 +34,6 @@ const useBoardInteraction = ({
         userColorRef.current = personalColor;
     }, [personalColor]);
 
-    const removeFirstPixel = useCallback(() => {
-        if (selectedPixels.current.length === 0) return;
-
-        const removedPixel = selectedPixels.current.shift();
-        let newGrid = [...gridRef.current];
-        if (newGrid[removedPixel.y]) {
-            newGrid[removedPixel.y] = [...newGrid[removedPixel.y]];
-            newGrid[removedPixel.y][removedPixel.x] = null;
-        }
-
-        gridRef.current = newGrid;
-        setGrid(newGrid);
-    }, [gridRef, setGrid]);
-
     const clearAllSelectedPixels = useCallback(() => {
         if (selectedPixels.current.length === 0) return;
 
@@ -96,7 +82,11 @@ const useBoardInteraction = ({
         if (selectedPixels.current.length >= MIN_PIXELS_FOR_FIGURE) {
             const matchedFigureIndex = checkMatch(selectedPixels.current, myFigures, roomRotateableRef.current);
             if (matchedFigureIndex === -1) {
-                removeFirstPixel();
+                const removedPixel = selectedPixels.current.shift();
+                if (removedPixel.y !== y) {
+                    newGrid[removedPixel.y] = [...newGrid[removedPixel.y]];
+                }
+                newGrid[removedPixel.y][removedPixel.x] = null;
             }
         }
 
@@ -106,7 +96,7 @@ const useBoardInteraction = ({
         if (selectedPixels.current.length > 0 && !isTutorialActive && roomIdRef.current) {
             SocketManager.updateDrawing(roomIdRef.current, selectedPixels.current);
         }
-    }, [roomIdRef, isTutorialActive, gameOver, currentStep, gridRef, myFigures, roomRotateableRef, removeFirstPixel, setGrid]);
+    }, [roomIdRef, isTutorialActive, gameOver, currentStep, gridRef, myFigures, roomRotateableRef, setGrid]);
 
     const finalizeDrawing = useCallback(() => {
         if (selectedPixels.current.length >= MIN_PIXELS_FOR_FIGURE && (roomIdRef.current || isTutorialActive) && !gameOver) {

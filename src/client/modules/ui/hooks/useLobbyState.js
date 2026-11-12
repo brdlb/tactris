@@ -10,16 +10,22 @@ const useLobbyState = () => {
         if (!socket) return;
 
         const onRoomsList = (roomList) => {
-            setRooms(roomList);
+            const nextRooms = roomList.map(room => ({ ...room, id: room.id ?? room.roomId }));
+            const roomIds = new Set(nextRooms.map(room => room.id));
+            setRooms(nextRooms);
+            setRoomStates(prev => Object.fromEntries(
+                Object.entries(prev).filter(([id]) => roomIds.has(id))
+            ));
         };
 
         const onLobbyGameUpdate = (data) => {
+            if (!Array.isArray(data.players)) return;
             setRoomStates(prev => ({ ...prev, [data.roomId]: data }));
         };
 
         const onInitialLobbyState = (states) => {
             const stateMap = {};
-            states.forEach(state => {
+            states.filter(state => Array.isArray(state.players)).forEach(state => {
                 stateMap[state.roomId] = state;
             });
             setRoomStates(stateMap);
@@ -28,9 +34,6 @@ const useLobbyState = () => {
         socket.on('rooms_list', onRoomsList);
         socket.on('lobby_game_update', onLobbyGameUpdate);
         socket.on('initial_lobby_state', onInitialLobbyState);
-
-        // Request initial list
-        SocketManager.getRooms();
 
         return () => {
             socket.off('rooms_list', onRoomsList);
