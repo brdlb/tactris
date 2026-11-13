@@ -1,16 +1,30 @@
 import { ClassicRenderer } from './ClassicRenderer';
 
-const BLINK_INTERVAL = 85;
+const BLINK_INTERVAL = 42.5;
 const BLINK_DURATION = BLINK_INTERVAL * 3;
+const DRAWING_BLINK_DURATION = BLINK_INTERVAL * 4;
 const cellKey = (x, y) => `${x},${y}`;
 
 export class LcdRenderer extends ClassicRenderer {
-    setSegments(grid) {
+    fadingDrawings = new Map();
+
+    setSegments(grid, blinkDrawings = false) {
         this.segmentsChanged = true;
+        if (blinkDrawings) {
+            for (const [key, segment] of this.animations) {
+                if (segment.state === 'drawing' && !grid[segment.y]?.[segment.x]) {
+                    this.fadingDrawings.set(key, { ...segment, startedAt: null });
+                }
+            }
+        } else {
+            this.fadingDrawings.clear();
+        }
         this.animations.clear();
         grid.forEach((row, y) => row.forEach((cell, x) => {
             if (cell) {
-                this.animations.set(cellKey(x, y), { ...cell, x, y, progress: 1 });
+                const key = cellKey(x, y);
+                this.fadingDrawings.delete(key);
+                this.animations.set(key, { ...cell, x, y, progress: 1 });
             }
         }));
     }
@@ -25,13 +39,24 @@ export class LcdRenderer extends ClassicRenderer {
         }
 
         if (!clearingDetails) this.blink = null;
-        if (!this.blink) this.setSegments(grid);
+        if (!this.blink) this.setSegments(grid, true);
     }
 
     animate(_clearingDetails, now = performance.now()) {
         const segmentsChanged = this.segmentsChanged;
         this.segmentsChanged = false;
-        if (!this.blink) return { needsUpdate: segmentsChanged, isStable: true };
+        if (!this.blink) {
+            let needsUpdate = segmentsChanged;
+            for (const [key, segment] of this.fadingDrawings) {
+                segment.startedAt ??= now;
+                const elapsed = now - segment.startedAt;
+                const progress = Math.floor(elapsed / BLINK_INTERVAL) % 2;
+                needsUpdate ||= progress !== segment.progress || elapsed >= DRAWING_BLINK_DURATION;
+                segment.progress = progress;
+                if (elapsed >= DRAWING_BLINK_DURATION) this.fadingDrawings.delete(key);
+            }
+            return { needsUpdate, isStable: true };
+        }
 
         this.blink.startedAt ??= now;
         const elapsed = now - this.blink.startedAt;
@@ -55,6 +80,15 @@ export class LcdRenderer extends ClassicRenderer {
 
     updateStyles() {
         this.styles.occupiedColor = '#29342d';
+    }
+
+    render(ctx, grid, dimensions, tutorialHintPixels) {
+        for (const [key, segment] of this.fadingDrawings) this.animations.set(key, segment);
+        try {
+            super.render(ctx, grid, dimensions, tutorialHintPixels);
+        } finally {
+            for (const key of this.fadingDrawings.keys()) this.animations.delete(key);
+        }
     }
 
     drawGrid(ctx, width, height, rows, cols) {

@@ -3,6 +3,8 @@ import { NeonRenderer } from './NeonRenderer';
 import { RetroRenderer } from './RetroRenderer';
 import { GlassRenderer } from './GlassRenderer';
 import { LcdRenderer } from './LcdRenderer';
+import { AuroraRenderer } from './AuroraRenderer';
+import { SapphireRenderer } from './SapphireRenderer';
 
 const rendererClasses = {
     classic: ClassicRenderer,
@@ -10,6 +12,8 @@ const rendererClasses = {
     retro: RetroRenderer,
     glass: GlassRenderer,
     lcd: LcdRenderer,
+    aurora: AuroraRenderer,
+    sapphire: SapphireRenderer,
 };
 
 export const getRenderer = (skinName = 'classic') => {

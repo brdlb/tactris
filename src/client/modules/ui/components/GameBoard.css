@@ -1204,3 +1204,25 @@
     background: linear-gradient(#29342d, #29342d) center / 55% 55% no-repeat;
     box-shadow: none;
 }
+
+.preview-aurora {
+    background: linear-gradient(135deg, #437d83, #172e58 55%, #263d5e);
+}
+
+.preview-aurora .skin-preview-block {
+    background: linear-gradient(#7bddff, #2186e4);
+    border: 1px solid #f7ffff;
+    border-radius: 0;
+    box-shadow: 0 0 8px #47caff;
+}
+
+.preview-sapphire {
+    background: repeating-conic-gradient(#132057 0% 25%, #101c50 0% 50%) 0 0 / 16px 16px;
+    box-shadow: inset 0 0 0 2px #384fcd;
+}
+
+.preview-sapphire .skin-preview-block {
+    background: radial-gradient(circle at 45% 40%, #fff79a, #ffd624 55%, #bd7205);
+    border: 1px solid #080e2d;
+    border-radius: 3px;
+}
