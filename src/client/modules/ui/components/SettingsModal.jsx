@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getUserHue, setUserHue } from '../../../utils/colorUtils';
+import { availableSkins } from '../renderers';
 import './GameBoard.css'; // Reusing existing styles for now
 
 const SettingsModal = ({ isOpen, onClose, theme, onToggleTheme, onHueChange, onShowStats, skin, onSkinChange }) => {
@@ -48,7 +49,7 @@ const SettingsModal = ({ isOpen, onClose, theme, onToggleTheme, onHueChange, onS
                     <div className="setting-item" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '12px' }}>
                         <span>Skin</span>
                         <div className="skin-gallery">
-                            {['classic', 'neon', 'retro', 'glass'].map(skinKey => (
+                            {availableSkins.map(skinKey => (
                                 <div
                                     key={skinKey}
                                     className={`skin-option ${skin === skinKey ? 'active' : ''}`}
@@ -57,7 +58,7 @@ const SettingsModal = ({ isOpen, onClose, theme, onToggleTheme, onHueChange, onS
                                     <div className={`skin-preview preview-${skinKey}`}>
                                         <div className="skin-preview-block" />
                                     </div>
-                                    <span className="skin-name">{skinKey}</span>
+                                    <span className="skin-name">{skinKey === 'lcd' ? 'LCD' : skinKey}</span>
                                 </div>
                             ))}
                         </div>

@@ -1,6 +1,75 @@
 import { ClassicRenderer } from './ClassicRenderer';
 
+const CLEAR_DURATION = 180;
+const SHIFT_DURATION = 240;
+const cellKey = (x, y) => `${x},${y}`;
+
 export class GlassRenderer extends ClassicRenderer {
+    updateAnimationState(grid, clearingDetails) {
+        this.latestGrid = grid;
+        if (!clearingDetails?.beforeGrid) {
+            this.clearAnimation = null;
+            super.updateAnimationState(grid, clearingDetails);
+            return;
+        }
+        if (clearingDetails === this.lastClear) {
+            if (!this.clearAnimation) super.updateAnimationState(grid, null);
+            return;
+        }
+
+        this.lastClear = clearingDetails;
+        const removed = new Set(clearingDetails.clearedBlocks.map(({ x, y }) => cellKey(x, y)));
+        const moves = new Map(clearingDetails.movingBlocks.map(move => [
+            cellKey(move.fromX, move.fromY), move
+        ]));
+        this.animations = new Map();
+        clearingDetails.beforeGrid.forEach((row, y) => row.forEach((cell, x) => {
+            if (!cell) return;
+            const key = cellKey(x, y);
+            const move = moves.get(key);
+            this.animations.set(key, {
+                ...cell,
+                x, y,
+                fromX: x, fromY: y,
+                tx: move?.toX ?? x,
+                ty: move?.toY ?? y,
+                progress: 1,
+                target: removed.has(key) ? 0 : 1
+            });
+        }));
+        this.clearAnimation = { startedAt: null, hasMoves: moves.size > 0 };
+    }
+
+    animate(clearingDetails, now = performance.now()) {
+        if (!this.clearAnimation) return super.animate(clearingDetails);
+
+        const animation = this.clearAnimation;
+        animation.startedAt ??= now;
+        const elapsed = now - animation.startedAt;
+        const clearProgress = Math.min(elapsed / CLEAR_DURATION, 1);
+        const shiftProgress = Math.max(0, Math.min((elapsed - CLEAR_DURATION) / SHIFT_DURATION, 1));
+        const easedShift = shiftProgress ** 2 * (3 - 2 * shiftProgress);
+        this.animations.forEach((block, key) => {
+            if (block.target === 0) {
+                block.progress = 1 - clearProgress;
+                if (clearProgress === 1) this.animations.delete(key);
+                return;
+            }
+            block.x = block.fromX + (block.tx - block.fromX) * easedShift;
+            block.y = block.fromY + (block.ty - block.fromY) * easedShift;
+        });
+
+        const isStable = clearProgress === 1 && (!animation.hasMoves || shiftProgress === 1);
+        if (isStable) {
+            this.animations = new Map(Array.from(this.animations.values(), block => [
+                cellKey(block.tx, block.ty), block
+            ]));
+            this.clearAnimation = null;
+            super.updateAnimationState(this.latestGrid, null);
+        }
+        return { needsUpdate: true, isStable };
+    }
+
     drawGrid(ctx, width, height, rows, cols) {
         const cellW = width / cols;
         const cellH = height / rows;
@@ -32,8 +101,8 @@ export class GlassRenderer extends ClassicRenderer {
     drawBlock(ctx, anim, cellW, cellH) {
         if (anim.progress <= 0 && anim.target === 0) return;
 
-        const px = Math.floor(anim.x * cellW);
-        const py = Math.floor(anim.y * cellH);
+        const px = anim.x * cellW;
+        const py = anim.y * cellH;
         const pw = Math.floor(cellW) - 4;
         const ph = Math.floor(cellH) - 4;
 
@@ -55,6 +124,7 @@ export class GlassRenderer extends ClassicRenderer {
         // Glass effect
         const opacity = anim.state === 'drawing' ? 0.8 : anim.progress * 0.6;
 
+        ctx.globalAlpha = anim.target === 0 ? anim.progress : 1;
         ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
         ctx.shadowBlur = 15;
         ctx.shadowColor = color;

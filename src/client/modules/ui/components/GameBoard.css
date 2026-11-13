@@ -100,8 +100,9 @@
 }
 
 .game-board {
-    width: 80vmin;
-    height: 80vmin;
+    width: min(80vmin, 1000px);
+    height: min(80vmin, 1000px);
+    box-sizing: border-box;
     background-color: var(--grid-bg);
     border: 1px solid var(--border-dark);
     transition: background-color 0.3s ease, border-color 0.3s ease;
@@ -783,7 +784,6 @@
     .game-board {
         width: 100vmin;
         height: 100vmin;
-        box-sizing: border-box;
     }
 }
 
@@ -1192,4 +1192,15 @@
     .skin-gallery {
         grid-template-columns: 1fr;
     }
+}
+
+.preview-lcd {
+    background: linear-gradient(135deg, #a2ad93, #aeb69a 55%, #969f85);
+}
+
+.preview-lcd .skin-preview-block {
+    border: 2px solid #29342d;
+    border-radius: 0;
+    background: linear-gradient(#29342d, #29342d) center / 55% 55% no-repeat;
+    box-shadow: none;
 }
