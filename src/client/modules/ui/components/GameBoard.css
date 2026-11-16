@@ -1226,3 +1226,20 @@
     border: 1px solid #080e2d;
     border-radius: 3px;
 }
+.room-join-notice {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 1100;
+    max-width: calc(100% - 2rem);
+    pointer-events: none;
+}
+
+.room-join-notice span {
+    display: block;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    background: #242424;
+    color: #fff;
+    box-shadow: 0 2px 12px #0004;
+}

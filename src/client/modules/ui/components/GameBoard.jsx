@@ -19,6 +19,27 @@ const GameBoard = () => {
     const [showStats, setShowStats] = useState(false);
     const [showLeaderboard, setShowLeaderboard] = useState(false);
     const [showHelp, setShowHelp] = useState(false);
+    const [showRoomNotice, setShowRoomNotice] = useState(false);
+
+    useEffect(() => {
+        let timeout;
+        const hideNotice = () => {
+            clearTimeout(timeout);
+            setShowRoomNotice(false);
+        };
+        const showNotice = () => {
+            clearTimeout(timeout);
+            setShowRoomNotice(true);
+            timeout = setTimeout(hideNotice, 8000);
+        };
+        SocketManager.on('already_connected', showNotice);
+        SocketManager.on('room_joined', hideNotice);
+        return () => {
+            clearTimeout(timeout);
+            SocketManager.off('already_connected', showNotice);
+            SocketManager.off('room_joined', hideNotice);
+        };
+    }, []);
 
     const boardRef = useRef(null);
 
@@ -86,6 +107,9 @@ const GameBoard = () => {
 
     return (
         <div className="game-container">
+            <div className="room-join-notice" role="status">
+                {showRoomNotice && <span>You’re already in this room. Check your tabs.</span>}
+            </div>
             {/* Leaderboard button */}
             <button className="leaderboard-btn" onClick={() => setShowLeaderboard(true)} aria-label="Leaderboard">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

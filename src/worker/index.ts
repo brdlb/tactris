@@ -144,24 +144,23 @@ export class RoomDurableObject {
     try { const event = JSON.parse(message), attachment = ws.deserializeAttachment(), game = await this.game(); if (!game) return this.error(ws, 'not_found', 'Room not found'); const payload = event.payload || {}, id = attachment.clientId;
       if (event.type === 'join_room') { const existing = game.getPlayerByUserId(attachment.userId); const snapshot = game.recentDisconnects?.[attachment.userId]; if (existing && existing.id !== id) return this.error(ws, 'already_connected', 'User already connected to this room'); game.addPlayer(id, payload.color, attachment.userId, snapshot?.snapshot); game.players.get(id).userId = attachment.userId; delete game.recentDisconnects?.[attachment.userId]; await this.save(game); ws.send(frame('room_joined', { roomId: game.id, state: game.getState(), playersList: game.getPlayersList(), restored: !!snapshot })); this.broadcast('player_joined', { playerId: id, player: game.players.get(id) }, ws); await this.notifyLobby(game); return; }
       if (!game.players.has(id)) return this.error(ws, 'not_joined', 'Join the room first');
-      let success = false, update: any = game.getState();
+      let success = false, clearingDetails;
       if (event.type === 'update_drawing') success = Array.isArray(payload.pixels) && game.updateDrawing(id, payload.pixels);
-      else if (event.type === 'place_figure') { const result = Array.isArray(payload.pixels) && game.placeFigure(id, payload.pixels); success = !!result?.success; update = result?.clearingResult ? { ...game.getState(), clearingDetails: result.clearingResult } : game.getState(); }
+      else if (event.type === 'place_figure') { const result = Array.isArray(payload.pixels) && game.placeFigure(id, payload.pixels); success = !!result?.success; clearingDetails = result?.clearingResult; }
       else if (event.type === 'update_player_color') success = typeof payload.color === 'string' && game.updatePlayerColor(id, payload.color);
-      else if (event.type === 'restart_game') { game.restart(); game.round++; success = true; this.broadcast('game_restarted', {}); }
+      else if (event.type === 'restart_game') { game.restart(); game.round++; success = true; }
       else if (event.type === 'leave_room') { await this.leave(game, id, attachment.userId); return; }
       else return this.error(ws, 'invalid_event', 'Unsupported room event');
       if (!success) return this.error(ws, 'invalid_move', 'Invalid move');
-      game.lastActivity = Date.now(); await this.save(game); this.broadcast('game_update', update); if (event.type === 'update_player_color' || event.type === 'restart_game') this.broadcast('players_list_updated', { playersList: game.getPlayersList() }); await this.notifyLobby(game);
-      if (event.type === 'place_figure' && game.checkGameOver()) {
-        // `checkGameOver` mutates state; persist it before notifying clients so a
-        // hibernated DO cannot accept extra moves after reactivation.
-        game.lastActivity = Date.now();
-        await this.save(game);
-        await this.persistResults(game);
-        this.broadcast('game_over', {});
-        await this.notifyLobby(game);
-      }
+      const ended = event.type === 'place_figure' && game.checkGameOver();
+      game.lastActivity = Date.now();
+      await this.save(game);
+      const state = game.getState();
+      this.broadcast('game_update', clearingDetails ? { ...state, clearingDetails } : state);
+      if (event.type === 'restart_game') this.broadcast('game_restarted', {});
+      if (event.type === 'update_player_color' || event.type === 'restart_game') this.broadcast('players_list_updated', { playersList: game.getPlayersList() });
+      if (ended) this.broadcast('game_over', {});
+      await Promise.all([this.notifyLobby(game), ended ? this.persistResults(game) : undefined]);
     } catch { this.error(ws, 'bad_payload', 'Invalid JSON frame'); }
   }
   async webSocketClose(ws: WebSocket) { const a = ws.deserializeAttachment(); const game = await this.game(); if (game?.players.has(a.clientId)) await this.leave(game, a.clientId, a.userId); }

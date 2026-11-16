@@ -58,6 +58,7 @@ class SocketManager {
         try {
             const { type, payload } = JSON.parse(data);
             if (type === 'room_created' && payload?.roomId) { localStorage.setItem('currentRoomId', payload.roomId); this.switchToRoom(payload.roomId); return; }
+            if (type === 'error' && payload?.code === 'already_connected') this.dispatch('already_connected');
             this.dispatch(type === 'error' ? 'error' : type, type === 'error' ? (payload?.message || payload) : payload);
         } catch { this.dispatch('error', 'Invalid server message'); }
     }
