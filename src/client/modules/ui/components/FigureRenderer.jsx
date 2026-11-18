@@ -2,6 +2,7 @@ import React, { useLayoutEffect, useRef, useEffect } from 'react';
 
 const FigureRenderer = ({
   figure,
+  skin,
   color,
   cellSize = 10,
   padding = 1,
@@ -84,10 +85,18 @@ const FigureRenderer = ({
           cell.y = cell.ty;
         }
 
-        const px = cell.x * (cellSize + padding);
-        const py = cell.y * (cellSize + padding);
+        const px = (skin === 'lcd' ? cell.tx : cell.x) * (cellSize + padding);
+        const py = (skin === 'lcd' ? cell.ty : cell.y) * (cellSize + padding);
 
-        ctx.fillRect(px, py, cellSize, cellSize);
+        if (skin === 'lcd') {
+          ctx.strokeStyle = '#d4dce3';
+          ctx.lineWidth = cellSize * 0.13;
+          ctx.strokeRect(px + 1, py + 1, cellSize - 2, cellSize - 2);
+          ctx.fillStyle = '#c5cfd8';
+          ctx.fillRect(px + cellSize * 0.3, py + cellSize * 0.3, cellSize * 0.4, cellSize * 0.4);
+        } else {
+          ctx.fillRect(px, py, cellSize, cellSize);
+        }
       });
 
       ctx.restore();
@@ -101,7 +110,7 @@ const FigureRenderer = ({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [color, cellSize, padding]);
+  }, [color, cellSize, padding, skin]);
 
   if (!figure || !figure.cells) return null;
 

@@ -2,7 +2,7 @@ import React from 'react';
 import { FIGURES } from '../../../constants/figures';
 import FigureRenderer from './FigureRenderer';
 
-const FiguresPanel = ({ score, figures, playerColor }) => {
+const FiguresPanel = ({ score, figures, playerColor, skin }) => {
 
     return (
         <div className="figures-panel">
@@ -10,10 +10,11 @@ const FiguresPanel = ({ score, figures, playerColor }) => {
                 {score}
             </div>
             {figures.length > 0 && (
-                <div style={{ display: 'flex' }}>
+                <div className="upcoming-figures" style={{ display: 'flex' }}>
                     {figures.map((figure, i) => (
                         <div key={i} style={{ marginRight: '10px' }}>
                             <FigureRenderer
+                                skin={skin}
                                 figure={figure}
                                 color={playerColor}
                                 cellSize={10}

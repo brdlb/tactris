@@ -2,7 +2,7 @@ import React from 'react';
 import Panel from './Panel';
 import FigureRenderer from './FigureRenderer';
 
-const PlayerPanels = ({ playersList, currentSocketId }) => {
+const PlayerPanels = ({ playersList, currentSocketId, skin }) => {
     // Filter out current player and take up to 3 other players
     const otherPlayers = playersList
         .filter(player => player.id !== currentSocketId)
@@ -30,6 +30,7 @@ const PlayerPanels = ({ playersList, currentSocketId }) => {
                                     {player.figures.map((figure, i) => (
                                         <div key={i} style={{ marginRight: '5px' }}>
                                             <FigureRenderer 
+                                                skin={skin}
                                                 figure={figure} 
                                                 color={player.color}
                                                 cellSize={8}

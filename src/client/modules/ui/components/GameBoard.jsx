@@ -106,7 +106,7 @@ const GameBoard = () => {
     };
 
     return (
-        <div className="game-container">
+        <div className={`game-container${skin === 'lcd' ? ' lcd-skin' : ''}`}>
             <div className="room-join-notice" role="status">
                 {showRoomNotice && <span>You’re already in this room. Check your tabs.</span>}
             </div>
@@ -213,6 +213,7 @@ const GameBoard = () => {
             {(roomId || isTutorialActive) && (
                 <div className="game-content">
                     <FiguresPanel
+                        skin={skin}
                         score={score}
                         figures={myFigures}
                         playerColor={playersList.find(p => p.id === SocketManager.getSocket()?.id)?.color || personalColor || 'var(--player-color)'}
@@ -220,6 +221,7 @@ const GameBoard = () => {
 
                     <div className="game-board-wrapper">
                         <PlayerPanels
+                            skin={skin}
                             playersList={playersList}
                             currentSocketId={SocketManager.getSocket()?.id}
                         />

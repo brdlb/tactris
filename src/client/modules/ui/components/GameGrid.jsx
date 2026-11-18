@@ -92,7 +92,7 @@ const GameGrid = ({
     }, [updateStyles]);
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <div className={skin === 'lcd' ? 'lcd-screen-bezel' : undefined} style={{ display: 'flex', flexDirection: 'column' }}>
             <canvas
                 ref={boardRef}
                 className="game-board"

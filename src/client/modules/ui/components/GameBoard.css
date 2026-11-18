@@ -1243,3 +1243,107 @@
     color: #fff;
     box-shadow: 0 2px 12px #0004;
 }
+
+/* Molded ABS housing and pale screen-printed legends of the handheld LCD skin. */
+.lcd-skin {
+    background: #17191b;
+    color: #d4dce3;
+}
+
+.lcd-skin .game-content {
+    --lcd-board-size: min(62vmin, 760px);
+    align-items: center;
+    gap: clamp(12px, 3vmin, 32px);
+    padding: clamp(24px, 5vmin, 52px);
+    border: 1px solid #686b6c;
+    border-radius: clamp(28px, 6vmin, 58px);
+    background:
+        radial-gradient(ellipse at 3% 45%, #e1e4e81a, transparent 8%),
+        radial-gradient(ellipse at 90% 4%, #ffffff12, transparent 45%),
+        repeating-linear-gradient(108deg, #ffffff02 0 1px, transparent 1px 4px),
+        linear-gradient(125deg, #3b3d3e, #202225 18%, #17191c 60%, #303235);
+    box-shadow:
+        inset 3px 3px 3px #ecedefa6,
+        inset 8px 8px 10px #95999a70,
+        inset -3px -4px 5px #080a0c,
+        inset -9px -10px 15px #080a0c9c,
+        0 12px 25px #0007;
+}
+
+.lcd-skin .game-board {
+    width: var(--lcd-board-size);
+    height: var(--lcd-board-size);
+    border: 0;
+}
+
+.lcd-screen-bezel {
+    position: relative;
+    padding: clamp(12px, 2.8vmin, 28px);
+    border-radius: 4px;
+    background: linear-gradient(135deg, #777c7d, #191c1f 9%, #0c1013 48%, #45494b 92%, #adb1ae);
+    box-shadow: 0 0 0 2px #25282b, 0 0 0 5px #cad4e0,
+        inset 4px 4px 6px #080b0e, inset -3px -3px 5px #ffffff38;
+}
+
+.lcd-screen-bezel::after {
+    content: '';
+    position: absolute;
+    inset: clamp(12px, 2.8vmin, 28px);
+    pointer-events: none;
+    box-shadow: inset 3px 4px 7px #16221a8c, inset -1px -1px 3px #e7ebbd55;
+    background: linear-gradient(112deg, #ffffff09, transparent 40%, #222b1608);
+}
+
+.lcd-skin .figures-panel {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    color: #d4dce3;
+    background: transparent;
+}
+
+.lcd-skin .upcoming-figures {
+    flex-direction: column;
+    justify-content: space-around;
+    flex: 1;
+    gap: 12px;
+}
+
+.lcd-skin .figures-panel canvas,
+.lcd-skin .panel canvas {
+    filter: drop-shadow(0 1px 0 #fff2);
+    opacity: 0.94;
+}
+
+.lcd-skin .panel {
+    color: #d4dce3;
+    background: #24272a;
+    border-color: #73797d;
+    border-radius: 8px;
+    box-shadow: inset 1px 1px 3px #ffffff20, 0 3px 8px #0005;
+}
+
+.lcd-skin .panel-content {
+    color: inherit;
+}
+
+@media (orientation: portrait) {
+    .lcd-skin .game-content {
+        flex-direction: column;
+    }
+
+    .lcd-skin .figures-panel {
+        flex-direction: row;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .lcd-skin .upcoming-figures {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+}
